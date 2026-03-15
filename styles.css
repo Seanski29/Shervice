@@ -1,0 +1,288 @@
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: #f4f7fb;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ========= SIDEBAR ========= */
+    .sidebar {
+      width: 260px;
+      background: white;
+      box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
+      display: flex;
+      flex-direction: column;
+      padding: 2rem 1rem;
+      border-right: 1px solid #e9edf4;
+    }
+
+    .sidebar-header {
+      font-size: 1.4rem;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: #1e293b;
+      padding: 0 1rem 2rem 1rem;
+      border-bottom: 1px solid #eef2f6;
+      margin-bottom: 2rem;
+    }
+
+    .sidebar-header span {
+      background: #2563eb10;
+      color: #1e4fd9;
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 0.2rem 0.6rem;
+      border-radius: 30px;
+      margin-left: 8px;
+    }
+
+    /* five options list */
+    .nav {
+      list-style: none;
+      flex: 1;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      padding: 0.9rem 1rem;
+      margin: 4px 0;
+      border-radius: 14px;
+      color: #334155;
+      font-weight: 500;
+      font-size: 1rem;
+      transition: background 0.15s, color 0.15s;
+      cursor: default;  /* simple static demo – not interactive links */
+    }
+
+    .nav-item i {
+      width: 24px;
+      font-size: 1.2rem;
+      color: #5b6c85;
+      transition: color 0.15s;
+    }
+
+    /* active / hover simulation (just for looks) */
+    .nav-item:hover {
+      background: #f0f4fe;
+      color: #1e4fd9;
+    }
+
+    .nav-item:hover i {
+      color: #2563eb;
+    }
+
+    .nav-item.active {
+      background: #e8edfb;
+      color: #1e4fd9;
+      font-weight: 600;
+    }
+
+    .nav-item.active i {
+      color: #2563eb;
+    }
+
+    /* subtle footer in sidebar (just for visual balance) */
+    .sidebar-footer {
+      font-size: 0.75rem;
+      color: #9aa9b9;
+      padding: 1.5rem 1rem 0.5rem;
+      border-top: 1px dashed #e2e8f0;
+      margin-top: 1rem;
+    }
+
+    /* ========= MAIN CONTENT ========= */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #f9fcff;
+    }
+
+    /* top soft bar (just to align with clean style) */
+    .main-top-bar {
+      padding: 1.5rem 3rem 0.5rem 3rem;
+      display: flex;
+      justify-content: flex-end;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+
+    /* main container – holds logo block, title, buttons */
+    .content-card {
+      background: white;
+      margin: 2rem 3rem;
+      padding: 2.5rem 3rem;
+      border-radius: 32px;
+      box-shadow: 0 20px 35px -8px rgba(0,34,64,0.08);
+      border: 1px solid #ecf3fa;
+      max-width: 900px;
+      width: fit-content;
+      min-width: 480px;
+    }
+
+    /* ----- LOGO placeholder (left side of main) ----- */
+    .logo-placeholder {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 2rem;
+      padding-bottom: 1.2rem;
+      border-bottom: 2px solid #f1f6fd;
+    }
+
+    .logo-box {
+      width: 70px;
+      height: 70px;
+      background: linear-gradient(145deg, #eef4ff, #dfe9fd);
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 2px 2px 6px #ffffff, inset -3px -3px 8px #cdd9f0;
+    }
+
+    .logo-box i {
+      font-size: 2.6rem;
+      color: #2563eb;
+      filter: drop-shadow(2px 2px 4px rgba(0,80,200,0.2));
+    }
+
+    .logo-placeholder span {
+      font-size: 1.2rem;
+      font-weight: 400;
+      color: #617388;
+      letter-spacing: 0.3px;
+    }
+
+    .logo-placeholder span strong {
+      background: #eaf1fd;
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-weight: 500;
+      color: #1a4bbf;
+      margin-left: 10px;
+      font-size: 0.9rem;
+    }
+
+    /* ----- TITLE (clean, large) ----- */
+    .page-title {
+      margin: 1.8rem 0 2rem 0;
+    }
+
+    .page-title h1 {
+      font-size: 3rem;
+      font-weight: 600;
+      background: linear-gradient(145deg, #1e293b, #214778);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .page-title .sub {
+      font-size: 1rem;
+      color: #6e85a6;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .page-title .sub i {
+      font-size: 0.8rem;
+      color: #628acb;
+    }
+
+    /* ----- QUICK ACTION BUTTONS (three) ----- */
+    .quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 32px;
+      margin-bottom: 16px;
+    }
+
+    .action-btn {
+      background: white;
+      border: 1px solid #dde7f0;
+      padding: 1rem 2rem 1rem 1.8rem;
+      border-radius: 60px;
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 1.2rem;
+      font-weight: 540;
+      color: #1f3a6b;
+      box-shadow: 0 6px 12px -6px rgba(0, 68, 138, 0.1);
+      transition: all 0.2s;
+      cursor: default;  /* static demo */
+      backdrop-filter: blur(2px);
+    }
+
+    .action-btn i {
+      font-size: 1.5rem;
+      color: #2f6eeb;
+      transition: transform 0.1s;
+    }
+
+    .action-btn:hover {
+      background: #f3f9ff;
+      border-color: #a6c5f0;
+      box-shadow: 0 12px 18px -8px #2563eb30;
+      transform: translateY(-2px);
+    }
+
+    .action-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    /* extra note (placeholder description) */
+    .meta-note {
+      margin-top: 40px;
+      color: #90a2bc;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .meta-note hr {
+      flex: 1;
+      border: none;
+      border-top: 2px dotted #d9e3ef;
+    }
+
+    /* small adjustments */
+    @media (max-width: 750px) {
+      .sidebar {
+        width: 100px;
+        padding: 1.5rem 0.5rem;
+      }
+      .sidebar-header span, .sidebar-footer {
+        display: none;
+      }
+      .nav-item span {
+        display: none;
+      }
+      .nav-item i {
+        margin: 0 auto;
+      }
+      .content-card {
+        min-width: 300px;
+        margin: 1rem;
+        padding: 1.5rem;
+      }
+      .page-title h1 {
+        font-size: 2.2rem;
+      }
+    }
