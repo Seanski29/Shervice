@@ -18,11 +18,11 @@ export default function Login() {
     });
   };
 
-  const handleLogin = (event) => {
-    event.preventDefault(); // Prevents the page from refreshing
-    navigate('/dashboard'); // Sends the user to the dashboard
+const handleLogin = (event) => {
+    event.preventDefault(); 
+    // This MUST match the 'path' in your App.jsx Route
+    navigate('/dashboard'); 
   };
-
   return (
     // The main container tracks the mouse movement
     <div 
