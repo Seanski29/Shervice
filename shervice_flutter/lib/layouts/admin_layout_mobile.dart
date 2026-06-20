@@ -39,7 +39,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
               child: Image.asset(
-                'assets/logo.jpg',
+                'logo.jpg',
                 width: 30,
                 height: 30,
                 fit: BoxFit.cover,
