@@ -8,8 +8,12 @@ class AdminUsers extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(24.0),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // FIX: Swapped Row for Wrap to prevent header overflow on mobile
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 16,
+          runSpacing: 16,
           children: [
             const Text(
               'User & Role Management',
@@ -74,6 +78,7 @@ class AdminUsers extends StatelessWidget {
         ),
         DataCell(
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(width: 8, height: 8, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
               const SizedBox(width: 8),

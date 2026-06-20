@@ -8,8 +8,12 @@ class AdminDrivers extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(24.0),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // FIX: Swapped Row for Wrap to prevent header overflow on mobile
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 16,
+          runSpacing: 16,
           children: [
             const Text(
               'Driver Management',
@@ -36,6 +40,7 @@ class AdminDrivers extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.grey.shade200),
           ),
+          // SingleChildScrollView ensures the wide table scrolls left/right instead of overflowing
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
@@ -74,6 +79,7 @@ class AdminDrivers extends StatelessWidget {
         ),
         DataCell(
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.star, color: Colors.amber.shade400, size: 18),
               const SizedBox(width: 4),
