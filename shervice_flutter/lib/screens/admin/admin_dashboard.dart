@@ -145,7 +145,7 @@ class _KpiCard extends StatelessWidget {
               ),
               Container(
                 padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                 child: Icon(icon, color: iconColor, size: 16),
               ),
             ],
@@ -196,7 +196,7 @@ class _MaintenanceAlertItem extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: alertColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+            decoration: BoxDecoration(color: alertColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
             child: Icon(Icons.build_circle_outlined, color: alertColor, size: 20),
           ),
           const SizedBox(width: 12),

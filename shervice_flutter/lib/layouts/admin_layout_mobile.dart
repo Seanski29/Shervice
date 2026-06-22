@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:html' as html;
 import '../screens/admin/admin_dashboard.dart';
 import '../screens/admin/admin_schedules.dart';
 import '../screens/admin/admin_drivers.dart';
@@ -73,8 +74,8 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white70),
             onPressed: () {
-              // Add your logout logic or redirect here
-              print('User logged out');
+              // Redirect the browser back to the React Login screen
+              html.window.location.href = 'http://localhost:3000'; 
             },
           ),
         ],
