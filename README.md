@@ -1,96 +1,78 @@
-# 🚐 Shervice - Shuttle Management System
+# 🚐 Shervice: GT LANTIN Shuttle Service Management System
+> **Centralized Fleet Management & Driver Performance Tracking Using Predictive Analytics**[cite: 1]
 
-> **Integrative Programming Technologies Capstone**
-> A micro-frontend architecture combining a React web portal for secure authentication and a Flutter-based web app for dynamic Admin and Driver dashboards.
+![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
+![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)
+![NodeJS](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white)
+![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
+![MySQL](https://img.shields.io/badge/mysql-4479A1.svg?style=for-the-badge&logo=mysql&logoColor=white)
 
-## 📋 Table of Contents
+## 📖 Executive Summary
+**Shervice** is a comprehensive, data-driven transport management system engineered to modernize the shuttle fleet operations of GT LANTIN Shuttle Rental Services[cite: 1]. The platform replaces legacy manual tracking methods (whiteboards, paper logs) to seamlessly coordinate over 70 vehicles and 12,000+ weekly passenger trips for multinational manufacturing clients like EPSON, Bandai Namco, and NX Logistics[cite: 1]. 
 
-* [Overview](https://www.google.com/search?q=%23overview)
-* [Tech Stack](https://www.google.com/search?q=%23tech-stack)
-* [Key Features](https://www.google.com/search?q=%23key-features)
-* [System Architecture](https://www.google.com/search?q=%23system-architecture)
-* [Getting Started](https://www.google.com/search?q=%23getting-started)
-
----
-
-## 📖 Overview
-
-**Shervice** is a comprehensive transport management solution designed to streamline dispatching, track route progression, and provide real-time analytics. It utilizes a unified micro-frontend login system that intelligently routes users to their respective administrative or driver dashboards based on their role credentials.
+By transitioning to a proactive operational strategy, Shervice integrates a unified micro-frontend web architecture with a dual-engine backend, utilizing advanced machine learning algorithms to forecast vehicle maintenance, analyze route delays, and classify driver performance[cite: 1].
 
 ---
 
-## 🛠 Tech Stack
+## 🏗️ System Architecture & Tech Stack
 
-* **Authentication Hub:** React (Vite)
-* **Main Application Portal:** Flutter (Web)
-* **Cross-App Communication:** `window.location.assign` (React) and `dart:html` (Flutter)
-* **Routing Strategy:** URL Query Parameters (`?role=admin` / `?role=driver`)
-* **Version Control:** Git & GitHub
+Shervice utilizes a robust, multi-tier architecture to separate user interfaces, system logic, and data management[cite: 1].
 
----
+### 1. Presentation Layer (Micro-Frontend)
+*   **Authentication Hub:** React.js (18.3+) / Vite (5.0+) running on `localhost:3000`. Handles initial user sessions and Role-Based Access Control (RBAC)[cite: 1].
+*   **Main Application Portal:** Flutter Web running on `localhost:8080`. Reads URL query parameters (e.g., `?role=admin`) passed from React via `dart:html` to dynamically render role-specific layouts.
+*   **Styling:** Tailwind CSS (3.4) ensures mobile responsiveness for drivers in the field[cite: 1].
 
-## ✨ Key Features
+### 2. Application Layer (Dual-Engine Backend)
+*   **Primary Runtime:** Node.js (20.x) with Express.js (4.19) handles asynchronous tasks, RESTful API endpoints, and high-velocity data ingestion (attendance, trip logs)[cite: 1].
+*   **Real-Time Engine:** Socket.io (4.7) enables bidirectional communication for instant push notifications on the Admin dashboard[cite: 1].
+*   **Analytical Engine:** Python Flask (3.0) operates as a dedicated microservice to host the machine learning models and high-level computational tasks[cite: 1].
 
-### 👨‍💻 Admin Portal
-
-* **Dispatch Assignment:** Assign vehicles and specific routes to available drivers in real-time.
-* **Analytics & Filtering:** Monitor daily passenger volume and route efficiency via interactive charts. Includes a custom slide-out panel for applying date and location filters.
-* **Driver Management:** View active/idle statuses of all fleet operators.
-
-### 🚐 Driver Portal
-
-* **Route Progression:** Log passenger drop-offs and track upcoming stops dynamically.
-* **Incident & Delay Reporting:** Instantly notify the central admin system of traffic delays or vehicle breakdowns using quick-select alert modals.
-* **Profile Management:** Update notification preferences and manage account settings.
+### 3. Data Layer
+*   **Relational Database:** MySQL / PostgreSQL (16) securely stores structured driver records, operational logs, and maintenance histories[cite: 1].
+*   **Backend-as-a-Service:** Supabase provides secure authentication protocols and real-time database listeners[cite: 1].
 
 ---
 
-## 🏗 System Architecture
+## 🧠 Machine Learning & Predictive Analytics Pipeline
+The core intelligence of Shervice transforms raw daily logs into actionable business intelligence using Scikit-learn (1.4) and Pandas (2.2)[cite: 1]. 
 
-The Shervice application splits responsibilities across two independent frameworks, bound together by strict port routing:
+### 1. Driver Performance Classification (Random Forest)
+Evaluates combined driver attendance logs and anonymous passenger evaluations to automatically classify overall driver performance into actionable categories (e.g., Highly Reliable, Needs Improvement)[cite: 1]. 
+*   **Evaluation Metrics:** Validated using Accuracy, Precision, Recall, and the F1-Score[cite: 1].
+    $$F_{1} = 2\frac{precision \cdot recall}{precision + recall}$$
 
-1. **React Auth Hub (`localhost:3000`):** Handles the initial user session. Upon a successful login, React redirects the browser to the Flutter portal, passing the user's role via the URL.
-2. **Flutter Portal (`localhost:8080`):** Acts as the main router. It reads the query parameters and dynamically renders either the Admin or Driver layout. Pressing "Logout" utilizes the integrated layout buttons to forcefully redirect the user back to the React hub.
+### 2. Predictive Maintenance (Multiple Linear Regression)
+Shifts fleet management from a reactive to a proactive state by calculating the mathematical relationship between historical vehicle wear-and-tear and future required maintenance cycles[cite: 1].
+    $$y = \beta_0 + \beta_1x_1 + \beta_2x_2 + ... + \beta_nx_n + \epsilon$$
+*   **Evaluation Metrics:** Validated using Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE)[cite: 1].
+
+### 3. Route Delay Analysis (K-Means Clustering)
+An unsupervised learning model that analyzes route distances, vehicle health, and actual arrival times to automatically group similar logistical bottlenecks, helping dispatchers visually identify recurring delays[cite: 1]. 
+*   **Optimization:** Minimizes the Within-Cluster Sum of Squares (WCSS)[cite: 1]:
+    $$J = \sum_{j=1}^{k}\sum_{i=1}^{n}||x_i^{(j)} - c_j||^2$$
 
 ---
 
-## 🚀 Getting Started
+## 👥 Key Features by User Role
+
+*   **👨‍💻 Administrators & Staff:** Oversee comprehensive driver records, manage daily vehicle dispatching, input maintenance logs, and access the React-based Performance Analytics Dashboard for real-time KPIs[cite: 1].
+*   **🚐 Drivers:** Access a mobile-responsive portal to check vehicle assignments and shift schedules[cite: 1]. Log daily time-in/time-out via terminal biometric fingerprint scanners for exact punctuality tracking[cite: 1].
+*   **🏢 Officer-in-Charge (OIC):** Corporate client representatives use a dedicated portal to digitally submit shift requirements, input passenger counts, and formalize dispatch requests[cite: 1].
+*   **👥 Passengers:** Scan in-vehicle QR codes to access an anonymous evaluation portal, rating drivers on safety, attitude, and punctuality to feed the machine learning models[cite: 1].
+
+---
+
+## 🚀 Local Development & Getting Started
 
 ### Prerequisites
+*   [Node.js v20+](https://nodejs.org/)
+*   [Flutter SDK](https://flutter.dev/docs/get-started/install)
+*   [Python 3.10+](https://www.python.org/)
+*   MySQL / PostgreSQL Server
 
-Make sure you have the following installed on your machine:
-
-* [Node.js](https://www.google.com/search?q=https://nodejs.org/) (for the React Auth Hub)
-* [Flutter SDK](https://www.google.com/search?q=https://flutter.dev/docs/get-started/install) (for the Main Portal)
-
-### Running the Application Locally
-
-Because this is a multi-framework project, you must run both servers simultaneously in separate terminal windows to test the full flow.
-
-**Terminal 1: Start the React Login Hub**
-
+### 1. Run the React Auth Hub (Port 3000)
 ```bash
-# Navigate to the React folder
-cd path/to/shervice/react-login
-
-# Install dependencies
+cd shervice-react-hub
 npm install
-
-# Start the Vite development server (locked to Port 3000)
 npm run dev
-
-```
-
-**Terminal 2: Start the Flutter Portal**
-
-```bash
-# Navigate to the Flutter folder
-cd path/to/shervice/flutter-portal
-
-# Fetch dependencies
-flutter pub get
-
-# Start the Flutter web server (locked to Port 8080)
-flutter run -d chrome --web-port 8080
-
-```
