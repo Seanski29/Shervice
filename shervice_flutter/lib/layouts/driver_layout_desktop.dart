@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:html' as html; // The bridge to control the browser URL
+
 import '../screens/driver/driver_dashboard.dart';
 import '../screens/driver/driver_schedules.dart';
 import '../screens/driver/driver_ratings.dart';
@@ -24,16 +26,14 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // Light gray background for main content
+      backgroundColor: const Color(0xFFF8FAFC), 
       body: Row(
         children: [
           // 1. The Admin-Style Sidebar
           Container(
             width: 260,
-            color: const Color(0xFF1E293B), // Dark Slate theme
-            // Using ListView as established in the Admin side to prevent vertical overflow
-            child: ListView(
-              padding: EdgeInsets.zero,
+            color: const Color(0xFF1E293B), 
+            child: Column(
               children: [
                 // Branding Header
                 Padding(
@@ -73,10 +73,51 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                 const SizedBox(height: 16),
                 
                 // Sidebar Navigation Items
-                _buildSidebarItem(Icons.dashboard, 'Dashboard', 0),
-                _buildSidebarItem(Icons.calendar_month, 'My Schedule', 1),
-                _buildSidebarItem(Icons.star, 'Ratings & Metrics', 2),
-                _buildSidebarItem(Icons.person, 'Profile & Settings', 3),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      _buildSidebarItem(Icons.dashboard, 'Dashboard', 0),
+                      _buildSidebarItem(Icons.calendar_month, 'My Schedule', 1),
+                      _buildSidebarItem(Icons.star, 'Ratings & Metrics', 2),
+                      _buildSidebarItem(Icons.person, 'Profile & Settings', 3),
+                    ],
+                  ),
+                ),
+
+                // LOGOUT BUTTON pinned to the bottom
+                const Divider(color: Colors.white24, thickness: 1, height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: InkWell(
+                    onTap: () {
+                      // Redirect out of Flutter back to React
+                      html.window.location.href = 'http://localhost:3000';
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.logout, color: Colors.redAccent, size: 22),
+                          SizedBox(width: 16),
+                          Text(
+                            'Log Out',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -119,7 +160,6 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
     );
   }
 
-  // Custom widget for sidebar items to manage hover/selected states easily
   Widget _buildSidebarItem(IconData icon, String title, int index) {
     final isSelected = _selectedIndex == index;
     
@@ -135,7 +175,7 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.blue.withValues(alpha: 0.15) : Colors.transparent,
+            color: isSelected ? Colors.blue.withOpacity(0.15) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(

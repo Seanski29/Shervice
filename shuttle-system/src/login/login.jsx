@@ -27,22 +27,21 @@ export default function Login() {
 
     let userData;
 
-    // 1. Check for Flutter Admin
     if (emailInput === 'admin@gmail.com' && passwordInput === 'admin123') {
       userData = { name: 'Admin User', role: 'admin' };
       login(userData);
-      // Redirect out of React to the Flutter App
-      window.location.href = `${flutterAppUrl}/?role=admin`;
-      return; // Stop further execution
+      // HARDCODED URL: Guarantees the query parameter is sent
+      window.location.assign('http://localhost:8080/?role=admin');
+      return; 
     } 
     // 2. Check for Flutter Driver
     else if (emailInput === 'driver@gmail.com' && passwordInput === 'driver123') {
       userData = { name: 'Juan D.', role: 'driver' };
       login(userData);
-      // Redirect out of React to the Flutter App
-      window.location.href = `${flutterAppUrl}/?role=driver`;
-      return; // Stop further execution
-    } 
+      // HARDCODED URL: Guarantees the query parameter is sent
+      window.location.assign('http://localhost:8080/?role=driver');
+      return; 
+    }
     // 3. React Roles (OIC, Staff, Passenger)
     else if (emailInput.includes('oic')) {
       userData = { name: 'Duty Officer', role: 'oic' };

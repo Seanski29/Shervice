@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:html' as html; // The bridge to control the browser URL
+
 import '../screens/driver/driver_dashboard.dart';
 import '../screens/driver/driver_schedules.dart';
 import '../screens/driver/driver_ratings.dart';
@@ -45,11 +47,23 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
             ),
             const SizedBox(width: 10),
             const Text(
-              'SHERVICE DRIVER',
+              'SHERVICE',
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, fontStyle: FontStyle.italic),
             ),
           ],
         ),
+        actions: [
+          // LOGOUT BUTTON directly in the app bar for mobile
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            tooltip: 'Log Out',
+            onPressed: () {
+              // Redirect out of Flutter back to React
+              html.window.location.href = 'http://localhost:3000';
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: _screens[_selectedIndex],

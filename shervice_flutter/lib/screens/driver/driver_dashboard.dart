@@ -73,18 +73,19 @@ class DriverDashboard extends StatelessWidget {
               const Text('LIMA Estate (EPSON)', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 24),
               
-              // Action Button inside the card
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.blue.shade900,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('START ROUTE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1)),
+              // NEW: Detailed Route Info replacing the Start Route Button
+              Container(
+                padding: const EdgeInsets.only(top: 16),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Colors.white24, width: 1)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildRouteDetail(Icons.people_alt_outlined, 'Passengers', '12 / 15'),
+                    _buildRouteDetail(Icons.access_time, 'Est. Time', '45 mins'),
+                    _buildRouteDetail(Icons.pin_drop_outlined, 'Stops', '3 Points'),
+                  ],
                 ),
               ),
             ],
@@ -128,6 +129,24 @@ class DriverDashboard extends StatelessWidget {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  // Helper widget to build the detailed route stats cleanly
+  Widget _buildRouteDetail(IconData icon, String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: Colors.white70, size: 14),
+            const SizedBox(width: 4),
+            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
       ],
     );
   }
