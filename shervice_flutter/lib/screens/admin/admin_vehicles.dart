@@ -202,7 +202,7 @@ class AdminVehicles extends StatelessWidget {
         DataCell(
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: healthColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: healthColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
             child: Text(status, style: TextStyle(color: healthColor, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
         ),

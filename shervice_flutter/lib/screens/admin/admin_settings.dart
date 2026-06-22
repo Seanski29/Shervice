@@ -94,7 +94,7 @@ Widget _buildSettingsSection({required String title, required IconData icon, req
           title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
           subtitle: Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
           value: initialValue,
-          activeColor: Colors.blue.shade600,
+          activeThumbColor: Colors.blue.shade600,
           onChanged: (bool value) {},
         ),
         const Divider(height: 1),

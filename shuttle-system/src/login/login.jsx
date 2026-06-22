@@ -20,25 +20,43 @@ export default function Login() {
     event.preventDefault();
 
     const emailInput = event.target.email.value;
+    const passwordInput = event.target.password.value;
+    
+    // Define where the Flutter app is running
+    const flutterAppUrl = 'http://localhost:8080';
 
     let userData;
-    if (emailInput.includes('admin')) {
+
+    // 1. Check for Flutter Admin
+    if (emailInput === 'admin@gmail.com' && passwordInput === 'admin123') {
       userData = { name: 'Admin User', role: 'admin' };
-    } else if (emailInput.includes('oic')) {
-      userData = { name: 'Duty Officer', role: 'oic' };
-    } else if (emailInput.includes('driver')) {
+      login(userData);
+      // Redirect out of React to the Flutter App
+      window.location.href = `${flutterAppUrl}/?role=admin`;
+      return; // Stop further execution
+    } 
+    // 2. Check for Flutter Driver
+    else if (emailInput === 'driver@gmail.com' && passwordInput === 'driver123') {
       userData = { name: 'Juan D.', role: 'driver' };
-    } else {
+      login(userData);
+      // Redirect out of React to the Flutter App
+      window.location.href = `${flutterAppUrl}/?role=driver`;
+      return; // Stop further execution
+    } 
+    // 3. React Roles (OIC, Staff, Passenger)
+    else if (emailInput.includes('oic')) {
+      userData = { name: 'Duty Officer', role: 'oic' };
+    } 
+    else if (emailInput.includes('passenger')) {
+      userData = { name: 'Passenger User', role: 'passenger' };
+    } 
+    else {
       userData = { name: 'Staff User', role: 'staff' };
     }
 
+    // Process login and navigate internally for React roles
     login(userData);
-
-    if (userData.role === 'driver') {
-      navigate('/driver');
-    } else {
-      navigate('/dashboard');
-    }
+    navigate('/dashboard');
   };
 
   return (
@@ -102,6 +120,7 @@ export default function Login() {
                 <input
                   type={showPassword ? "text" : "password"}
                   id="password"
+                  name="password"
                   required
                   placeholder="••••••••"
                   className="w-full border border-slate-300 rounded-xl px-4 py-3 pr-12 
