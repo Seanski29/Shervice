@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart'; 
-import 'dart:html' as html;
+
 import 'layouts/admin_layout.dart'; 
 import 'layouts/driver_layout.dart'; 
 import 'login/login.dart';
+
 void main() {
   usePathUrlStrategy(); 
   runApp(const SherviceApp());
@@ -14,19 +15,19 @@ class SherviceApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Get the current URL
-    final rawUrl = html.window.location.href;
-    final uri = Uri.parse(rawUrl);
+    
+    // SAFE URL CHECK: Uri.base safely gets the current URL parameters 
+    // on both Web and Mobile without needing dart:html
+    final uri = Uri.base;
     final String? role = uri.queryParameters['role'];
 
-    // 2. Logic: If role exists, go to layout. Otherwise, go to LoginScreen.
+    // Logic: If role exists in the URL, go to layout. Otherwise, default to Login.
     Widget getInitialScreen() {
       if (role == 'admin') {
         return const AdminLayout();
       } else if (role == 'driver') {
         return const DriverLayout();
       } else {
-        // This is where we point to your login screen
         return const LoginScreen(); 
       }
     }
@@ -39,7 +40,6 @@ class SherviceApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         useMaterial3: true,
       ),
-      // Set the home to the result of our logic function
       home: getInitialScreen(), 
     );
   }
