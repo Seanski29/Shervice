@@ -42,6 +42,11 @@ function App() {
           >
             {/* Staff routes */}
             <Route path="/staff_dashboard"       element={<Dashboard />} />
+            <Route path="/driver-profile"        element={<SDriver />} />
+            <Route path="/vehicle-status"        element={<SVehicle />} />
+            <Route path="/attendance"            element={<SAttendance />} />
+            <Route path="/schedules"             element={<SSchedules />} />
+            <Route path="/analytics"             element={<SAnalytics />} />  
             
 
             {/* OIC routes */}

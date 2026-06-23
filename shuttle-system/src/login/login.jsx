@@ -52,7 +52,7 @@ export default function Login() {
     else if (emailInput.includes('passenger')) {
       userData = { name: 'Passenger User', role: 'passenger' };
       login(userData);
-        return navigate('/PassengerEvaluation');
+        return navigate('/evaluate');
     } 
     else {
       userData = { name: 'Staff User', role: 'staff' };

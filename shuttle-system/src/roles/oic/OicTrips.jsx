@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, MapPin, Clock, Users, Truck, ClipboardDocumentList } from 'lucide-react';
+import { Search, Filter, MapPin, Clock, Users, Truck, ClipboardList } from 'lucide-react';
 
 export default function OicTripDetails() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,7 +42,7 @@ export default function OicTripDetails() {
       {/* Main List */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
-          <ClipboardDocumentList className="text-blue-600" size={20} />
+         <ClipboardList className="text-blue-600" size={20} />
           <h2 className="font-bold text-slate-900">Deployment Logs</h2>
         </div>
         

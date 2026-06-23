@@ -23,8 +23,7 @@ export default function StaffSidebar({ isSidebarOpen }) {
   };
 
   const navItems = [
-    { name: 'Overview',        icon: HomeIcon,         path: '/dashboard' },
-    // 🟢 UPDATED: Match the lowercase path from App.jsx
+    { name: 'Overview',        icon: HomeIcon,         path: '/staff_dashboard' },
     { name: 'Driver Profiles', icon: UsersIcon,        path: '/driver-profile' },
     { name: 'Vehicle Status',  icon: TruckIcon,        path: '/vehicle-status' },
     { name: 'Attendance',      icon: ClockIcon,        path: '/attendance' },
