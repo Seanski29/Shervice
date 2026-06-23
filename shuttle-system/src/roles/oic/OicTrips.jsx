@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Filter, MapPin, Clock, Users, Truck } from 'lucide-react';
+import { Search, Filter, MapPin, Clock, Users, Truck, ClipboardDocumentList } from 'lucide-react';
 
 export default function OicTripDetails() {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Extended mock data for the detailed view
   const trips = [
     { id: 'TRP-801', driver: 'A. Santos', vehicle: 'Van 1 (ABC-123)', route: 'LIMA - SM Lipa', time: '10:00 AM', status: 'In Transit', passengers: 12, capacity: 15 },
     { id: 'TRP-802', driver: 'B. Garcia', vehicle: 'Bus 3 (XYZ-987)', route: 'LIMA - Malvar', time: '09:30 AM', status: 'Completed', passengers: 28, capacity: 30 },
@@ -13,83 +12,87 @@ export default function OicTripDetails() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-end">
+    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 md:p-8 text-left">
+      
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">Trip Details</h1>
-          <p className="text-slate-500 mt-1">Comprehensive log of all fleet deployments and passenger counts.</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Trip Details</h1>
+          <p className="text-sm text-slate-500 mt-1">Comprehensive log of all fleet deployments and passenger counts.</p>
         </div>
         
-        {/* Search and Filter Tools */}
+        {/* Tools */}
         <div className="flex gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
               placeholder="Search trips..." 
-              className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-64 bg-white shadow-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 font-medium">
+          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 font-semibold shadow-sm">
             <Filter size={18} /> Filters
           </button>
         </div>
       </div>
 
-      {/* Main Data Table */}
+      {/* Main List */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-200">
-                <th className="px-6 py-4 font-medium">Trip ID & Vehicle</th>
-                <th className="px-6 py-4 font-medium">Route & Schedule</th>
-                <th className="px-6 py-4 font-medium">Driver Assigned</th>
-                <th className="px-6 py-4 font-medium text-center">Passenger Load</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {trips.map((trip) => (
-                <tr key={trip.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-slate-800">{trip.id}</div>
-                    <div className="text-sm text-slate-500 flex items-center mt-1">
-                      <Truck size={14} className="mr-1" /> {trip.vehicle}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-slate-700 flex items-center">
-                      <MapPin size={14} className="mr-1 text-blue-500" /> {trip.route}
-                    </div>
-                    <div className="text-sm text-slate-500 flex items-center mt-1">
-                      <Clock size={14} className="mr-1" /> {trip.time}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-slate-700">{trip.driver}</div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="inline-flex items-center px-3 py-1 bg-slate-100 rounded-full text-sm font-medium text-slate-700">
-                      <Users size={14} className="mr-2 text-slate-500" />
-                      {trip.passengers} / {trip.capacity}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                      trip.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                      trip.status === 'In Transit' ? 'bg-blue-100 text-blue-700' :
-                      'bg-amber-100 text-amber-700'
-                    }`}>
-                      {trip.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="p-5 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+          <ClipboardDocumentList className="text-blue-600" size={20} />
+          <h2 className="font-bold text-slate-900">Deployment Logs</h2>
+        </div>
+        
+        <div className="divide-y divide-slate-100">
+          {trips.map((trip) => (
+            <div key={trip.id} className="grid grid-cols-1 md:grid-cols-5 p-5 gap-4 items-center hover:bg-slate-50 transition-colors">
+              
+              {/* ID & Vehicle */}
+              <div className="md:col-span-1">
+                <div className="font-bold text-slate-900">{trip.id}</div>
+                <div className="text-xs text-slate-500 flex items-center mt-1">
+                  <Truck size={13} className="mr-1" /> {trip.vehicle}
+                </div>
+              </div>
+
+              {/* Route & Schedule */}
+              <div className="md:col-span-1">
+                <div className="text-sm font-semibold text-slate-700 flex items-center">
+                  <MapPin size={14} className="mr-1 text-blue-500" /> {trip.route}
+                </div>
+                <div className="text-xs text-slate-500 flex items-center mt-1">
+                  <Clock size={13} className="mr-1" /> {trip.time}
+                </div>
+              </div>
+
+              {/* Driver */}
+              <div className="md:col-span-1 text-sm font-medium text-slate-700">
+                {trip.driver}
+              </div>
+
+              {/* Passenger Load */}
+              <div className="md:col-span-1">
+                <div className="inline-flex items-center px-2.5 py-1 bg-slate-100 rounded-md text-xs font-bold text-slate-700 border border-slate-200">
+                  <Users size={12} className="mr-1.5 text-slate-500" />
+                  {trip.passengers} / {trip.capacity}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="md:col-span-1 text-right md:text-left">
+                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                  trip.status === 'Completed' ? 'bg-green-50 text-green-700 border-green-200' :
+                  trip.status === 'In Transit' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                  'bg-amber-50 text-amber-700 border-amber-200'
+                }`}>
+                  {trip.status}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

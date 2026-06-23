@@ -45,17 +45,20 @@ export default function Login() {
     // 3. React Roles (OIC, Staff, Passenger)
     else if (emailInput.includes('oic')) {
       userData = { name: 'Duty Officer', role: 'oic' };
+
+        login(userData);
+        return navigate('/oicmanage');
     } 
     else if (emailInput.includes('passenger')) {
       userData = { name: 'Passenger User', role: 'passenger' };
+      login(userData);
+        return navigate('/PassengerEvaluation');
     } 
     else {
       userData = { name: 'Staff User', role: 'staff' };
+      login(userData);
+        return navigate('/staff_dashboard');
     }
-
-    // Process login and navigate internally for React roles
-    login(userData);
-    navigate('/dashboard');
   };
 
   return (

@@ -1,42 +1,122 @@
-import { TruckIcon } from '@heroicons/react/24/outline';
+import React from 'react';
+import { 
+  TruckIcon, 
+  WrenchScrewdriverIcon, 
+  UsersIcon, 
+  PlusIcon, 
+  MagnifyingGlassIcon,
+  CheckBadgeIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/outline';
 
 export default function SVehicle() {
-  // Data mapped to the Vehicle Profile and Status Monitoring requirements
+  // Expanded data mapped to Vehicle Profile & Maintenance Tracking requirements
   const vehicles = [
-    { plate: "ABC-1234", model: "Toyota HiAce", type: "EPSON Route", health: "Good" },
-    { plate: "XYZ-9876", model: "Nissan Urvan", type: "Bandai Route", health: "Maintenance Required" }
+    { plate: "GT-VAN-012", model: "Toyota Hiace Commuter", capacity: "15 Seats", condition: "Excellent", status: "Active (On Route)" },
+    { plate: "GT-VAN-008", model: "Nissan Urvan NV350", capacity: "15 Seats", condition: "Good", status: "Active (On Route)" },
+    { plate: "GT-VAN-022", model: "Toyota Hiace GL Grandia", capacity: "12 Seats", condition: "Needs Maintenance", status: "Garage" },
+    { plate: "GT-VAN-045", model: "Toyota Commuter Deluxe", capacity: "15 Seats", condition: "Good", status: "Standby" },
   ];
 
+  // Helper function to determine status badge colors
+  const getStatusStyle = (status) => {
+    if (status.includes('Active')) return 'bg-green-100 text-green-700';
+    if (status.includes('Garage')) return 'bg-red-100 text-red-700';
+    if (status.includes('Standby')) return 'bg-blue-100 text-blue-700';
+    return 'bg-slate-100 text-slate-600';
+  };
+
   return (
-    <div className="p-8 space-y-6 text-left">
-      <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
-        Vehicle Status & Monitoring
-      </h2>
+    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 md:p-8 text-left">
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {vehicles.map(v => (
-          <div key={v.plate} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-all">
-            <div className="flex items-center gap-4">
-              <div className="bg-blue-50 text-blue-600 p-3 rounded-2xl shadow-inner">
-                <TruckIcon className="w-6 h-6" />
+      {/* 1. Page Title & Action Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Fleet Management</h1>
+          <p className="text-sm text-slate-500 mt-1">Monitor vehicle status, capacity, and maintenance schedules.</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search Utility */}
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-slate-400" />
+            </span>
+            <input 
+              type="text" 
+              className="block w-full sm:w-72 pl-10 pr-3 py-2 border border-slate-200 rounded-lg leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm" 
+              placeholder="Search vehicle by plate or model..."
+            />
+          </div>
+
+          <button className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm">
+            <PlusIcon className="w-5 h-5" /> 
+            Register Vehicle
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Vehicle Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {vehicles.map((vehicle, idx) => (
+          <div 
+            key={idx} 
+            className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-shadow flex flex-col"
+          >
+            {/* Top Row: Icon & Status Pill */}
+            <div className="flex justify-between items-start mb-4">
+              <div className="bg-slate-50 border border-slate-100 p-3 rounded-full shrink-0">
+                <TruckIcon className="w-6 h-6 text-slate-500" />
               </div>
-              <div>
-                <p className="font-black text-lg text-slate-800 tracking-tight">{v.plate}</p>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{v.model} | {v.type}</p>
-              </div>
+              <span className={`px-3 py-1 rounded-full text-[11px] font-bold tracking-wide ${getStatusStyle(vehicle.status)}`}>
+                {vehicle.status}
+              </span>
             </div>
             
-            {/* Visual indicator for Maintenance Tracking requirements */}
-            <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-sm border ${
-              v.health === 'Good' 
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                : 'bg-amber-50 text-amber-700 border-amber-100'
-            }`}>
-              {v.health}
-            </span>
+            {/* Vehicle Info */}
+            <h3 className="text-lg font-bold text-slate-900 truncate">{vehicle.plate}</h3>
+            <p className="text-sm text-slate-500 mt-1 truncate">{vehicle.model}</p>
+            
+            {/* Stats / Details Section */}
+            <div className="mt-5 pt-4 border-t border-slate-100 space-y-3 flex-1">
+              
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2 text-slate-500">
+                  <UsersIcon className="w-4 h-4" />
+                  <span className="text-xs font-medium">Capacity</span>
+                </div>
+                <span className="text-sm font-semibold text-slate-700">
+                  {vehicle.capacity}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2 text-slate-500">
+                  <WrenchScrewdriverIcon className="w-4 h-4" />
+                  <span className="text-xs font-medium">Condition</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {vehicle.condition === 'Needs Maintenance' ? (
+                    <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
+                  ) : (
+                    <CheckBadgeIcon className="w-4 h-4 text-green-500" />
+                  )}
+                  <span className={`text-sm font-semibold ${vehicle.condition === 'Needs Maintenance' ? 'text-red-600' : 'text-slate-700'}`}>
+                    {vehicle.condition}
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Action Button */}
+            <button className="w-full mt-5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 text-sm font-semibold rounded-lg transition-colors">
+              View Vehicle Logs
+            </button>
           </div>
         ))}
       </div>
+
     </div>
   );
 }

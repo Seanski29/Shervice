@@ -18,12 +18,9 @@ import OicManagePanel from './roles/oic/OicManagePanel.jsx';
 import OicTripDetails from './roles/oic/OicTrips.jsx';
 import OicSchedules   from './roles/oic/OicSchedules.jsx';
 
-//ADMIN pages
-import AdminDashboard from './roles/admin/admin_dashboard.jsx';
-
 // Standalone portals
 import PassengerEvaluation from './roles/passenger/PassengerEvaluation.jsx';
-import DriverDashboard     from './roles/driver/driver_dashboard.jsx';
+
 
 function App() {
   return (
@@ -31,38 +28,21 @@ function App() {
       <BrowserRouter>
         <Routes>
 
-          {/* Admin routes */}
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-
           {/* ── PUBLIC ROUTES ── */}
           <Route path="/" element={<Login />} />
           <Route path="/evaluate" element={<PassengerEvaluation />} />
 
-          {/* ── DRIVER PORTAL (mobile) ── */}
-          <Route
-            path="/driver"
-            element={
-              <ProtectedRoute allowedRoles={['driver']}>
-                <DriverDashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* ── STAFF / ADMIN / OIC PORTAL (desktop with sidebar) ── */}
+          {/* ── STAFF OIC PORTAL (desktop with sidebar) ── */}
           <Route
             element={
-              <ProtectedRoute allowedRoles={['staff', 'admin', 'oic']}>
+              <ProtectedRoute allowedRoles={['staff','oic']}>
                 <MainLayout />
               </ProtectedRoute>
             }
           >
             {/* Staff routes */}
-            <Route path="/dashboard"       element={<Dashboard />} />
-            <Route path="/driver-profiles" element={<SDriver />} />
-            <Route path="/vehicle-status"  element={<SVehicle />} />
-            <Route path="/attendance"      element={<SAttendance />} />
-            <Route path="/schedules"       element={<SSchedules />} />
-            <Route path="/analytics"       element={<SAnalytics />} />
+            <Route path="/staff_dashboard"       element={<Dashboard />} />
+            
 
             {/* OIC routes */}
             <Route path="/oicmanage"    element={<OicManagePanel />} />

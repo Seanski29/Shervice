@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { 
   Send, 
-  Users, 
   MessageSquare, 
   CalendarClock, 
   MapPin, 
   CheckCircle,
-  AlertCircle
+  ClockIcon,
+  TruckIcon
 } from 'lucide-react';
 
 const OicManagePanel = () => {
@@ -33,214 +33,134 @@ const OicManagePanel = () => {
 
   const handleDispatchSubmit = (e) => {
     e.preventDefault();
-    console.log(`Dispatching ${selectedTrip.id} with ${passengerCount} passengers.`);
     handleActionComplete();
   };
 
   const handleFeedbackSubmit = (e) => {
     e.preventDefault();
-    console.log(`Feedback for ${selectedTrip.id}: ${feedback.rating} stars - ${feedback.comments}`);
     handleActionComplete();
   };
 
+  // Helper for Tab Buttons
+  const TabButton = ({ path, label, icon: Icon, activeColor }) => (
+    <button 
+      onClick={() => setCurrentPath(path)}
+      className={`flex items-center px-5 py-3 rounded-xl font-bold text-sm transition-all ${
+        currentPath === path ? `bg-white shadow-sm border border-slate-200 ${activeColor}` : 'text-slate-500 hover:text-slate-900'
+      }`}
+    >
+      <Icon size={18} className="mr-2" />
+      {label}
+    </button>
+  );
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 md:p-8 text-left">
       
-      <div>
-        <h1 className="text-3xl font-bold text-slate-800">OIC Dispatch Management</h1>
-        <p className="text-slate-500">Manage trip departures, passenger logs, and driver evaluations.</p>
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">OIC Dispatch Management</h1>
+        <p className="text-sm text-slate-500 mt-1">Manage trip departures, passenger logs, and driver evaluations.</p>
       </div>
 
-      <div className="flex space-x-4 border-b border-slate-200 pb-4">
-        <button 
-          onClick={() => setCurrentPath('view_status')}
-          className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-            currentPath === 'view_status' ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <CalendarClock size={18} className="mr-2" />
-          View Status (Schedules/Trips)
-        </button>
-        <button 
-          onClick={() => setCurrentPath('manage_trip')}
-          className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-            currentPath === 'manage_trip' ? 'bg-green-100 text-green-700' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Send size={18} className="mr-2" />
-          Dispatch & Passenger Count
-        </button>
-        <button 
-          onClick={() => setCurrentPath('give_feedback')}
-          className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-            currentPath === 'give_feedback' ? 'bg-purple-100 text-purple-700' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <MessageSquare size={18} className="mr-2" />
-          Give Driver Feedback
-        </button>
+      {/* Navigation Tabs */}
+      <div className="flex flex-wrap gap-2 mb-8 bg-slate-200/50 p-1 rounded-2xl w-fit">
+        <TabButton path="view_status" label="Schedules" icon={CalendarClock} activeColor="text-blue-600" />
+        <TabButton path="manage_trip" label="Dispatch" icon={Send} activeColor="text-green-600" />
+        <TabButton path="give_feedback" label="Feedback" icon={MessageSquare} activeColor="text-purple-600" />
       </div>
 
+      {/* Success Notification */}
       {actionSuccess && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center animate-fade-in">
+        <div className="bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-xl flex items-center mb-6 font-bold shadow-sm">
           <CheckCircle size={20} className="mr-3 text-green-500" />
           Action completed successfully. Log updated in SHERVICE.
         </div>
       )}
 
+      {/* View Status Section */}
       {currentPath === 'view_status' && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-4 border-b border-slate-200 bg-slate-50">
-            <h2 className="font-bold text-slate-800">Current Trip & Schedule Status</h2>
-          </div>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-white text-slate-500 text-sm border-b border-slate-200">
-                <th className="px-6 py-3 font-medium">Trip ID</th>
-                <th className="px-6 py-3 font-medium">Time</th>
-                <th className="px-6 py-3 font-medium">Route</th>
-                <th className="px-6 py-3 font-medium">Driver</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockTrips.map((trip) => (
-                <tr key={trip.id} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-800">{trip.id}</td>
-                  <td className="px-6 py-4 text-slate-600">{trip.time}</td>
-                  <td className="px-6 py-4 text-slate-600 flex items-center">
-                    <MapPin size={16} className="mr-2 text-slate-400" /> {trip.route}
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">{trip.driver}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      trip.status === 'Scheduled' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {trip.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {mockTrips.map((trip) => (
+            <div key={trip.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex justify-between items-start mb-4">
+                <p className="font-bold text-slate-900">{trip.id}</p>
+                <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase ${trip.status === 'Scheduled' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+                  {trip.status}
+                </span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center text-sm text-slate-600"><ClockIcon size={16} className="mr-2"/> {trip.time}</div>
+                <div className="flex items-center text-sm text-slate-600"><MapPin size={16} className="mr-2"/> {trip.route}</div>
+                <div className="flex items-center text-sm text-slate-600"><Users size={16} className="mr-2"/> Driver: {trip.driver}</div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
+      {/* Dispatch Section */}
       {currentPath === 'manage_trip' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <h2 className="font-bold text-slate-800 mb-4 flex items-center">
-              <Send size={20} className="mr-2 text-green-600" /> Select Trip to Dispatch
-            </h2>
-            <div className="space-y-3">
-              {mockTrips.filter(t => t.status === 'Scheduled').map(trip => (
-                <div 
-                  key={trip.id}
-                  onClick={() => setSelectedTrip(trip)}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedTrip?.id === trip.id ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-green-300'
-                  }`}
-                >
-                  <p className="font-bold text-slate-800">{trip.id} - {trip.time}</p>
-                  <p className="text-sm text-slate-500">{trip.route} | Driver: {trip.driver}</p>
-                </div>
-              ))}
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <h2 className="font-bold text-slate-900 mb-4">Select Trip</h2>
+            {mockTrips.filter(t => t.status === 'Scheduled').map(trip => (
+              <div key={trip.id} onClick={() => setSelectedTrip(trip)} className={`p-5 rounded-xl border-2 cursor-pointer transition-all ${selectedTrip?.id === trip.id ? 'border-green-500 bg-green-50' : 'border-slate-200 bg-white hover:border-green-300'}`}>
+                <p className="font-bold text-slate-900">{trip.id} - {trip.time}</p>
+                <p className="text-xs text-slate-500">{trip.route} | Driver: {trip.driver}</p>
+              </div>
+            ))}
           </div>
 
           {selectedTrip && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h2 className="font-bold text-slate-800 mb-4">Confirm Passenger Count</h2>
-              <p className="text-sm text-slate-500 mb-6 border-b pb-4">
-                You are dispatching <strong className="text-slate-800">{selectedTrip.id}</strong>. Please input the final passenger headcount for analytics logging.
-              </p>
-              
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+              <h2 className="font-bold text-slate-900 mb-2">Confirm Passenger Count</h2>
+              <p className="text-sm text-slate-500 mb-6">Dispatching <strong className="text-slate-900">{selectedTrip.id}</strong></p>
               <form onSubmit={handleDispatchSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center">
-                    <Users size={16} className="mr-2" /> Total Passengers Onboard
-                  </label>
-                  <input 
-                    type="number" 
-                    min="0" 
-                    max={selectedTrip.capacity}
-                    required
-                    value={passengerCount}
-                    onChange={(e) => setPassengerCount(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder={`Max capacity: ${selectedTrip.capacity}`}
-                  />
+                  <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Headcount</label>
+                  <input type="number" required value={passengerCount} onChange={(e) => setPassengerCount(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-green-500" placeholder="0" />
                 </div>
-                
-                <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
-                  Send Trip Details & Dispatch
-                </button>
+                <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors">Dispatch Trip</button>
               </form>
             </div>
           )}
         </div>
       )}
 
+      {/* Feedback Section */}
       {currentPath === 'give_feedback' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <h2 className="font-bold text-slate-800 mb-4 flex items-center">
-              <MessageSquare size={20} className="mr-2 text-purple-600" /> Select Completed Trip
-            </h2>
-            <div className="space-y-3">
-              {mockTrips.map(trip => (
-                <div 
-                  key={trip.id}
-                  onClick={() => setSelectedTrip(trip)}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedTrip?.id === trip.id ? 'border-purple-500 bg-purple-50' : 'border-slate-200 hover:border-purple-300'
-                  }`}
-                >
-                  <p className="font-bold text-slate-800">{trip.id}</p>
-                  <p className="text-sm text-slate-500">Driver: {trip.driver}</p>
-                </div>
-              ))}
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <h2 className="font-bold text-slate-900 mb-4">Select Trip</h2>
+            {mockTrips.map(trip => (
+              <div key={trip.id} onClick={() => setSelectedTrip(trip)} className={`p-5 rounded-xl border-2 cursor-pointer transition-all ${selectedTrip?.id === trip.id ? 'border-purple-500 bg-purple-50' : 'border-slate-200 bg-white hover:border-purple-300'}`}>
+                <p className="font-bold text-slate-900">{trip.id}</p>
+                <p className="text-xs text-slate-500">Driver: {trip.driver}</p>
+              </div>
+            ))}
           </div>
 
           {selectedTrip && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h2 className="font-bold text-slate-800 mb-4">OIC Evaluation</h2>
-              <form onSubmit={handleFeedbackSubmit} className="space-y-4">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+              <h2 className="font-bold text-slate-900 mb-6">OIC Evaluation</h2>
+              <form onSubmit={handleFeedbackSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Driver Professionalism & Punctuality Rating</label>
-                  <select 
-                    value={feedback.rating}
-                    onChange={(e) => setFeedback({...feedback, rating: e.target.value})}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-purple-500"
-                  >
-                    <option value="5">5 - Excellent (No issues)</option>
-                    <option value="4">4 - Good (Minor delays/issues)</option>
+                  <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Performance Rating</label>
+                  <select value={feedback.rating} onChange={(e) => setFeedback({...feedback, rating: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-slate-300">
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Good</option>
                     <option value="3">3 - Average</option>
-                    <option value="2">2 - Poor (Noticeable delays/issues)</option>
-                    <option value="1">1 - Unacceptable</option>
+                    <option value="1">1 - Poor</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Incident/OIC Comments</label>
-                  <textarea 
-                    required
-                    value={feedback.comments}
-                    onChange={(e) => setFeedback({...feedback, comments: e.target.value})}
-                    rows="3"
-                    placeholder="Provide required feedback for the ML model..."
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-purple-500 resize-none"
-                  ></textarea>
-                </div>
-                <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
-                  Submit OIC Feedback
-                </button>
+                <textarea required value={feedback.comments} onChange={(e) => setFeedback({...feedback, comments: e.target.value})} rows="4" placeholder="Log incident details or praise..." className="w-full px-4 py-3 rounded-lg border border-slate-300"></textarea>
+                <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition-colors">Submit Evaluation</button>
               </form>
             </div>
           )}
         </div>
       )}
-
     </div>
   );
 };
