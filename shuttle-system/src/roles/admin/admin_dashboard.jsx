@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../context/supabaseClient'; 
 import {
   UsersIcon,
   TruckIcon,
@@ -16,8 +15,15 @@ export default function AdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [counts, setCounts] = useState({ drivers: 0, vehicles: 0, staff: 0, oic: 0 });
+  // State mapping driven entirely by your centralized Flask backend endpoint parameters
+  const [metrics, setMetrics] = useState({
+    totalDrivers: 0,
+    activeVehicles: 0,
+    averagePunctuality: 0.0,
+    maintenanceAlerts: 0,
+  });
   const [loading, setLoading] = useState(true);
+  const [errorLog, setErrorLog] = useState(null);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -33,39 +39,26 @@ export default function AdminDashboard() {
     day: 'numeric',
   });
 
+  // Requests live system state aggregations straight from the running Flask API engine instance
   async function fetchLiveSystemData() {
     setLoading(true);
-    
-    // 1. Fetch from 'drivers' table (Populated with 42)
-    let dCount = 0;
+    setErrorLog(null);
     try {
-      const { count } = await supabase.from('drivers').select('*', { count: 'exact', head: true });
-      dCount = count || 0;
-    } catch (e) { console.error("drivers query error:", e); }
-
-    // 2. Fetch from 'shuttles' table (Populated with 18)
-    let vCount = 0;
-    try {
-      const { count } = await supabase.from('shuttles').select('*', { count: 'exact', head: true });
-      vCount = count || 0;
-    } catch (e) { console.error("shuttles query error:", e); }
-
-    // 3. Fetch from 'user_profiles' where role = 'staff' (Populated with 8)
-    let sCount = 0;
-    try {
-      const { count } = await supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('role', 'staff');
-      sCount = count || 0;
-    } catch (e) { console.error("staff query error:", e); }
-
-    // 4. Fetch from 'user_profiles' where role = 'oic' (Populated with 5)
-    let oCount = 0;
-    try {
-      const { count } = await supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('role', 'oic');
-      oCount = count || 0;
-    } catch (e) { console.error("oic query error:", e); }
-
-    setCounts({ drivers: dCount, vehicles: vCount, staff: sCount, oic: oCount });
-    setLoading(false);
+      const response = await fetch('http://localhost:5000/api/dashboard/metrics');
+      if (!response.ok) throw new Error(`API returned status code: ${response.status}`);
+      
+      const json = await response.json();
+      if (json.success) {
+        setMetrics(json.metrics);
+      } else {
+        throw new Error(json.error || "Failed loading metrics backend profiles");
+      }
+    } catch (e) {
+      console.error("Flask Pipeline error:", e);
+      setErrorLog("Could not connect to the unified backend runtime pipeline.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -73,18 +66,18 @@ export default function AdminDashboard() {
   }, []);
 
   const systemCounts = [
-    { label: 'Total Drivers', value: counts.drivers, icon: UsersIcon, color: 'bg-blue-50 text-blue-600', border: 'border-blue-100' },
-    { label: 'Total Vehicles', value: counts.vehicles, icon: TruckIcon, color: 'bg-indigo-50 text-indigo-600', border: 'border-indigo-100' },
-    { label: 'Staff Members', value: counts.staff, icon: UserGroupIcon, color: 'bg-sky-50 text-sky-600', border: 'border-sky-100' },
-    { label: 'OIC Officers', value: counts.oic, icon: ShieldCheckIcon, color: 'bg-violet-50 text-violet-600', border: 'border-violet-100' },
+    { label: 'Total Active Drivers', value: metrics.totalDrivers, icon: UsersIcon, color: 'bg-blue-50 text-blue-600', border: 'border-blue-100' },
+    { label: 'Active Fleet Vehicles', value: metrics.activeVehicles, icon: TruckIcon, color: 'bg-indigo-50 text-indigo-600', border: 'border-indigo-100' },
+    { label: 'Avg Punctuality Score', value: `${metrics.averagePunctuality} / 5.0`, icon: ChartBarIcon, color: 'bg-sky-50 text-sky-600', border: 'border-sky-100' },
+    { label: 'Active Maintenance Alerts', value: metrics.maintenanceAlerts, icon: ShieldCheckIcon, color: 'bg-violet-50 text-violet-600', border: 'border-violet-100' },
   ];
 
-  // Logic using your live drivers data
+  // Logic calculation safely mapping live operations parameters
   const attendance = {
-    present: counts.drivers > 0 ? Math.min(38, counts.drivers) : 0,
-    late: counts.drivers > 38 ? 4 : 0,
+    present: metrics.totalDrivers > 0 ? Math.min(38, metrics.totalDrivers) : 0,
+    late: metrics.totalDrivers > 38 ? 4 : 0,
     absent: 0,
-    total: counts.drivers || 0,
+    total: metrics.totalDrivers || 0,
   };
 
   const attendancePct = attendance.total > 0 ? Math.round((attendance.present / attendance.total) * 100) : 0;
@@ -100,6 +93,14 @@ export default function AdminDashboard() {
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       
+      {/* Fallback Connection Status Alert Banner */}
+      {errorLog && (
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-center gap-3 text-rose-700 text-sm font-medium">
+          <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+          <p>{errorLog} Check that `python app.py` is actively running on Port 5000.</p>
+        </div>
+      )}
+
       {/* Header Greeting */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white shadow-lg shadow-blue-100">
         <p className="text-blue-100 text-sm font-medium">{today}</p>
@@ -111,7 +112,7 @@ export default function AdminDashboard() {
 
       {/* System Count Cards */}
       <div>
-        <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">System Overview</h2>
+        <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">System Overview (Via Flask API)</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {systemCounts.map((item, idx) => (
             <div key={idx} className={`bg-white rounded-2xl p-5 border ${item.border} shadow-sm hover:shadow-md transition-all`}>
