@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:html' as html;
+
+// Import your screens
 import '../screens/admin/admin_dashboard.dart';
 import '../screens/admin/admin_schedules.dart';
 import '../screens/admin/admin_drivers.dart';
@@ -7,6 +8,9 @@ import '../screens/admin/admin_vehicles.dart';
 import '../screens/admin/admin_users.dart';
 import '../screens/admin/admin_settings.dart';
 import '../screens/admin/admin_feedbacks.dart';
+
+// IMPORTANT: Import the Login Screen
+import '../login/login.dart';
 
 class AdminMobileLayout extends StatefulWidget {
   const AdminMobileLayout({super.key});
@@ -26,7 +30,8 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     const AdminFleet(),  // Index 3
     const AdminUsers(),     // Index 4
     const AdminSettings(),  // Index 5
-    const AdminFeedbacks(), // Index 6
+    // Note: AdminFeedbacks() is index 6, but your BottomNav only has 6 items (indices 0-5). 
+    // You might need to add a 7th item to the bottom nav if you want to access this screen on mobile!
   ];
 
   @override
@@ -42,7 +47,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
               child: Image.asset(
-                'logo.jpg',
+                'assets/logo.jpg', // Make sure you include the 'assets/' path
                 width: 30,
                 height: 30,
                 fit: BoxFit.cover,
@@ -71,13 +76,44 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             ),
           ],
         ),
-        // Added the Log Out button to the top right
+        // Added the Log Out button to the top right with Confirmation Dialog
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white70),
             onPressed: () {
-              // Redirect the browser back to the React Login screen
-              html.window.location.href = 'http://localhost:3000'; 
+              showDialog(
+                context: context,
+                builder: (BuildContext dialogContext) {
+                  return AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+                    content: const Text('Are you sure you want to log out of your account?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext); // Close dialog
+                        },
+                        child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext); // Close dialog
+                          // Properly route back to LoginScreen
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade600,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  );
+                },
+              );
             },
           ),
         ],
@@ -100,10 +136,9 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
           backgroundColor: Colors.white,
           selectedItemColor: Colors.blue.shade600,
           unselectedItemColor: Colors.grey.shade500,
-          selectedFontSize: 10, // Slightly reduced to fit 6 items cleanly
+          selectedFontSize: 10,
           unselectedFontSize: 10,
           iconSize: 20,
-          // Now contains exactly 6 buttons to match the 6 screens
           items: const [
             BottomNavigationBarItem(
               icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.grid_view)),
