@@ -3,12 +3,15 @@ import '../screens/driver/driver_dashboard.dart';
 import '../screens/driver/driver_schedules.dart';
 import '../screens/driver/driver_ratings.dart';
 import '../screens/driver/driver_profile.dart';
-
-// IMPORTANT: Import the Login Screen
 import '../login/login.dart';
 
 class DriverLayoutDesktop extends StatefulWidget {
-  const DriverLayoutDesktop({super.key});
+  final String driverName; // FIXED: Added property declaration
+
+  const DriverLayoutDesktop({
+    super.key,
+    required this.driverName, // FIXED: Required constructor variable
+  });
 
   @override
   State<DriverLayoutDesktop> createState() => _DriverLayoutDesktopState();
@@ -17,28 +20,30 @@ class DriverLayoutDesktop extends StatefulWidget {
 class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    const DriverDashboard(),
+  // FIXED: Changed layout to a getter method so it can reference widget properties reactively
+  List<Widget> get _screens => [
+    DriverDashboard(driverName: widget.driverName), // PIPED TO DASHBOARD
     const DriverSchedules(),
     const DriverRatings(),
-    const DriverProfile(),
+    DriverProfile(driverName: widget.driverName), // ✅ To this dynamic line
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), 
+      backgroundColor: const Color(0xFFF8FAFC),
       body: Row(
         children: [
-          // 1. The Admin-Style Sidebar
           Container(
             width: 260,
-            color: const Color(0xFF1E293B), 
+            color: const Color(0xFF1E293B),
             child: Column(
               children: [
-                // Branding Header
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 24,
+                  ),
                   child: Row(
                     children: [
                       ClipRRect(
@@ -48,10 +53,17 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                           width: 36,
                           height: 36,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            width: 36, height: 36, color: Colors.white,
-                            child: const Icon(Icons.directions_car, color: Colors.green, size: 20),
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                width: 36,
+                                height: 36,
+                                color: Colors.white,
+                                child: const Icon(
+                                  Icons.directions_car,
+                                  color: Colors.green,
+                                  size: 20,
+                                ),
+                              ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -72,8 +84,6 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                 ),
                 const Divider(color: Colors.white24, thickness: 1, height: 1),
                 const SizedBox(height: 16),
-                
-                // Sidebar Navigation Items
                 Expanded(
                   child: ListView(
                     padding: EdgeInsets.zero,
@@ -85,42 +95,56 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                     ],
                   ),
                 ),
-
-                // LOGOUT BUTTON pinned to the bottom
                 const Divider(color: Colors.white24, thickness: 1, height: 1),
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: InkWell(
-                    // UPDATED: Added Confirmation Dialog
                     onTap: () {
                       showDialog(
                         context: context,
                         builder: (BuildContext dialogContext) {
                           return AlertDialog(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-                            content: const Text('Are you sure you want to log out of your account?'),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            title: const Text(
+                              'Confirm Logout',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            content: const Text(
+                              'Are you sure you want to log out of your account?',
+                            ),
                             actions: [
                               TextButton(
-                                onPressed: () {
-                                  Navigator.pop(dialogContext); // Close dialog
-                                },
-                                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                                onPressed: () => Navigator.pop(dialogContext),
+                                child: const Text(
+                                  'Cancel',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
                               ),
                               ElevatedButton(
                                 onPressed: () {
-                                  Navigator.pop(dialogContext); // Close dialog
-                                  // Navigate back to LoginScreen
+                                  Navigator.pop(dialogContext);
                                   Navigator.pushReplacement(
                                     context,
-                                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                    MaterialPageRoute(
+                                      builder: (context) => const LoginScreen(),
+                                    ),
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.red.shade600,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
-                                child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                child: const Text(
+                                  'Logout',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ],
                           );
@@ -129,9 +153,12 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.1),
+                        color: Colors.red.withAlpha(25),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Row(
@@ -154,12 +181,9 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
               ],
             ),
           ),
-          
-          // 2. The Main Content Area
           Expanded(
             child: Column(
               children: [
-                // Top Header Bar
                 Container(
                   height: 64,
                   color: Colors.white,
@@ -169,22 +193,41 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                     children: [
                       const Icon(Icons.notifications_none, color: Colors.grey),
                       const SizedBox(width: 24),
-                      Text('Driver ID: DRV-001', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                      // Dynamic Title reflection in the shell header framework
+                      Text(
+                        widget.driverName,
+                        style: TextStyle(
+                          color: Colors.grey.shade800,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(width: 16),
                       CircleAvatar(
                         radius: 16,
                         backgroundColor: Colors.blue.shade100,
-                        child: Text('RR', style: TextStyle(color: Colors.blue.shade700, fontSize: 12, fontWeight: FontWeight.bold)),
-                      )
+                        child: Text(
+                          widget.driverName
+                              .substring(
+                                0,
+                                widget.driverName.contains(' ') ? 2 : 1,
+                              )
+                              .toUpperCase(),
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
-                
-                // Screen Content
-                Expanded(
-                  child: _screens[_selectedIndex],
+                const Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Color(0xFFE2E8F0),
                 ),
+                Expanded(child: _screens[_selectedIndex]),
               ],
             ),
           ),
@@ -195,20 +238,15 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
 
   Widget _buildSidebarItem(IconData icon, String title, int index) {
     final isSelected = _selectedIndex == index;
-    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+        onTap: () => setState(() => _selectedIndex = index),
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.blue.withValues(alpha: 0.15) : Colors.transparent,
+            color: isSelected ? Colors.blue.withAlpha(38) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(

@@ -1,42 +1,207 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
-class AdminDriver extends StatelessWidget {
+class AdminDriver extends StatefulWidget {
   const AdminDriver({super.key});
 
+  @override
+  State<AdminDriver> createState() => _AdminDriverState();
+}
+
+class _AdminDriverState extends State<AdminDriver> {
+  // Central network routing gateway matching your running Flask server configuration
+  String get _backendRegisterUrl {
+    if (kIsWeb) return 'http://127.0.0.1:5000/api/auth/register-driver';
+    return Platform.isAndroid
+        ? 'http://10.0.2.2:5000/api/auth/register-driver'
+        : 'http://127.0.0.1:5000/api/auth/register-driver';
+  }
+
+  // Diagnostic path used to dynamically pull down all active database rows
+  String get _backendFetchUrl {
+    if (kIsWeb) return 'http://127.0.0.1:5000/api/test-db';
+    return Platform.isAndroid
+        ? 'http://10.0.2.2:5000/api/test-db'
+        : 'http://127.0.0.1:5000/api/test-db';
+  }
+
+  /// Dispatches a GET request to the Flask server to retrieve live data rows
+  Future<List<dynamic>> _fetchDriversFromDatabase() async {
+    try {
+      final response = await http
+          .get(Uri.parse(_backendFetchUrl))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['connection_status'] == 'SUCCESS') {
+          return data['sample_data_payload'] ?? [];
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint("❌ Error reading live driver profile streams: $e");
+      return [];
+    }
+  }
+
   void _showNewDriverModal(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final licenseController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Register New Driver', style: TextStyle(fontWeight: FontWeight.bold)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Register New Driver',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           content: SizedBox(
             width: 500,
             child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person)),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'License Number', border: OutlineInputBorder(), prefixIcon: Icon(Icons.card_membership)),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Contact Number', border: OutlineInputBorder(), prefixIcon: Icon(Icons.phone)),
-                  ),
-                ],
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Full Name',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Field required'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: licenseController,
+                      decoration: const InputDecoration(
+                        labelText: 'License Number',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.card_membership),
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Field required'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Account Email',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.email),
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Field required'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: passwordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Account Password',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.lock),
+                      ),
+                      validator: (value) => value == null || value.length < 6
+                          ? 'Password must be >= 6 chars'
+                          : null,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
-            ElevatedButton(
+            TextButton(
               onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-              child: const Text('Register Driver', style: TextStyle(color: Colors.white)),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (ctx) =>
+                        const Center(child: CircularProgressIndicator()),
+                  );
+
+                  try {
+                    final DateTime now = DateTime.now();
+                    final String formattedDateHired =
+                        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+                    final response = await http
+                        .post(
+                          Uri.parse(_backendRegisterUrl),
+                          headers: {'Content-Type': 'application/json'},
+                          body: jsonEncode({
+                            'email': emailController.text.trim(),
+                            'password': passwordController.text,
+                            'full_name': nameController.text.trim(),
+                            'license_no': licenseController.text.trim(),
+                            'birthday': '1995-05-15',
+                            'license_expiry': '2031-12-31',
+                            'date_hired': formattedDateHired,
+                          }),
+                        )
+                        .timeout(const Duration(seconds: 10));
+
+                    if (!context.mounted) return;
+                    Navigator.pop(context); // Pop loader safely
+
+                    final responseData = jsonDecode(response.body);
+
+                    if (response.statusCode == 201 ||
+                        responseData['success'] == true) {
+                      Navigator.pop(context); // Dismiss alert modal
+                      _showSnackBar(
+                        'Driver registered securely in live system database!',
+                        Colors.green,
+                      );
+
+                      // CRITICAL: Forces the UI page state to reload and paint the new driver immediately
+                      setState(() {});
+                    } else {
+                      final serverMsg =
+                          responseData['message'] ?? 'Registration rejected.';
+                      _showSnackBar('Server Error: $serverMsg', Colors.red);
+                    }
+                  } catch (e) {
+                    if (context.mounted) Navigator.pop(context);
+                    _showSnackBar(
+                      'Network Failure: Cannot connect to Python backend.',
+                      Colors.red,
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Register Driver',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -44,92 +209,124 @@ class AdminDriver extends StatelessWidget {
     );
   }
 
-  void _showAddCommentModal(BuildContext context, String driverName) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Add Feedback for $driverName', style: const TextStyle(fontWeight: FontWeight.bold)),
-          content: SizedBox(
-            width: 500,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Comments submitted here will appear in the driver\'s "Area of Improvement" dashboard.',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Log Comment / Issue',
-                      alignLabelWithHint: true,
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
-            ElevatedButton(
-              onPressed: () {
-                // TODO: Wire to backend to pass data to Driver's profile
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Feedback successfully logged for $driverName.'), backgroundColor: Colors.green),
-                );
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-              child: const Text('Submit Feedback', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
+  void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return Padding(
       padding: const EdgeInsets.all(24.0),
-      children: [
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 16,
-          runSpacing: 16,
-          children: [
-            const Text(
-              'Driver Management',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
-            ),
-            ElevatedButton.icon(
-              onPressed: () => _showNewDriverModal(context),
-              icon: const Icon(Icons.person_add, color: Colors.white),
-              label: const Text('Add Driver', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade600,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row Component
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              const Text(
+                'Driver Management',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        
-        _buildDriverCard(context: context, name: 'Ricardo Ramos', rating: '4.9', driverId: 'DRV-001', license: 'N01-23-456789', phone: '+63 912 345 6789', status: 'Active (On Route)', statusColor: Colors.green),
-        _buildDriverCard(context: context, name: 'Juan Dela Cruz', rating: '4.7', driverId: 'DRV-002', license: 'N02-44-123456', phone: '+63 998 765 4321', status: 'Active (On Route)', statusColor: Colors.green),
-        _buildDriverCard(context: context, name: 'Miguel Santos', rating: '4.2', driverId: 'DRV-003', license: 'N04-88-987654', phone: '+63 917 111 2222', status: 'Idle (Standby)', statusColor: Colors.orange),
+              ElevatedButton.icon(
+                onPressed: () => _showNewDriverModal(context),
+                icon: const Icon(Icons.person_add, color: Colors.white),
+                label: const Text(
+                  'Add Driver',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade600,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
 
-        const SizedBox(height: 16),
-        _buildResponsivePagination('1 to 3 of 42 drivers'),
-      ],
+          // Dynamic Database Future Pipeline Container
+          Expanded(
+            child: FutureBuilder<List<dynamic>>(
+              future: _fetchDriversFromDatabase(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError ||
+                    !snapshot.hasData ||
+                    snapshot.data!.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No active drivers connected in database.',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final drivers = snapshot.data!;
+
+                return ListView.builder(
+                  itemCount: drivers.length,
+                  itemBuilder: (context, index) {
+                    final driver = drivers[index];
+                    return _buildDriverCard(
+                      context: context,
+                      name: driver['full_name'] ?? 'Unnamed Driver',
+                      rating:
+                          '5.0', // Standard baseline default rating for presentation
+                      driverId: 'DRV-${driver['driver_id']}',
+                      license: driver['license_no'] ?? 'No License Records',
+                      status: driver['employment_status'] ?? 'Active',
+                      statusColor: (driver['employment_status'] == 'Active')
+                          ? Colors.green
+                          : Colors.orange,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -139,7 +336,6 @@ class AdminDriver extends StatelessWidget {
     required String rating,
     required String driverId,
     required String license,
-    required String phone,
     required String status,
     required Color statusColor,
   }) {
@@ -157,17 +353,26 @@ class AdminDriver extends StatelessWidget {
           Wrap(
             alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16, 
+            spacing: 16,
             runSpacing: 12,
             children: [
-              // Left side: Name & Rating Badge
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
                   const SizedBox(width: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.amber.shade50,
                       border: Border.all(color: Colors.amber.shade200),
@@ -175,48 +380,55 @@ class AdminDriver extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.star, color: Colors.amber.shade600, size: 14),
+                        Icon(
+                          Icons.star,
+                          color: Colors.amber.shade600,
+                          size: 14,
+                        ),
                         const SizedBox(width: 4),
-                        Text(rating, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        Text(
+                          rating,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
-              // Right side: Status Badge & Add Comment Button
-              Wrap(
-                spacing: 12,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-                    child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withAlpha(25),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                   ),
-                  OutlinedButton.icon(
-                    onPressed: () => _showAddCommentModal(context, name),
-                    icon: const Icon(Icons.rate_review_outlined, size: 16),
-                    label: const Text('Add Feedback'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue.shade700,
-                      side: BorderSide(color: Colors.blue.shade200),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                  )
-                ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12), const Divider(), const SizedBox(height: 12),
+          const SizedBox(height: 12),
+          const Divider(),
+          const SizedBox(height: 12),
           Wrap(
-            spacing: 16, runSpacing: 12,
+            spacing: 16,
+            runSpacing: 12,
             children: [
               _iconText(Icons.badge_outlined, 'ID: $driverId'),
-              _iconText(Icons.card_membership, license),
-              _iconText(Icons.phone_outlined, phone),
+              _iconText(Icons.card_membership, 'License: $license'),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -225,25 +437,10 @@ class AdminDriver extends StatelessWidget {
   Widget _iconText(IconData icon, String text) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [Icon(icon, size: 20, color: Colors.grey), const SizedBox(width: 8), Text(text, style: const TextStyle(fontWeight: FontWeight.w500))],
-    );
-  }
-
-  Widget _buildResponsivePagination(String text) {
-    return Wrap(
-      alignment: WrapAlignment.end,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 16, runSpacing: 16,
       children: [
-        Text('Showing $text', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-        Wrap(
-          spacing: 8,
-          children: [
-            OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: const Text('Prev', style: TextStyle(color: Colors.black87))),
-            Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: Colors.blue.shade600, borderRadius: BorderRadius.circular(8)), child: const Text('1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-            OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: const Text('Next', style: TextStyle(color: Colors.black87))),
-          ],
-        )
+        Icon(icon, size: 20, color: Colors.grey),
+        const SizedBox(width: 8),
+        Text(text, style: const TextStyle(fontWeight: FontWeight.w500)),
       ],
     );
   }
