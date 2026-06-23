@@ -3,12 +3,15 @@ import '../screens/driver/driver_dashboard.dart';
 import '../screens/driver/driver_schedules.dart';
 import '../screens/driver/driver_ratings.dart';
 import '../screens/driver/driver_profile.dart';
-
-// IMPORTANT: Import the Login Screen
 import '../login/login.dart';
 
 class DriverLayoutMobile extends StatefulWidget {
-  const DriverLayoutMobile({super.key});
+  final String driverName; // FIXED: Added property declaration
+
+  const DriverLayoutMobile({
+    super.key,
+    required this.driverName, // FIXED: Required constructor variable
+  });
 
   @override
   State<DriverLayoutMobile> createState() => _DriverLayoutMobileState();
@@ -17,11 +20,12 @@ class DriverLayoutMobile extends StatefulWidget {
 class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    const DriverDashboard(),
+  // FIXED: Converted layout list into a runtime property tracker map
+  List<Widget> get _screens => [
+    DriverDashboard(driverName: widget.driverName), // PIPED TO DASHBOARD
     const DriverSchedules(),
     const DriverRatings(),
-    const DriverProfile(),
+    DriverProfile(driverName: widget.driverName), // ✅ To this dynamic line
   ];
 
   @override
@@ -29,7 +33,7 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        automaticallyImplyLeading: false, // Prevents a back button from appearing
+        automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
         title: Row(
@@ -42,20 +46,30 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
                 height: 30,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
-                  width: 30, height: 30, color: Colors.white,
-                  child: const Icon(Icons.directions_car, color: Colors.green, size: 16),
+                  width: 30,
+                  height: 30,
+                  color: Colors.white,
+                  child: const Icon(
+                    Icons.directions_car,
+                    color: Colors.green,
+                    size: 16,
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 10),
             const Text(
               'SHERVICE',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, fontStyle: FontStyle.italic),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ),
         actions: [
-          // LOGOUT BUTTON directly in the app bar for mobile with Confirmation Dialog
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white70),
             tooltip: 'Log Out',
@@ -64,30 +78,47 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
                 context: context,
                 builder: (BuildContext dialogContext) {
                   return AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-                    content: const Text('Are you sure you want to log out of your account?'),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    title: const Text(
+                      'Confirm Logout',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    content: const Text(
+                      'Are you sure you want to log out of your account?',
+                    ),
                     actions: [
                       TextButton(
-                        onPressed: () {
-                          Navigator.pop(dialogContext); // Close dialog
-                        },
-                        child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ),
                       ElevatedButton(
                         onPressed: () {
-                          Navigator.pop(dialogContext); // Close dialog
-                          // Navigate back to LoginScreen
+                          Navigator.pop(dialogContext);
                           Navigator.pushReplacement(
                             context,
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                            MaterialPageRoute(
+                              builder: (context) => const LoginScreen(),
+                            ),
                           );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red.shade600,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                        child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: const Text(
+                          'Logout',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   );
@@ -98,20 +129,16 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SafeArea(
-        child: _screens[_selectedIndex],
-      ),
+      body: SafeArea(child: _screens[_selectedIndex]),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
+          border: Border(
+            top: BorderSide(color: Colors.grey.shade200, width: 1),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
+          onTap: (index) => setState(() => _selectedIndex = index),
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
           selectedItemColor: Colors.blue.shade600,
@@ -120,7 +147,10 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
           unselectedFontSize: 11,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Schedule'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_month),
+              label: 'Schedule',
+            ),
             BottomNavigationBarItem(icon: Icon(Icons.star), label: 'Ratings'),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           ],
