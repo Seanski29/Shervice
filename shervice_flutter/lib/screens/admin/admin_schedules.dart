@@ -3,81 +3,19 @@ import 'package:flutter/material.dart';
 class AdminSchedules extends StatelessWidget {
   const AdminSchedules({super.key});
 
-  void _showNewDispatchModal(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Schedule New Dispatch', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: SizedBox(
-            width: 500,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Client / Company Name', border: OutlineInputBorder(), prefixIcon: Icon(Icons.business)),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Time & Shift', border: OutlineInputBorder(), prefixIcon: Icon(Icons.access_time)),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'Assign Driver', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person)),
-                    items: ['Ricardo Ramos', 'Juan Dela Cruz', 'Miguel Santos'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                    onChanged: (value) {},
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'Assign Vehicle', border: OutlineInputBorder(), prefixIcon: Icon(Icons.directions_car)),
-                    items: ['GT-VAN-012', 'GT-VAN-008', 'GT-VAN-022'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                    onChanged: (value) {},
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-              child: const Text('Confirm Dispatch', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(24.0),
       children: [
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 16,
-          runSpacing: 16,
-          children: [
-            const Text(
-              'Active Schedules',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
-            ),
-            ElevatedButton.icon(
-              onPressed: () => _showNewDispatchModal(context),
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('New Dispatch', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade600,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ],
+        const Text(
+          'Active Schedules',
+          style: TextStyle(
+            fontSize: 28, 
+            fontWeight: FontWeight.bold, 
+            color: Color(0xFF0F172A), 
+            letterSpacing: -0.5
+          ),
         ),
         const SizedBox(height: 24),
         
@@ -139,7 +77,7 @@ class AdminSchedules extends StatelessWidget {
     );
   }
 
-   Widget _buildResponsivePagination(String text) {
+  Widget _buildResponsivePagination(String text) {
     return Wrap(
       alignment: WrapAlignment.end, // Anchored purely to the right
       crossAxisAlignment: WrapCrossAlignment.center,

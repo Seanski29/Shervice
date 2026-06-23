@@ -1,45 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart'; 
 
-// 1. Imports for your layouts and the forgot password screen
-import '../layouts/admin_layout.dart'; 
-import '../layouts/driver_layout.dart'; 
-import 'forgot_password.dart'; 
-
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  bool _showPassword = false;
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
 
   double _bgAlignX = 0.0;
   double _bgAlignY = 0.0;
 
-  // 2. Login Logic Function
-  void _handleLogin() {
+  void _handleResetPassword() {
     final String email = _emailController.text.trim();
-    final String password = _passwordController.text;
 
-    if (email == 'admin@gmail.com' && password == 'admin123') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AdminLayout()),
+    if (email.isNotEmpty && email.contains('@')) {
+      // Show success message and navigate back to login
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset link sent to your email.'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-    } else if (email == 'driver@gmail.com' && password == 'driver123') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DriverLayout()),
-      );
+      Navigator.pop(context); // Returns to the Login screen
     } else {
+      // Show error
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Invalid credentials or role not supported in this portal.'),
+          content: const Text('Please enter your username.'),
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
         ),
@@ -49,9 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    // Properly isolated dispose method
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -98,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Top Logo
+                    // Top Icon
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
@@ -108,81 +98,68 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: ClipOval(
                         child: Image.asset(
-                          '../assets/logo.jpg', // Standard asset path
-                          width: 120,
-                          height: 120,
+                          'assets/logo.jpg',
+                          width: 80, // Slightly smaller than login for hierarchy
+                          height: 80,
                           fit: BoxFit.contain,
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
                     
-                    // Shervice PNG Text Replacement
-                    Image.asset(
-                      '../assets/shervice.jpg', // Fixed the path and extension here!
-                      
-                      height: 80,
-                      fit: BoxFit.contain
-                    ),
-                    
+                    // Titles
+                    const Text("Reset Password", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    const Text("Sign in to continue", style: TextStyle(color: Colors.grey)),
+                    const Text(
+                      "Enter your username and we'll send you a link to reset your password.", 
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, height: 1.4),
+                    ),
                     const SizedBox(height: 30),
 
                     // Email Field
                     TextField(
                       controller: _emailController,
                       decoration: InputDecoration(
-                        labelText: "Email Address",
+                        labelText: "Username",
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-                    // Password Field
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: !_showPassword,
-                      decoration: InputDecoration(
-                        labelText: "Password",
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        suffixIcon: IconButton(
-                          icon: Icon(_showPassword ? Icons.visibility : Icons.visibility_off),
-                          onPressed: () => setState(() => _showPassword = !_showPassword),
-                        ),
-                      ),
-                    ),
-                    
-                    // Forgot Password Link
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
-                          );
-                        }, 
-                        child: const Text("Forgot Password?")
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Login Button
+                    // Reset Button
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: _handleLogin,
+                        onPressed: _handleResetPassword,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue.shade600,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text("Log In", style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text("Send Reset Link", style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                     
+                    const SizedBox(height: 16),
+
+                    // Back to Login Link
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // Pops this screen, revealing LoginScreen
+                      }, 
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.arrow_back, size: 16),
+                          SizedBox(width: 8),
+                          Text("Back to Log In"),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 20),
                     const Text("GT LANTIN SHUTTLE SERVICES", style: TextStyle(fontSize: 10, color: Colors.grey)),
                   ],
