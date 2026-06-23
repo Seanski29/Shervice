@@ -1,27 +1,100 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class AdminDashboard extends StatelessWidget {
+class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
   @override
+  State<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends State<AdminDashboard> {
+  int totalDrivers = 0;
+  int activeVehicles = 0;
+  double averagePunctuality = 5.0;
+  int maintenanceAlerts = 0;
+  List<dynamic> maintenanceLogs = [];
+  bool isLoading = true;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchLiveDashboardData();
+  }
+
+  Future<void> fetchLiveDashboardData() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5000/api/dashboard/metrics'),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true) {
+          final metrics = data['metrics'];
+          setState(() {
+            totalDrivers = metrics['totalDrivers'] ?? 0;
+            activeVehicles = metrics['activeVehicles'] ?? 0;
+            averagePunctuality = (metrics['averagePunctuality'] ?? 5.0).toDouble();
+            maintenanceAlerts = metrics['maintenanceAlerts'] ?? 0;
+            maintenanceLogs = data['alerts'] ?? [];
+            isLoading = false;
+          });
+        }
+      } else {
+        throw Exception('Failed loading network telemetry profiles.');
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = "Could not sync data. Check if your Flask server is running on Port 5000.";
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.blue),
+        ),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Calculate safe width configurations across desktop, tablet, and mobile views
-        double paddingTotal = 32.0; // Left + Right screen padding bounds
+        double paddingTotal = 32.0;
         double dynamicWidth;
 
         if (constraints.maxWidth > 1200) {
-          dynamicWidth = (constraints.maxWidth - (paddingTotal + 48)) / 4; // 4 Columns
+          dynamicWidth = (constraints.maxWidth - (paddingTotal + 48)) / 4;
         } else if (constraints.maxWidth > 640) {
-          dynamicWidth = (constraints.maxWidth - (paddingTotal + 16)) / 2; // 2 Columns
+          dynamicWidth = (constraints.maxWidth - (paddingTotal + 16)) / 2;
         } else {
-          dynamicWidth = constraints.maxWidth - paddingTotal; // 1 Column (Full Width Mobile)
+          dynamicWidth = constraints.maxWidth - paddingTotal;
         }
 
         return ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
           children: [
+            if (errorMessage != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade100),
+                ),
+                child: Text(
+                  errorMessage!,
+                  style: TextStyle(color: Colors.red.shade700, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ),
+
             const Text(
               'Fleet Overview',
               style: TextStyle(
@@ -33,21 +106,26 @@ class AdminDashboard extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             
-            // Wrap automatically handles grid behavior safely
-            Wrap(
-              spacing: 16.0,
-              runSpacing: 16.0,
-              children: [
-                _KpiCard(width: dynamicWidth, title: 'Active Drivers', value: '42', subtitle: 'Out of 59 total', icon: Icons.people, iconColor: Colors.blue),
-                _KpiCard(width: dynamicWidth, title: 'Active Vehicles', value: '38', subtitle: 'Currently on route', icon: Icons.directions_car, iconColor: Colors.green),
-                _KpiCard(width: dynamicWidth, title: 'Avg Punctuality', value: '4.8', subtitle: 'Out of 5.0 rating', icon: Icons.star, iconColor: Colors.orange),
-                _KpiCard(width: dynamicWidth, title: 'Maintenance Alerts', value: '3', subtitle: 'Requires attention', icon: Icons.warning_rounded, iconColor: Colors.red),
-              ],
-            ),
+Wrap(
+  spacing: 16.0,
+  runSpacing: 16.0,
+  children: [
+    // FIXED: Changed total_Drivers to totalDrivers
+    _KpiCard(width: dynamicWidth, title: 'Active Drivers', value: totalDrivers.toString(), subtitle: 'Registered profiles', icon: Icons.people, iconColor: Colors.blue),
+    
+    // FIXED: Changed active_Vehicles to activeVehicles
+    _KpiCard(width: dynamicWidth, title: 'Active Vehicles', value: activeVehicles.toString(), subtitle: 'Status: Good', icon: Icons.directions_car, iconColor: Colors.green),
+    
+    // FIXED: Changed average_Punctuality to averagePunctuality
+    _KpiCard(width: dynamicWidth, title: 'Avg Punctuality', value: averagePunctuality.toString(), subtitle: 'Out of 5.0 rating', icon: Icons.star, iconColor: Colors.orange),
+    
+    // FIXED: Changed maintenance_Alerts to maintenanceAlerts
+    _KpiCard(width: dynamicWidth, title: 'Maintenance Alerts', value: maintenanceAlerts.toString(), subtitle: 'Status: Maintenance', icon: Icons.warning_rounded, iconColor: Colors.red),
+  ],
+),
             
             const SizedBox(height: 24),
             
-            // Predictive Model Card Wrapper
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -59,7 +137,6 @@ class AdminDashboard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header section converts cleanly to column layout on tight screens
                   Wrap(
                     alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -67,7 +144,7 @@ class AdminDashboard extends StatelessWidget {
                     runSpacing: 8,
                     children: [
                       const Text(
-                        'Predictive Maintenance Alerts',
+                        'Recent Vehicle Maintenance Logs',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                       ),
                       Container(
@@ -77,7 +154,7 @@ class AdminDashboard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Text(
-                          'Linear Regression Active',
+                          'Live Database Stream',
                           style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -85,24 +162,35 @@ class AdminDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   
-                  // Alert list execution
-                  const Column(
-                    children: [
-                      _MaintenanceAlertItem(vehicleId: 'GT-VAN-014', issuePredicted: 'Brake Pad Wear', daysRemaining: 2, urgencyLevel: 0.9, alertColor: Colors.red),
-                      _MaintenanceAlertItem(vehicleId: 'GT-VAN-008', issuePredicted: 'Transmission Fluid', daysRemaining: 5, urgencyLevel: 0.75, alertColor: Colors.orange),
-                      _MaintenanceAlertItem(vehicleId: 'GT-VAN-022', issuePredicted: 'Battery Life Depletion', daysRemaining: 12, urgencyLevel: 0.4, alertColor: Colors.amber),
-                    ],
-                  ),
+                  maintenanceLogs.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20.0),
+                          child: Center(
+                            child: Text(
+                              "No active maintenance alerts logged in the system.",
+                              style: TextStyle(color: Colors.grey, fontSize: 13),
+                            ),
+                          ),
+                        )
+                      : Column(
+                          children: maintenanceLogs.map<Widget>((log) {
+                            return _MaintenanceAlertItem(
+                              vehicleId: log['plate_number'] ?? 'Unknown Asset',
+                              issuePredicted: log['description'] ?? 'Scheduled Checkup',
+                            );
+                          }).toList(),
+                        ),
                 ],
               ),
             )
           ],
         );
-      }
+      },
     );
   }
 }
 
+// ─────────── SUPPORT WIDGET: KPI RENDER CARD ───────────
 class _KpiCard extends StatelessWidget {
   final double width;
   final String title;
@@ -136,7 +224,8 @@ class _KpiCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
+              SizedBox(
+                width: 120,
                 child: Text(
                   title,
                   overflow: TextOverflow.ellipsis,
@@ -145,7 +234,10 @@ class _KpiCard extends StatelessWidget {
               ),
               Container(
                 padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 child: Icon(icon, color: iconColor, size: 16),
               ),
             ],
@@ -167,19 +259,14 @@ class _KpiCard extends StatelessWidget {
   }
 }
 
+// ─────────── SUPPORT WIDGET: MAINTENANCE LIST ITEM ───────────
 class _MaintenanceAlertItem extends StatelessWidget {
   final String vehicleId;
   final String issuePredicted;
-  final int daysRemaining;
-  final double urgencyLevel;
-  final Color alertColor;
 
   const _MaintenanceAlertItem({
     required this.vehicleId,
     required this.issuePredicted,
-    required this.daysRemaining,
-    required this.urgencyLevel,
-    required this.alertColor,
   });
 
   @override
@@ -196,12 +283,13 @@ class _MaintenanceAlertItem extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: alertColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-            child: Icon(Icons.build_circle_outlined, color: alertColor, size: 20),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(Icons.build_circle_outlined, color: Colors.red, size: 20),
           ),
           const SizedBox(width: 12),
-          
-          // Expanded forces middle strings to occupy relative space rather than overflow bounds
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,35 +304,8 @@ class _MaintenanceAlertItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
                 ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: LinearProgressIndicator(
-                    value: urgencyLevel,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: AlwaysStoppedAnimation<Color>(alertColor),
-                    minHeight: 4,
-                  ),
-                ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          
-          // Trailing alert telemetry statistics
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '$daysRemaining Days', 
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: alertColor),
-              ),
-              Text(
-                'Left', 
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
-              ),
-            ],
           ),
         ],
       ),
