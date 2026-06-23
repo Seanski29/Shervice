@@ -31,3 +31,4 @@ flutter:
   # Assets must be nested under the flutter section, exactly 2 spaces in
   assets:
     - assets/logo.jpg
+    - assets/shervice.jpg

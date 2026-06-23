@@ -1,7 +1,9 @@
+import React from 'react';
 import { 
   CheckCircleIcon, 
   ExclamationCircleIcon, 
-  MagnifyingGlassIcon 
+  MagnifyingGlassIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 export default function SAttendance() {
@@ -13,76 +15,100 @@ export default function SAttendance() {
     { id: 4, name: "Antonio Luna", initials: "AL", time: "05:30 AM", status: "On-Time", route: "EPSON - Shift B" },
   ];
 
+  // Helper function for status badges
+  const getStatusStyle = (status) => {
+    switch(status) {
+      case 'On-Time': return 'bg-green-50 text-green-700 border-green-200';
+      case 'Late': return 'bg-amber-50 text-amber-700 border-amber-200';
+      default: return 'bg-slate-50 text-slate-700 border-slate-200';
+    }
+  };
+
   return (
-    <div className="p-8 space-y-6 text-left">
+    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 md:p-8 text-left">
       
       {/* 1. Header & Quick Stats */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 mb-8">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Attendance Monitoring</h2>
-          <p className="text-xs text-slate-500 mt-1 font-medium italic">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Attendance Monitoring</h1>
+          <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
+            <ClockIcon className="w-4 h-4" />
             Showing real-time logs for {new Date().toLocaleDateString()}
           </p>
         </div>
         
-        <div className="flex gap-4">
-          <div className="bg-white px-4 py-2 rounded-2xl border border-slate-100 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Present</p>
-            <p className="text-lg font-black text-slate-800">42/59</p>
+        <div className="flex flex-wrap sm:flex-nowrap gap-4">
+          <div className="bg-white px-5 py-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] flex flex-col justify-center">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Present</p>
+            <p className="text-2xl font-bold text-slate-900">42<span className="text-sm text-slate-400 font-medium">/59</span></p>
           </div>
-          <div className="bg-white px-4 py-2 rounded-2xl border border-slate-100 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">On-Time</p>
-            <p className="text-lg font-black text-emerald-600">92%</p>
+          <div className="bg-white px-5 py-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] flex flex-col justify-center">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">On-Time</p>
+            <p className="text-2xl font-bold text-green-600">92%</p>
           </div>
         </div>
       </div>
 
-      {/* 2. Daily Log Feed */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h3 className="font-black text-slate-800 tracking-tight uppercase text-sm">Daily Log Feed</h3>
-          <div className="relative w-full sm:w-64">
+      {/* 2. Daily Log Feed Container */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        {/* Container Header & Filter */}
+        <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+          <h3 className="font-bold text-slate-900 tracking-tight text-lg">Daily Log Feed</h3>
+          <div className="relative w-full sm:w-72">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <MagnifyingGlassIcon className="h-4 w-4 text-slate-400" />
             </span>
             <input 
               type="text" 
-              className="block w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm" 
+              className="block w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-shadow shadow-sm bg-white" 
               placeholder="Filter by driver name..."
             />
           </div>
         </div>
 
-        <div className="divide-y divide-slate-50">
+        {/* Log List */}
+        <div className="divide-y divide-slate-100">
           {attendanceLogs.map((log) => (
-            <div key={log.id} className="flex items-center justify-between p-5 hover:bg-slate-50/50 transition-colors group">
+            <div key={log.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 hover:bg-slate-50 transition-colors group gap-4">
+              
+              {/* Driver Identity */}
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-sm font-black shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-all">
+                <div className="w-11 h-11 bg-slate-100 border border-slate-200 text-slate-600 rounded-full flex items-center justify-center text-sm font-bold shadow-sm shrink-0 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-colors">
                   {log.initials}
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-800 tracking-tight">{log.name}</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{log.route}</p>
+                  <p className="text-base font-semibold text-slate-900">{log.name}</p>
+                  <p className="text-xs font-medium text-slate-500 mt-0.5">{log.route}</p>
                 </div>
               </div>
               
-              <div className="flex flex-col items-end gap-1">
+              {/* Status & Time */}
+              <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2">
                 <div className="flex items-center gap-1.5">
                   {log.status === 'On-Time' ? (
-                    <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
+                    <CheckCircleIcon className="w-5 h-5 text-green-500" />
                   ) : (
-                    <ExclamationCircleIcon className="w-4 h-4 text-amber-500" />
+                    <ExclamationCircleIcon className="w-5 h-5 text-amber-500" />
                   )}
-                  <span className={`text-[10px] font-black uppercase tracking-tighter ${
-                    log.status === 'On-Time' ? 'text-emerald-600' : 'text-amber-600'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${getStatusStyle(log.status)}`}>
                     {log.status}
                   </span>
                 </div>
-                <span className="text-xs font-bold text-slate-500 tracking-tight">{log.time}</span>
+                <span className="text-sm font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                  {log.time}
+                </span>
               </div>
+
             </div>
           ))}
+          
+          {/* Empty State / Bottom Padding (Optional) */}
+          {attendanceLogs.length === 0 && (
+            <div className="p-8 text-center text-slate-500 text-sm">
+              No attendance logs found for today.
+            </div>
+          )}
         </div>
       </div>
 

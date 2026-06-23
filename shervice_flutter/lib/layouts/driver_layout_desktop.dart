@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:html' as html; // The bridge to control the browser URL
-
 import '../screens/driver/driver_dashboard.dart';
 import '../screens/driver/driver_schedules.dart';
 import '../screens/driver/driver_ratings.dart';
 import '../screens/driver/driver_profile.dart';
+
+// IMPORTANT: Import the Login Screen
+import '../login/login.dart';
 
 class DriverLayoutDesktop extends StatefulWidget {
   const DriverLayoutDesktop({super.key});
@@ -90,15 +91,47 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: InkWell(
+                    // UPDATED: Added Confirmation Dialog
                     onTap: () {
-                      // Redirect out of Flutter back to React
-                      html.window.location.href = 'http://localhost:3000';
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext dialogContext) {
+                          return AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+                            content: const Text('Are you sure you want to log out of your account?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(dialogContext); // Close dialog
+                                },
+                                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(dialogContext); // Close dialog
+                                  // Navigate back to LoginScreen
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.shade600,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          );
+                        },
+                      );
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
+                        color: Colors.red.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Row(
@@ -175,7 +208,7 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.blue.withOpacity(0.15) : Colors.transparent,
+            color: isSelected ? Colors.blue.withValues(alpha: 0.15) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, CalendarDays } from 'lucide-react';
 
 export default function OicSchedules() {
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -9,29 +9,29 @@ export default function OicSchedules() {
 
   // Mock data mapping dates to trip volume
   const scheduledLoads = {
-    12: [{ time: 'Morning Shift', count: 4 }, { time: 'Night Shift', count: 2 }],
-    15: [{ time: 'Morning Shift', count: 5 }],
-    18: [{ time: 'Special Dispatch', count: 1 }],
-    24: [{ time: 'Morning Shift', count: 6 }, { time: 'Night Shift', count: 4 }],
+    12: [{ time: 'Morning', count: 4 }, { time: 'Night', count: 2 }],
+    15: [{ time: 'Morning', count: 5 }],
+    18: [{ time: 'Special', count: 1 }],
+    24: [{ time: 'Morning', count: 6 }, { time: 'Night', count: 4 }],
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 md:p-8 text-left">
       
-      {/* Calendar Header */}
-      <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">May 2026</h1>
-          <p className="text-slate-500 mt-1">Monthly Fleet Deployment Schedule</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Deployment Calendar</h1>
+          <p className="text-sm text-slate-500 mt-1">Manage monthly fleet deployment schedules and trip assignments.</p>
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="flex border border-slate-300 rounded-lg overflow-hidden">
-            <button className="px-3 py-2 hover:bg-slate-100 transition-colors"><ChevronLeft size={20} className="text-slate-600"/></button>
-            <button className="px-4 py-2 bg-slate-50 border-x border-slate-300 font-medium text-slate-700">Today</button>
-            <button className="px-3 py-2 hover:bg-slate-100 transition-colors"><ChevronRight size={20} className="text-slate-600"/></button>
+        <div className="flex items-center gap-3">
+          <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+            <button className="px-3 py-2 hover:bg-slate-50 transition-colors"><ChevronLeft size={20} className="text-slate-600"/></button>
+            <button className="px-4 py-2 bg-slate-50 border-x border-slate-200 font-semibold text-sm text-slate-700">Today</button>
+            <button className="px-3 py-2 hover:bg-slate-50 transition-colors"><ChevronRight size={20} className="text-slate-600"/></button>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm">
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm">
             <Plus size={18} /> New Schedule
           </button>
         </div>
@@ -39,19 +39,26 @@ export default function OicSchedules() {
 
       {/* Calendar Grid */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        {/* Calendar Title Bar */}
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+           <h2 className="font-bold text-slate-900 flex items-center gap-2">
+             <CalendarDays size={20} className="text-blue-600"/> May 2026
+           </h2>
+        </div>
+
         {/* Days of week header */}
-        <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200">
+        <div className="grid grid-cols-7 border-b border-slate-200">
           {daysOfWeek.map(day => (
-            <div key={day} className="py-3 text-center text-sm font-bold text-slate-500 uppercase tracking-wider">
+            <div key={day} className="py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">
               {day}
             </div>
           ))}
         </div>
 
         {/* Days Grid */}
-        <div className="grid grid-cols-7 auto-rows-[120px] bg-slate-200 gap-[1px]">
+        <div className="grid grid-cols-7 auto-rows-[120px] bg-slate-100 gap-[1px]">
           {calendarDays.map((day) => {
-            // Logic to handle empty days at the start of the month (starting on a Friday for May 2026)
             const dateNum = day - 5 > 0 && day - 5 <= 31 ? day - 5 : null;
             const dayEvents = scheduledLoads[dateNum];
 
@@ -59,16 +66,16 @@ export default function OicSchedules() {
               <div key={day} className="bg-white p-2 hover:bg-slate-50 transition-colors flex flex-col">
                 {dateNum && (
                   <>
-                    <div className="text-right text-sm font-medium text-slate-400 mb-1">
-                      <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full ${dateNum === 12 ? 'bg-blue-600 text-white font-bold shadow-md' : ''}`}>
+                    <div className="text-right mb-1">
+                      <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm ${dateNum === 12 ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-slate-600 font-medium'}`}>
                         {dateNum}
                       </span>
                     </div>
                     
-                    {/* Render Events if they exist for this day */}
-                    <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar">
+                    {/* Render Events */}
+                    <div className="flex-1 overflow-y-auto space-y-1">
                       {dayEvents && dayEvents.map((event, idx) => (
-                        <div key={idx} className="px-2 py-1 bg-blue-50 border border-blue-100 rounded text-xs text-blue-700 font-medium truncate">
+                        <div key={idx} className="px-2 py-1 bg-blue-50 border border-blue-100 rounded text-[10px] text-blue-700 font-bold truncate">
                           {event.count} Trips • {event.time}
                         </div>
                       ))}

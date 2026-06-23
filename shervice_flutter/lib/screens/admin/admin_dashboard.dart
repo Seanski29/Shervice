@@ -182,7 +182,53 @@ Wrap(
                         ),
                 ],
               ),
-            )
+            ),
+            
+            const SizedBox(height: 24),
+
+            // TRIPS DONE PER COMPANY (NEW SECTION)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Weekly Passenger Trips by Client',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Company List Execution
+                  _CompanyTripItem(
+                    companyName: 'Bandai Namco', 
+                    tripCount: '5,250 Trips', 
+                    indicatorColor: Colors.orange.shade500, 
+                    utilization: 0.95,
+                  ),
+                  const Divider(height: 24, thickness: 1, color: Color(0xFFF1F5F9)),
+                  _CompanyTripItem(
+                    companyName: 'EPSON', 
+                    tripCount: '5,000 Trips', 
+                    indicatorColor: Colors.blue.shade600, 
+                    utilization: 0.90,
+                  ),
+                  const Divider(height: 24, thickness: 1, color: Color(0xFFF1F5F9)),
+                  _CompanyTripItem(
+                    companyName: 'NX Logistics', 
+                    tripCount: '2,100 Trips', 
+                    indicatorColor: Colors.green.shade500, 
+                    utilization: 0.40,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
           ],
         );
       },
@@ -309,6 +355,70 @@ class _MaintenanceAlertItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CompanyTripItem extends StatelessWidget {
+  final String companyName;
+  final String tripCount;
+  final Color indicatorColor;
+  final double utilization;
+
+  const _CompanyTripItem({
+    required this.companyName,
+    required this.tripCount,
+    required this.indicatorColor,
+    required this.utilization,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: indicatorColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(Icons.business, color: indicatorColor, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                companyName,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: utilization,
+                  backgroundColor: Colors.grey.shade200,
+                  valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
+                  minHeight: 4,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            tripCount,
+            style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        ),
+      ],
     );
   }
 }

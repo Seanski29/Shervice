@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:html' as html;
-
 class DriverProfile extends StatelessWidget {
   const DriverProfile({super.key});
 
@@ -103,7 +101,7 @@ class DriverProfile extends StatelessWidget {
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: () {
-               html.window.location.href = 'http://localhost:3000';
+               Navigator.pushReplacementNamed(context, '../login/login.dart');
             },
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             label: const Text('Log Out', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),

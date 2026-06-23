@@ -4,7 +4,7 @@ import { Bars3Icon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import StaffSidebar from './sidebars/StaffSidebar';
 import OicSidebar from './sidebars/OicSidebar';
-import AdminSidebar from './sidebars/AdminSidebar';
+
 
 export default function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -12,7 +12,6 @@ export default function MainLayout() {
 
   const renderSidebar = () => {
     switch (user?.role) {
-      case 'admin': return <AdminSidebar isSidebarOpen={isSidebarOpen} />;
       case 'oic':   return <OicSidebar isSidebarOpen={isSidebarOpen} />;
       default:      return <StaffSidebar isSidebarOpen={isSidebarOpen} />;
     }

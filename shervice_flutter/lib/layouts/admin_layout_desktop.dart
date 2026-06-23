@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-// ignore: deprecated_member_use
-import 'dart:html' as html;
 import '../screens/admin/admin_dashboard.dart';
 import '../screens/admin/admin_schedules.dart';
 import '../screens/admin/admin_drivers.dart';
 import '../screens/admin/admin_vehicles.dart';
 import '../screens/admin/admin_users.dart';
 import '../screens/admin/admin_settings.dart';
+import '../screens/admin/admin_feedbacks.dart';
+import '../login/login.dart';
 
 
 class AdminDesktopLayout extends StatefulWidget {
@@ -23,10 +23,11 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   final List<Widget> _screens = [
     const AdminDashboard(),
     const AdminSchedules(),
-    const AdminDrivers(),
-    const AdminVehicles(),
+    const AdminDriver(),
+    const AdminFleet(),
     const AdminUsers(),
     const AdminSettings(),
+    const AdminFeedbacks(),
   ];
 
   @override
@@ -181,14 +182,48 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     bool isActive = _selectedIndex == index && !isLogout;
 
     return InkWell(
-      onTap: () {
-        if (isLogout) {
-          // Redirect the browser back to the React Login screen
-          html.window.location.href = 'http://localhost:3000'; 
-        } else {
-          setState(() { _selectedIndex = index; });
-        }
+     onTap: () {
+  if (isLogout) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text('Are you sure you want to log out of your account?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Closes the alert dialog
+              },
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Closes the alert dialog first
+                
+                // Routes back to the login screen and clears the navigation history
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
       },
+    );
+  } else {
+    setState(() { 
+      _selectedIndex = index; 
+    });
+  }
+},
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
