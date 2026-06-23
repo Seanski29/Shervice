@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: ClipOval(
                         child: Image.asset(
-                          '../assets/logo.jpg', // Standard asset path
+                          './assets/logo.jpg', // Standard asset path
                           width: 120,
                           height: 120,
                           fit: BoxFit.contain,
@@ -119,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     
                     // Shervice PNG Text Replacement
                     Image.asset(
-                      '../assets/shervice.jpg', // Fixed the path and extension here!
+                      './assets/shervice.jpg', // Fixed the path and extension here!
                       
                       height: 80,
                       fit: BoxFit.contain
