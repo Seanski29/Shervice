@@ -3,101 +3,217 @@ import 'package:flutter/material.dart';
 class AdminSettings extends StatelessWidget {
   const AdminSettings({super.key});
 
+  void _showChangePasswordModal(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevents closing while loading
+      builder: (BuildContext context) {
+        bool isUpdating = false;
+        bool isSuccess = false;
+
+        // StatefulBuilder allows us to refresh the UI inside the modal without a separate StatefulWidget
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              contentPadding: const EdgeInsets.all(24),
+              content: SizedBox(
+                width: 400,
+                child: isSuccess
+                    // SUCCESS STATE UI
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle, color: Colors.green, size: 64),
+                          const SizedBox(height: 16),
+                          const Text('Password Updated!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          const Text('Your administrator password has been changed successfully.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                          const SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade600,
+                              minimumSize: const Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          )
+                        ],
+                      )
+                    // INPUT FORM UI
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Change Password', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 20),
+                          TextFormField(
+                            obscureText: true,
+                            decoration: const InputDecoration(labelText: 'Current Password', border: OutlineInputBorder(), prefixIcon: Icon(Icons.lock_outline)),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            obscureText: true,
+                            decoration: const InputDecoration(labelText: 'New Password', border: OutlineInputBorder(), prefixIcon: Icon(Icons.lock_reset)),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            obscureText: true,
+                            decoration: const InputDecoration(labelText: 'Confirm New Password', border: OutlineInputBorder(), prefixIcon: Icon(Icons.lock)),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              if (!isUpdating)
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                                ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: isUpdating
+                                    ? null
+                                    : () async {
+                                        // Trigger loading state
+                                        setState(() => isUpdating = true);
+                                        // Simulate a backend update delay (2 seconds)
+                                        await Future.delayed(const Duration(seconds: 2));
+                                        // Trigger success state
+                                        setState(() {
+                                          isUpdating = false;
+                                          isSuccess = true;
+                                        });
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue.shade600,
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: isUpdating
+                                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                    : const Text('Update Password', style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(24.0),
       children: [
         const Text(
-          'System Configuration',
+          'Account Settings',
           style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
         ),
         const SizedBox(height: 24),
-        
-        _buildSettingsSection(
-          title: 'Analytics & Machine Learning',
-          icon: Icons.auto_graph,
-          children: [
-            _buildSwitchTile('Enable Predictive Maintenance Alerts', 'Uses Linear Regression on historical vehicle data', true),
-            _buildSwitchTile('Automated Driver Scoring', 'Updates punctuality ratings after every completed route', true),
-          ],
-        ),
-        
-        const SizedBox(height: 24),
-        
-        _buildSettingsSection(
-          title: 'Notifications & Dispatch',
-          icon: Icons.notifications_active_outlined,
-          children: [
-            _buildSwitchTile('SMS Alerts to Drivers', 'Send text messages when a new route is assigned', false),
-            _buildSwitchTile('OIC Email Summaries', 'Send end-of-day fleet status reports to Duty Officers', true),
-          ],
-        ),
 
-        const SizedBox(height: 24),
-        
-        _buildSettingsSection(
-          title: 'Security',
-          icon: Icons.security,
-          children: [
-            const ListTile(
-              title: Text('Change Admin Password', style: TextStyle(fontWeight: FontWeight.w500)),
-              trailing: Icon(Icons.arrow_forward_ios, size: 16),
-            ),
-            const Divider(height: 1),
-            const ListTile(
-              title: Text('Two-Factor Authentication (2FA)', style: TextStyle(fontWeight: FontWeight.w500)),
-              trailing: Text('Disabled', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-Widget _buildSettingsSection({required String title, required IconData icon, required List<Widget> children}) {
-    // Replaced Container with Material to fix the ink splash warning
-    return Material(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      // Clip behavior ensures the ripple effect doesn't bleed outside the rounded corners
-      clipBehavior: Clip.antiAlias, 
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Icon(icon, color: const Color(0xFF0F172A)),
-                const SizedBox(width: 12),
-                // Using Expanded so long titles don't cause stripe errors
-                Expanded(
-                  child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                ),
-              ],
-            ),
+        // ADMINISTRATOR PROFILE CARD
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
           ),
-          const Divider(height: 1),
-          ...children,
-        ],
-      ),
-    );
-  }
-  Widget _buildSwitchTile(String title, String subtitle, bool initialValue) {
-    return Column(
-      children: [
-        SwitchListTile(
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-          subtitle: Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-          value: initialValue,
-          activeThumbColor: Colors.blue.shade600,
-          onChanged: (bool value) {},
+          child: Wrap(
+            spacing: 24,
+            runSpacing: 24,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundColor: Colors.blue.shade100,
+                child: Text('AD', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue.shade800)),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Admin System', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  const SizedBox(height: 4),
+                  Text('admin@gtlantin.com', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(20)),
+                    child: Text('Administrator', style: TextStyle(color: Colors.blue.shade700, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        const Divider(height: 1),
+
+        const SizedBox(height: 24),
+
+        // SECURITY SETTINGS
+        const Text('Security', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.lock_outline, color: Color(0xFF0F172A)),
+            ),
+            title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Update your administrator password', style: TextStyle(fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showChangePasswordModal(context), // Triggers the new interactive modal
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // PREFERENCES (Placeholder for future settings)
+        const Text('Preferences', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            children: [
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.notifications_none, color: Color(0xFF0F172A)),
+                ),
+                title: const Text('Notification Alerts', style: TextStyle(fontWeight: FontWeight.w600)),
+                trailing: Switch(value: true, onChanged: (val) {}, activeColor: Colors.blue.shade600),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.dark_mode_outlined, color: Color(0xFF0F172A)),
+                ),
+                title: const Text('Dark Mode', style: TextStyle(fontWeight: FontWeight.w600)),
+                trailing: Switch(value: false, onChanged: (val) {}),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

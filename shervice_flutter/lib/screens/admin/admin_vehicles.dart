@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
-class AdminVehicles extends StatelessWidget {
-  const AdminVehicles({super.key});
+class AdminFleet extends StatelessWidget {
+  const AdminFleet({super.key});
 
-  // Modal Function for Registering a Vehicle
-  void _showRegisterVehicleModal(BuildContext context) {
+  void _showNewVehicleModal(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -18,56 +17,27 @@ class AdminVehicles extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Unit ID',
-                      hintText: 'e.g., GT-VAN-025',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.tag),
-                    ),
+                    decoration: const InputDecoration(labelText: 'Plate Number / ID', border: OutlineInputBorder(), prefixIcon: Icon(Icons.pin)),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Model',
-                      hintText: 'e.g., Toyota Hiace Commuter',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.directions_car),
-                    ),
+                    decoration: const InputDecoration(labelText: 'Vehicle Model', border: OutlineInputBorder(), prefixIcon: Icon(Icons.directions_car)),
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Plate Number',
-                      hintText: 'e.g., ABC-1234',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.pin),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Initial Mileage (km)',
-                      hintText: 'e.g., 12500',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.speed),
-                    ),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Seating Capacity', border: OutlineInputBorder(), prefixIcon: Icon(Icons.group)),
+                    items: ['12 Seats', '15 Seats', '18 Seats'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    onChanged: (value) {},
                   ),
                 ],
               ),
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade600,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
               child: const Text('Register Vehicle', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -85,15 +55,15 @@ class AdminVehicles extends StatelessWidget {
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 16,
-          runSpacing: 16, 
+          runSpacing: 16,
           children: [
             const Text(
-              'Fleet Health & Maintenance',
+              'Fleet Management',
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
             ),
             ElevatedButton.icon(
-              onPressed: () => _showRegisterVehicleModal(context),
-              icon: const Icon(Icons.add, color: Colors.white),
+              onPressed: () => _showNewVehicleModal(context),
+              icon: const Icon(Icons.directions_bus, color: Colors.white),
               label: const Text('Register Vehicle', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue.shade600,
@@ -105,107 +75,77 @@ class AdminVehicles extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-              columns: const [
-                DataColumn(label: Text('UNIT ID')),
-                DataColumn(label: Text('MODEL / PLATE')),
-                DataColumn(label: Text('MILEAGE')),
-                DataColumn(label: Text('ML HEALTH SCORE')),
-                DataColumn(label: Text('STATUS')),
-              ],
-              rows: [
-                _buildVehicleRow('GT-VAN-012', 'Toyota Hiace (ABC-1234)', '45,200 km', 0.95, Colors.green, 'Operational'),
-                _buildVehicleRow('GT-VAN-008', 'Nissan Urvan (XYZ-9876)', '82,100 km', 0.60, Colors.orange, 'Warning'),
-                _buildVehicleRow('GT-VAN-014', 'Toyota Commuter (DEF-5678)', '110,500 km', 0.15, Colors.red, 'Maintenance Required'),
-                _buildVehicleRow('GT-VAN-022', 'Toyota Hiace (GHI-9012)', '15,000 km', 0.99, Colors.green, 'Operational'),
-              ],
-            ),
-          ),
-        ),
+        _buildVehicleCard(plate: 'GT-VAN-012', model: 'Toyota Hiace Commuter', capacity: '15 Seats', condition: 'Excellent', status: 'Active (On Route)', statusColor: Colors.green),
+        _buildVehicleCard(plate: 'GT-VAN-008', model: 'Nissan Urvan NV350', capacity: '15 Seats', condition: 'Good', status: 'Active (On Route)', statusColor: Colors.green),
+        _buildVehicleCard(plate: 'GT-VAN-022', model: 'Toyota Hiace GL Grandia', capacity: '12 Seats', condition: 'Needs Maintenance', status: 'Garage', statusColor: Colors.red),
+
         const SizedBox(height: 16),
-        
-        // Pagination Component
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Showing 1 to 4 of 38 entries', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-            Row(
-              children: [
-                OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.grey.shade300),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: const Text('Previous', style: TextStyle(color: Colors.black87)),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(color: Colors.blue.shade600, borderRadius: BorderRadius.circular(8)),
-                  child: const Text('1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.grey.shade300),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: const Text('Next', style: TextStyle(color: Colors.black87)),
-                ),
-              ],
-            )
-          ],
-        )
+        _buildResponsivePagination('1 to 3 of 59 vehicles'),
       ],
     );
   }
 
-  DataRow _buildVehicleRow(String id, String model, String mileage, double health, Color healthColor, String status) {
-    return DataRow(
-      cells: [
-        DataCell(Text(id, style: const TextStyle(fontWeight: FontWeight.bold))),
-        DataCell(Text(model)),
-        DataCell(Text(mileage, style: TextStyle(color: Colors.grey.shade600))),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
+  Widget _buildVehicleCard({required String plate, required String model, required String capacity, required String condition, required String status, required Color statusColor}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8, runSpacing: 8,
             children: [
-              SizedBox(
-                width: 100,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: health,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: AlwaysStoppedAnimation<Color>(healthColor),
-                    minHeight: 8,
-                  ),
-                ),
+              Text(plate, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
-              const SizedBox(width: 8),
-              Text('${(health * 100).toInt()}%', style: TextStyle(fontWeight: FontWeight.bold, color: healthColor)),
             ],
           ),
-        ),
-        DataCell(
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: healthColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-            child: Text(status, style: TextStyle(color: healthColor, fontWeight: FontWeight.bold, fontSize: 12)),
-          ),
-        ),
+          const SizedBox(height: 12), const Divider(), const SizedBox(height: 12),
+          Wrap(
+            spacing: 16, runSpacing: 12,
+            children: [
+              _iconText(Icons.directions_car_outlined, model),
+              _iconText(Icons.group_outlined, capacity),
+              _iconText(Icons.build_circle_outlined, 'Condition: $condition'),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _iconText(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [Icon(icon, size: 20, color: Colors.grey), const SizedBox(width: 8), Text(text, style: const TextStyle(fontWeight: FontWeight.w500))],
+    );
+  }
+
+  Widget _buildResponsivePagination(String text) {
+    return Wrap(
+      alignment: WrapAlignment.end, // Anchored purely to the right
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 16, runSpacing: 16,
+      children: [
+        Text('Showing $text', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+        Wrap(
+          spacing: 8,
+          children: [
+            OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: const Text('Prev', style: TextStyle(color: Colors.black87))),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: Colors.blue.shade600, borderRadius: BorderRadius.circular(8)), child: const Text('1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+            OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: const Text('Next', style: TextStyle(color: Colors.black87))),
+          ],
+        )
       ],
     );
   }

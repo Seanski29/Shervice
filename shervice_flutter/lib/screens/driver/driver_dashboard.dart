@@ -64,16 +64,29 @@ class DriverDashboard extends StatelessWidget {
                     decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
                     child: const Text('SHIFT 1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
-                  const Text('06:00 AM', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.green.shade400, borderRadius: BorderRadius.circular(8)),
+                    child: const Text('ONGOING', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
                 ],
               ),
-              const SizedBox(height: 20),
-              const Text('DESTINATION', style: TextStyle(color: Colors.white70, fontSize: 11, letterSpacing: 1)),
-              const SizedBox(height: 4),
-              const Text('LIMA Estate (EPSON)', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 24),
               
-              // NEW: Detailed Route Info replacing the Start Route Button
+              // NEW: Timeline Layout for Pick-up and Drop-off
+              _buildTimelineRow(Icons.my_location, 'PICK-UP', 'Lipa City Terminal', '05:45 AM', Colors.blue.shade200),
+              
+              // Visual Connector Line
+              Padding(
+                padding: const EdgeInsets.only(left: 11.0, top: 4.0, bottom: 4.0),
+                child: Container(width: 2, height: 24, color: Colors.white30),
+              ),
+              
+              _buildTimelineRow(Icons.location_on, 'DROP-OFF', 'LIMA Estate (EPSON)', '06:30 AM', Colors.red.shade300),
+              
+              const SizedBox(height: 24),
+              
+              // Detailed Route Info
               Container(
                 padding: const EdgeInsets.only(top: 16),
                 decoration: const BoxDecoration(
@@ -129,6 +142,28 @@ class DriverDashboard extends StatelessWidget {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  // Helper widget for Pick-up / Drop-off timeline points
+  Widget _buildTimelineRow(IconData icon, String label, String location, String time, Color iconColor) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: iconColor, size: 24),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              Text(location, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        Text(time, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
       ],
     );
   }

@@ -7,6 +7,7 @@ import '../screens/admin/admin_drivers.dart';
 import '../screens/admin/admin_vehicles.dart';
 import '../screens/admin/admin_users.dart';
 import '../screens/admin/admin_settings.dart';
+import '../screens/admin/admin_feedbacks.dart';
 
 
 class AdminDesktopLayout extends StatefulWidget {
@@ -23,10 +24,11 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   final List<Widget> _screens = [
     const AdminDashboard(),
     const AdminSchedules(),
-    const AdminDrivers(),
-    const AdminVehicles(),
+    const AdminDriver(),
+    const AdminFleet(),
     const AdminUsers(),
     const AdminSettings(),
+    const AdminFeedbacks(),
   ];
 
   @override

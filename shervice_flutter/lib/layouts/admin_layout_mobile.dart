@@ -6,6 +6,7 @@ import '../screens/admin/admin_drivers.dart';
 import '../screens/admin/admin_vehicles.dart';
 import '../screens/admin/admin_users.dart';
 import '../screens/admin/admin_settings.dart';
+import '../screens/admin/admin_feedbacks.dart';
 
 class AdminMobileLayout extends StatefulWidget {
   const AdminMobileLayout({super.key});
@@ -21,10 +22,11 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
   final List<Widget> _screens = [
     const AdminDashboard(), // Index 0
     const AdminSchedules(), // Index 1
-    const AdminDrivers(),   // Index 2
-    const AdminVehicles(),  // Index 3
+    const AdminDriver(),   // Index 2
+    const AdminFleet(),  // Index 3
     const AdminUsers(),     // Index 4
     const AdminSettings(),  // Index 5
+    const AdminFeedbacks(), // Index 6
   ];
 
   @override
