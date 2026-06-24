@@ -1,0 +1,13 @@
+{
+    "cmake.sourceDirectory": "D:/xampp/htdocs/Shuttle Services/shervice_flutter/linux",
+    "folder-color.pathColors": [
+        {
+            "folderPath": "Shuttle Services\\shervice_flutter\\",
+            "color": "foldercolorizer.color_ffffff"
+        },
+        {
+            "folderPath": "Shuttle Services\\shervice_flutter\\lib\\screens\\passenger\\",
+            "color": "foldercolorizer.color_ffffff"
+        }
+    ]
+}
