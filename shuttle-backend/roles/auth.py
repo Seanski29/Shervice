@@ -170,3 +170,62 @@ def update_user_password():
     except Exception as e:
         print(f"❌ EXACT Password Update Error: {str(e)}")
         return jsonify({"success": False, "message": f"Server failed: {str(e)}"}), 500
+    
+
+@auth_bp.route('/api/auth/register-staff-oic', methods=['POST'])
+def register_staff_oic():
+    """
+    Securely registers Staff or OIC accounts using Admin API.
+    """
+    try:
+        data = request.get_json() or {}
+        email = str(data.get('email', '')).strip().lower()
+        password = data.get('password')
+        role_raw = data.get('role')
+        company_name = data.get('company_name')
+        full_name = data.get('full_name')
+
+        if not email or not password or not role_raw:
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        # Mapping UI roles to database values
+        role_map = {
+            'Administrator': 'admin',
+            'Dispatch Staff': 'staff',
+            'Officer-in-Charge': 'oic'
+        }
+        normalized_role = role_map.get(role_raw, 'staff')
+
+        # 1. Create Admin Client for Administrative actions
+        ADMIN_KEY = os.getenv("SUPABASE_KEY")
+        ADMIN_URL = os.getenv("SUPABASE_URL")
+        admin_supabase = create_client(ADMIN_URL, ADMIN_KEY)
+
+        # 2. Create in Vault (Using Admin Client)
+        auth_res = admin_supabase.auth.admin.create_user({
+            "email": email,
+            "password": password,
+            "email_confirm": True
+        })
+        user_uuid = auth_res.user.id
+
+        # 3. Add to Directory (Standard Client is fine for this)
+        supabase.table('user_account').insert({
+            "user_id": user_uuid,
+            "role": normalized_role,
+            "username": email
+        }).execute()
+
+        # 4. If OIC, add to Profile
+        if normalized_role == 'oic':
+            supabase.table('oic_profile').insert({
+                "user_id": user_uuid,
+                "company_name": company_name
+            }).execute()
+
+        print(f"✅ Secure Registration Success for: {email}")
+        return jsonify({"success": True, "message": "User registered successfully"}), 201
+
+    except Exception as e:
+        print(f"❌ Registration Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
