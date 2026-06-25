@@ -8,6 +8,9 @@ import 'package:http/http.dart' as http;
 // Imports for your layouts and the forgot password screen
 import '../layouts/admin_layout.dart';
 import '../layouts/driver_layout.dart';
+// TODO: Adjust these two import paths to match exactly what you named your responsive wrapper files
+import '../layouts/oic_layout.dart'; 
+import '../layouts/staff_layout.dart';
 import 'forgot_password.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -81,6 +84,19 @@ class _LoginScreenState extends State<LoginScreen> {
               MaterialPageRoute(builder: (context) => const AdminLayout()),
             );
           }
+        } else if (role == 'oic') {
+          if (mounted) {
+            navigator.pushReplacement(
+              MaterialPageRoute(builder: (context) => const OicLayout()), 
+            );
+          }
+        } else if (role == 'staff') {
+          if (mounted) {
+            navigator.pushReplacement(
+              // TODO: Ensure StaffLayoutDesktop matches your class name
+              MaterialPageRoute(builder: (context) => const StaffLayout()), 
+            );
+          }
         } else if (role == 'driver') {
           if (mounted) {
             // PASS the backend dynamic name value straight into the driver layout wrapper
@@ -94,6 +110,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             );
           }
+        } else {
+          _showSnackBar('Unrecognized user role assigned.', Colors.red.shade600);
         }
       } else {
         // Displays exact authentication or user mismatch errors from server

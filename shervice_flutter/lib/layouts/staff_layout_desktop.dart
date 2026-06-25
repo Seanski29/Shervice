@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../login/login.dart';
-import '../screens/staff/staff_dashboard.dart';
-import '../screens/staff/staff_vehicle.dart';
-import '../screens/staff/staff_schedules.dart';
-import '../screens/staff/staff_drivers.dart'; // Assume created
-import '../screens/staff/staff_attendance.dart'; // Assume created
-import '../screens/staff/staff_analytics.dart'; // Assume created
+import '../../screens/staff/staff_dashboard.dart';
+import '../../screens/staff/staff_vehicle.dart';
+import '../../screens/staff/staff_schedules.dart';
+import '../../screens/staff/staff_drivers.dart';
+import '../../screens/staff/staff_attendance.dart';
+import '../../screens/staff/staff_analytics.dart';
+import '../../login/login.dart';
 
 class StaffLayoutDesktop extends StatefulWidget {
   const StaffLayoutDesktop({super.key});
@@ -16,14 +16,15 @@ class StaffLayoutDesktop extends StatefulWidget {
 
 class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
   int _selectedIndex = 0;
+  bool _isSidebarExpanded = true;
 
   final List<Widget> _screens = [
     const StaffDashboard(),
     const StaffVehicle(),
     const StaffSchedules(),
-    const StaffDrivers(), // Replace with StaffDriver()
-    const StaffAttendance(), // Replace with StaffAttendance()
-    const StaffAnalytics(), // Replace with StaffAnalytics()
+    const StaffDrivers(),
+    const StaffAttendance(),
+    const StaffAnalytics(),
   ];
 
   @override
@@ -32,71 +33,94 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
       backgroundColor: const Color(0xFFF8FAFC),
       body: Row(
         children: [
-          Container(
-            width: 260,
+          // Sidebar
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: _isSidebarExpanded ? 260 : 76,
             color: const Color(0xFF1E293B),
             child: Column(
               children: [
+                const SizedBox(height: 20),
+                // Logo & Header
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Row(
                     children: [
-                      ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.asset('assets/logo.jpg', width: 36, height: 36, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(width: 36, height: 36, color: Colors.white, child: const Icon(Icons.directions_car, color: Colors.green)))),
-                      const SizedBox(width: 12),
-                      const Expanded(child: Text('SHERVICE\nSTAFF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, fontStyle: FontStyle.italic, height: 1.2))),
+                      ClipRRect(borderRadius: BorderRadius.circular(20), child: Image.asset('logo.jpg', width: 40, height: 40, fit: BoxFit.cover)),
+                      if (_isSidebarExpanded) ...[
+                        const SizedBox(width: 16),
+                        const Expanded(child: Text('SHERVICE\nStaff Portal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, fontStyle: FontStyle.italic))),
+                      ]
                     ],
                   ),
                 ),
-                const Divider(color: Colors.white24, height: 1),
+                const SizedBox(height: 32),
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: EdgeInsets.zero,
                     children: [
-                      _buildItem(Icons.dashboard, 'Overview', 0),
-                      _buildItem(Icons.local_shipping, 'Vehicles', 1),
-                      _buildItem(Icons.calendar_month, 'Schedules', 2),
-                      _buildItem(Icons.group, 'Drivers', 3),
-                      _buildItem(Icons.how_to_reg, 'Attendance', 4),
-                      _buildItem(Icons.analytics, 'Predictive AI', 5),
+                      _buildNavItem(0, 'Dashboard', Icons.grid_view),
+                      _buildNavItem(1, 'Fleet Management', Icons.directions_car_outlined),
+                      _buildNavItem(2, 'Schedules', Icons.calendar_month_outlined),
+                      _buildNavItem(3, 'Driver Records', Icons.people_outline),
+                      _buildNavItem(4, 'Attendance', Icons.how_to_reg),
+                      _buildNavItem(5, 'Predictive AI', Icons.analytics),
                     ],
                   ),
                 ),
-                const Divider(color: Colors.white24, height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: InkWell(
-                    onTap: () => _handleLogout(context),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                      child: const Row(children: [Icon(Icons.logout, color: Colors.redAccent, size: 22), SizedBox(width: 16), Text('Log Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600))]),
-                    ),
-                  ),
-                ),
+                _buildNavItem(99, 'Log Out', Icons.logout, isLogout: true),
+                const SizedBox(height: 20),
               ],
             ),
           ),
-          // Main content
-          Expanded(child: _screens[_selectedIndex]),
+          // Content
+          Expanded(
+            child: Column(
+              children: [
+                _buildTopBar(),
+                Expanded(child: _screens[_selectedIndex]),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildItem(IconData icon, String title, int index) {
-    final isSel = _selectedIndex == index;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: InkWell(
-        onTap: () => setState(() => _selectedIndex = index),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), decoration: BoxDecoration(color: isSel ? Colors.blue.withValues(alpha: 0.15) : Colors.transparent, borderRadius: BorderRadius.circular(8)), child: Row(children: [Icon(icon, color: isSel ? Colors.blue.shade400 : Colors.grey.shade400, size: 22), const SizedBox(width: 16), Text(title, style: TextStyle(color: isSel ? Colors.white : Colors.grey.shade300, fontWeight: isSel ? FontWeight.w600 : FontWeight.normal))])),
+  Widget _buildTopBar() {
+    return Container(
+      height: 70,
+      decoration: BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          IconButton(icon: const Icon(Icons.menu, color: Colors.grey), onPressed: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded)),
+          const Spacer(),
+          const Text('Staff User', style: TextStyle(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
 
-  void _handleLogout(BuildContext context) {
-    showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Confirm Logout'), content: const Text('Are you sure you want to log out?'), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), ElevatedButton(onPressed: () { Navigator.pop(ctx); Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginScreen()), (route) => false); }, style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Logout', style: TextStyle(color: Colors.white)))]));
+  Widget _buildNavItem(int index, String title, IconData icon, {bool isLogout = false}) {
+    bool isActive = _selectedIndex == index && !isLogout;
+    return InkWell(
+      onTap: () => isLogout ? _confirmLogout() : setState(() => _selectedIndex = index),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(color: isActive ? Colors.blue.shade600 : Colors.transparent, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            Icon(icon, color: isActive ? Colors.white : Colors.white70, size: 20),
+            if (_isSidebarExpanded) ...[const SizedBox(width: 16), Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmLogout() {
+    showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Confirm Logout'), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen())), child: const Text('Logout'))]));
   }
 }
