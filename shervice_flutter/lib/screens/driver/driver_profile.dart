@@ -73,13 +73,13 @@ class _DriverProfileState extends State<DriverProfile> {
   }
 
   /// Pushes password changes directly to the driver's local directory rows
+  /// Pushes password changes directly to the secure Supabase Auth Vault via Python
   Future<void> _updateAccountPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
 
     try {
-      // Find account profile metadata links from current payload context definitions
       final String targetUserId = _profileData?['user_id'] ?? '';
 
       if (targetUserId.isEmpty) {
@@ -91,39 +91,37 @@ class _DriverProfileState extends State<DriverProfile> {
         return;
       }
 
-      // Endpoint path used to pass profile record overrides back up to Flask
+      // Pointing to the REAL authentication endpoint we just created
       final response = await http
           .post(
-            Uri.parse(
-              '$_backendUrl/trips',
-            ), // Reusing an open table route or structural schema lane
+            Uri.parse('$_backendUrl/auth/update-password'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'user_id': targetUserId,
-              'trip_status':
-                  'PASSWORD_UPDATE_BYPASS', // Metasignaling command interceptor string
-              'route_name': _passwordController
-                  .text, // Piped string value holder allocation
+              'new_password': _passwordController.text,
             }),
           )
           .timeout(const Duration(seconds: 10));
 
-      // presentation simulation fallback guarantee: always show success for smooth panel demos
-      _showSnackBar(
-        "Password updated securely within system database ledger!",
-        Colors.green,
-      );
-      _passwordController.clear();
-      _confirmPasswordController.clear();
+      final responseData = jsonDecode(response.body);
 
-      setState(() => _isSaving = false);
+      if (response.statusCode == 200 && responseData['success'] == true) {
+        _showSnackBar(
+          "Password updated securely in the cloud vault!",
+          Colors.green,
+        );
+        _passwordController.clear();
+        _confirmPasswordController.clear();
+      } else {
+        _showSnackBar(
+          responseData['message'] ?? "Failed to update password.",
+          Colors.red,
+        );
+      }
     } catch (e) {
-      _showSnackBar(
-        "Password updated and recorded in local system cache!",
-        Colors.green,
-      );
-      _passwordController.clear();
-      _confirmPasswordController.clear();
+      _showSnackBar("Network error: Could not reach the server.", Colors.red);
+      debugPrint("Password update failed: $e");
+    } finally {
       setState(() => _isSaving = false);
     }
   }

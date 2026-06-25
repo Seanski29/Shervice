@@ -1,6 +1,8 @@
 import uuid
+import os
 from typing import Any, Dict, cast
 from flask import Blueprint, jsonify, request
+from supabase import create_client
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -129,3 +131,42 @@ def register_driver():
     except Exception as e:
         print(f"❌ Driver Creation Intercept Failure: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+    
+@auth_bp.route('/api/auth/update-password', methods=['POST'])
+def update_user_password():
+    """
+    Foolproof Password Reset:
+    Creates a localized, temporary Admin client to bypass any global public key restrictions.
+    """
+    try:
+        data = request.get_json() or {}
+        user_id = data.get('user_id')
+        new_password = data.get('new_password')
+
+        if not user_id or not new_password:
+            return jsonify({"success": False, "message": "Missing user ID or new password."}), 400
+
+        ADMIN_URL = os.getenv("SUPABASE_URL")
+        ADMIN_KEY = os.getenv("SUPABASE_KEY")
+        
+        if not ADMIN_URL or not ADMIN_KEY:
+             return jsonify({"success": False, "message": "Server configuration missing keys."}), 500
+        
+        # Creates a localized master-admin connection just for this specific password task
+        admin_supabase = create_client(ADMIN_URL, ADMIN_KEY)
+
+        print(f"🔄 Admin attempting to update password for UUID: {user_id}")
+
+        # Use the dedicated admin client to force the update
+        update_response = admin_supabase.auth.admin.update_user_by_id(
+            user_id, 
+            attributes={"password": new_password}
+        )
+
+        print(f"✅ Supabase Vault Confirmed: Password changed successfully.")
+        
+        return jsonify({"success": True, "message": "Password updated successfully!"}), 200
+
+    except Exception as e:
+        print(f"❌ EXACT Password Update Error: {str(e)}")
+        return jsonify({"success": False, "message": f"Server failed: {str(e)}"}), 500
