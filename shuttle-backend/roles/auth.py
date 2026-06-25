@@ -9,11 +9,6 @@ supabase = None
 
 @auth_bp.route('/api/auth/login', methods=['POST'])
 def handle_api_login():
-    """
-    Hybrid Authentication Controller:
-    1. Checks local table bypass records first (unblocks custom registered drivers).
-    2. Falls back to Supabase Cloud Auth Vault if local lookup draws a blank (unblocks your original Admin).
-    """
     try:
         body = cast(Dict[str, Any], request.get_json() or {})
         email = str(body.get('email', '')).strip().lower()
@@ -22,57 +17,47 @@ def handle_api_login():
         if not email or not password:
             return jsonify({"success": False, "message": "Missing authentication parameters"}), 400
 
-        user_uuid = None
-        role = None
-        display_name = "System User"
-        token = "mock-presentation-session-token-string"
+        # ─── STRICT SECURITY CHECK: NO MORE BYPASS ───
+        try:
+            # This line FORCES the password to be correct for EVERYONE. 
+            # If they type the wrong password, it immediately throws an error and rejects them.
+            auth_response = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+            
+            user_uuid = auth_response.user.id
+            token = auth_response.session.access_token
+            
+        except Exception as auth_err:
+            print(f"❌ Login Rejected (Wrong Password or Email): {auth_err}")
+            return jsonify({"success": False, "status": "error", "message": "Invalid email or password credentials."}), 401
 
-        # ─── PATHWAY A: CHECK LOCAL TABLE BYPASS DIRECTORY FIRST (DRIVERS) ───
-        user_query = supabase.table('user_account').select('*').ilike('username', email).execute()
+        # ─── IF THE PASSWORD WAS CORRECT, GET THEIR ROLE ───
+        role = "admin" 
+        display_name = "System User"
+
+        user_query = supabase.table('user_account').select('*').eq('user_id', user_uuid).execute()
         
         if user_query.data:
-            account = cast(Dict[str, Any], user_query.data[0])
-            user_uuid = account.get('user_id')
-            role = str(account.get('role', '')).lower()
+            account: dict = user_query.data[0]
+            role = account.get('role', '').lower()
             
             if role == 'driver':
                 driver_profile = supabase.table('driver_profile').select('full_name').eq('user_id', user_uuid).execute()
                 if driver_profile.data:
-                    display_name = cast(Dict[str, Any], driver_profile.data[0]).get('full_name', 'System User')
+                    display_name = driver_profile.data[0].get('full_name')
             elif role == 'oic':
                 oic_profile = supabase.table('oic_profile').select('company_name').eq('user_id', user_uuid).execute()
                 if oic_profile.data:
-                    display_name = f"OIC ({cast(Dict[str, Any], oic_profile.data[0]).get('company_name', '')})"
+                    display_name = f"OIC ({oic_profile.data[0].get('company_name')})"
+            elif role == 'staff':
+                display_name = "Dispatch Staff"
             else:
                 display_name = "Admin Management"
                 
-            print(f"✅ [Pathway A] Successful direct table bypass login: {email} ({role})")
+        print(f"✅ Secure Login Success: {email} ({role})")
 
-        # ─── PATHWAY B: FALLBACK TO SUPABASE CLOUD VAULT (ADMIN ACCOUNT) ───
-        else:
-            try:
-                auth_response = supabase.auth.sign_in_with_password({
-                    "email": email,
-                    "password": password
-                })
-                user_uuid = auth_response.user.id # type: ignore
-                token = auth_response.session.access_token # type: ignore
-                
-                # Check if an admin row exists, otherwise default to admin role flags
-                admin_query = supabase.table('user_account').select('*').eq('user_id', user_uuid).execute()
-                if admin_query.data:
-                    role = str(cast(Dict[str, Any], admin_query.data[0]).get('role', '')).lower()
-                else:
-                    role = 'admin' # Safe production fallback assignment
-                
-                display_name = "Admin Management"
-                print(f"✅ [Pathway B] Successful cloud vault login: {email} ({role})")
-                
-            except Exception as auth_err:
-                print(f"❌ Fallback Cloud Auth also failed for {email}: {auth_err}")
-                return jsonify({"success": False, "status": "error", "message": "Invalid email or password credentials."}), 401
-
-        # ─── SEND UNIFIED SUCCESS RESPONSE TO FLUTTER ───
         return jsonify({
             "success": True,
             "status": "success",
@@ -112,8 +97,12 @@ def register_driver():
         if not email or not password or not full_name or not license_no:
             return jsonify({"success": False, "message": "Missing required field configurations."}), 400
 
-        # 1. Manually generate a valid random unique compliance UUID barcode string
-        driver_uuid = str(uuid.uuid4())
+        # 1. Register the driver officially in the Supabase Vault (Saves the real password!)
+        auth_response = supabase.auth.sign_up({
+            "email": email,
+            "password": password
+        })
+        driver_uuid = auth_response.user.id
 
         # 2. Sync baseline login directory record straight into user_account table
         supabase.table('user_account').insert({
