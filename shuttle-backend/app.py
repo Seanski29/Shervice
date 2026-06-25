@@ -269,7 +269,7 @@ def diagnostic_database_check():
             "message": "Flask successfully authenticated and communicated with Supabase!",
             "table_queried": "driver_profile",
             "total_rows_found": row_count,
-            "sample_data_payload": raw_data[:2]
+            "sample_data_payload": raw_data[:100]
         }), 200
     except Exception as e:
         print(f"❌ Diagnostic database connection failed: {e}")
