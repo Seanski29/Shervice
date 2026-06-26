@@ -8,11 +8,13 @@ import '../../screens/staff/staff_analytics.dart';
 import '../../login/login.dart';
 
 class StaffLayoutDesktop extends StatefulWidget {
+  final String staffId; // 👈 1. Add variable
   final String staffName;
   final String companyName;
 
   const StaffLayoutDesktop({
     super.key,
+    required this.staffId, // 👈 2. Require it
     required this.staffName,
     required this.companyName,
   });
@@ -25,14 +27,13 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
 
-  // Use a getter so the State class can access the widget's properties
   List<Widget> get _screens => [
     StaffDashboard(
       staffName: widget.staffName,
       companyName: widget.companyName,
     ),
     const StaffVehicle(),
-    const StaffSchedules(),
+    StaffSchedules(staffId: widget.staffId), // 👈 3. Inject it here!
     const StaffDrivers(),
     const StaffAttendance(),
     const StaffAnalytics(),
@@ -74,7 +75,6 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
                 setState(() => _isSidebarExpanded = !_isSidebarExpanded),
           ),
           const Spacer(),
-          // Displays the real staff member's name in the top right corner
           Text(
             widget.staffName,
             style: const TextStyle(
