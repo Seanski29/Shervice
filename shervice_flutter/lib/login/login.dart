@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 import '../layouts/admin_layout.dart';
 import '../layouts/driver_layout.dart';
 // TODO: Adjust these two import paths to match exactly what you named your responsive wrapper files
-import '../layouts/oic_layout.dart'; 
+import '../layouts/oic_layout.dart';
 import '../layouts/staff_layout.dart';
 import 'forgot_password.dart';
 
@@ -73,7 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && responseData['status'] == 'success') {
+      // ─── UPDATED: Checking for 'success' == true instead of 'status' ───
+      if (response.statusCode == 200 && responseData['success'] == true) {
         final userData = responseData['data'];
         final String role = userData['role'];
 
@@ -86,15 +87,33 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } else if (role == 'oic') {
           if (mounted) {
+            // 1. Grab the name from the database payload
+            final String oicDisplayName = userData['name'] ?? 'Officer';
+            final String oicCompany = userData['company'] ?? 'Unknown Company';
+
             navigator.pushReplacement(
-              MaterialPageRoute(builder: (context) => const OicLayout()), 
+              MaterialPageRoute(
+                // Pass BOTH into the layout
+                builder: (context) => OicLayout(
+                  oicName: oicDisplayName,
+                  companyName: oicCompany, // <── NEW
+                ),
+              ),
             );
           }
         } else if (role == 'staff') {
           if (mounted) {
+            // Grab the real name and company
+            final String staffDisplayName = userData['name'] ?? 'Staff Member';
+            final String staffCompany = userData['company'] ?? 'Internal';
+
             navigator.pushReplacement(
-              // TODO: Ensure StaffLayoutDesktop matches your class name
-              MaterialPageRoute(builder: (context) => const StaffLayout()), 
+              MaterialPageRoute(
+                builder: (context) => StaffLayout(
+                  staffName: staffDisplayName,
+                  companyName: staffCompany,
+                ),
+              ),
             );
           }
         } else if (role == 'driver') {
@@ -111,7 +130,10 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else {
-          _showSnackBar('Unrecognized user role assigned.', Colors.red.shade600);
+          _showSnackBar(
+            'Unrecognized user role assigned.',
+            Colors.red.shade600,
+          );
         }
       } else {
         // Displays exact authentication or user mismatch errors from server
