@@ -103,8 +103,17 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } else if (role == 'staff') {
           if (mounted) {
+            // Grab the real name and company
+            final String staffDisplayName = userData['name'] ?? 'Staff Member';
+            final String staffCompany = userData['company'] ?? 'Internal';
+
             navigator.pushReplacement(
-              MaterialPageRoute(builder: (context) => const StaffLayout()),
+              MaterialPageRoute(
+                builder: (context) => StaffLayout(
+                  staffName: staffDisplayName,
+                  companyName: staffCompany,
+                ),
+              ),
             );
           }
         } else if (role == 'driver') {
