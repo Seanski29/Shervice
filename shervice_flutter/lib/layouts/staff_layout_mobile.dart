@@ -8,11 +8,13 @@ import '../../screens/staff/staff_analytics.dart';
 import '../../login/login.dart';
 
 class StaffLayoutMobile extends StatefulWidget {
+  final String staffId; // 👈 1. Add variable
   final String staffName;
   final String companyName;
 
   const StaffLayoutMobile({
     super.key,
+    required this.staffId, // 👈 2. Require it
     required this.staffName,
     required this.companyName,
   });
@@ -24,14 +26,15 @@ class StaffLayoutMobile extends StatefulWidget {
 class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
   int _selectedIndex = 0;
 
-  // Use a getter so the State class can access the widget's properties
   List<Widget> get _screens => [
     StaffDashboard(
       staffName: widget.staffName,
       companyName: widget.companyName,
     ),
     const StaffVehicle(),
-    const StaffSchedules(),
+    StaffSchedules(
+      staffId: widget.staffId,
+    ), // 👈 3. Inject it here! (Notice 'const' is gone)
     const StaffDrivers(),
     const StaffAttendance(),
     const StaffAnalytics(),
@@ -109,7 +112,7 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
       ),
       onTap: () {
         setState(() => _selectedIndex = index);
-        Navigator.pop(context); // Close the drawer after selection
+        Navigator.pop(context);
       },
     );
   }

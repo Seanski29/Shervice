@@ -12,6 +12,7 @@ import roles.drivers as drivers_module
 import roles.staff as staff_module
 import roles.passenger as passenger_module
 import roles.vehicle as vehicles_module  
+import roles.schedules as schedules_module
 
 class TransportBackendApp:
     def __init__(self):
@@ -64,7 +65,8 @@ class TransportBackendApp:
         drivers_module.supabase = self.supabase
         staff_module.supabase = self.supabase
         passenger_module.supabase = self.supabase
-        vehicles_module.supabase = self.supabase  # 👈 2. INJECTED SUPABASE CLIENT INTO VEHICLES
+        vehicles_module.supabase = self.supabase  
+        schedules_module.supabase = self.supabase
 
         # Register functional application blueprints cleanly
         self.app.register_blueprint(auth_module.auth_bp)
@@ -73,8 +75,8 @@ class TransportBackendApp:
         self.app.register_blueprint(drivers_module.drivers_bp)
         self.app.register_blueprint(staff_module.staff_bp)
         self.app.register_blueprint(passenger_module.passenger_bp)
-        self.app.register_blueprint(vehicles_module.vehicles_bp)  # 👈 3. REGISTERED THE VEHICLES BLUEPRINT
-
+        self.app.register_blueprint(vehicles_module.vehicles_bp) 
+        self.app.register_blueprint(schedules_module.schedules_bp)
     def run(self):
         # Force alignment to explicit loopback addresses
         self.app.run(host='127.0.0.1', port=5000, debug=True)

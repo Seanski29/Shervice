@@ -103,13 +103,20 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } else if (role == 'staff') {
           if (mounted) {
-            // Grab the real name and company
-            final String staffDisplayName = userData['name'] ?? 'Staff Member';
-            final String staffCompany = userData['company'] ?? 'Internal';
+            // ─── BULLETPROOF DATA EXTRACTION ───
+            // Checks multiple possible database keys and safely converts to String
+            final String realUserId =
+                (userData['user_id'] ?? userData['id'] ?? '').toString();
+            final String staffDisplayName =
+                (userData['name'] ?? userData['full_name'] ?? 'Staff Member')
+                    .toString();
+            final String staffCompany = (userData['company'] ?? 'Internal')
+                .toString();
 
             navigator.pushReplacement(
               MaterialPageRoute(
                 builder: (context) => StaffLayout(
+                  staffId: realUserId,
                   staffName: staffDisplayName,
                   companyName: staffCompany,
                 ),
