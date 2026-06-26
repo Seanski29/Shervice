@@ -67,3 +67,59 @@ def diagnostic_database_check():
     except Exception as e:
         print(f"❌ Diagnostic database connection failed: {e}")
         return jsonify({"connection_status": "FAILED", "error_details": str(e)}), 500
+
+
+
+@admin_bp.route('/api/users/system-users', methods=['GET'])
+def get_system_users():
+    try:
+        # 1. Fetch all user accounts
+        users_res = supabase.table('user_account').select('*').execute()
+        users = users_res.data if users_res.data else []
+        
+        # 2. Fetch OIC profiles to get company names
+        oic_res = supabase.table('oic_profile').select('*').execute()
+        oic_profiles = {oic['user_id']: oic for oic in (oic_res.data if oic_res.data else [])}
+        
+        # 3. Fetch Driver profiles (Fallback in case full_names are stored here)
+        driver_res = supabase.table('driver_profile').select('user_id, full_name').execute()
+        driver_profiles = {drv['user_id']: drv for drv in (driver_res.data if driver_res.data else [])}
+        
+        system_users = []
+        
+        # We only want these roles to show up on the Admin Users page
+        target_roles = ['admin', 'administrator', 'staff', 'dispatch staff', 'oic', 'officer-in-charge']
+        
+        for user in users:
+            role = str(user.get('role', '')).lower()
+            
+            if role in target_roles:
+                user_id = user.get('user_id')
+                
+                # Resolve full name (Fallback to email/username if no name was provided)
+                full_name = user.get('username')
+                if user_id in driver_profiles:
+                    full_name = driver_profiles[user_id].get('full_name', full_name)
+                    
+                # Resolve company name (OIC gets specific company, Admins/Staff get default Internal)
+                company_name = 'GT Lantin Internal'
+                if user_id in oic_profiles:
+                    company_name = oic_profiles[user_id].get('company_name', company_name)
+                
+                system_users.append({
+                    "user_id": user_id,
+                    "username": user.get('username'),
+                    "role": user.get('role'),
+                    "full_name": full_name,
+                    "company_name": company_name,
+                    "status": "Active"
+                })
+                
+        return jsonify({
+            "success": True,
+            "data": system_users
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error fetching system users: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
