@@ -5,17 +5,70 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'admin_feedbacks.dart';
 
-class AdminUsers extends StatelessWidget {
+// ─── MAIN DASHBOARD COMPONENT ───
+class AdminUsers extends StatefulWidget {
   const AdminUsers({super.key});
+
+  @override
+  State<AdminUsers> createState() => _AdminUsersState();
+}
+
+class _AdminUsersState extends State<AdminUsers> {
+  bool _isLoading = true;
+  List<dynamic> _systemUsers = [];
+
+  // Centralized local network gateway
+  String get _backendUrl {
+    if (kIsWeb) return 'http://127.0.0.1:5000/api';
+    return Platform.isAndroid
+        ? 'http://10.0.2.2:5000/api'
+        : 'http://127.0.0.1:5000/api';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSystemUsers();
+  }
+
+  Future<void> _fetchSystemUsers() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$_backendUrl/auth/system-users'))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          if (!mounted) return;
+          setState(() {
+            _systemUsers = data['data'];
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      debugPrint("❌ Failed to fetch users: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   void _showNewUserModal(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevent closing while loading
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return const RegisterUserDialog();
       },
-    );
+    ).then((_) {
+      // Refresh the list automatically after the modal closes
+      if (mounted) {
+        setState(() => _isLoading = true);
+        _fetchSystemUsers();
+      }
+    });
   }
 
   @override
@@ -98,101 +151,41 @@ class AdminUsers extends StatelessWidget {
         ),
         const SizedBox(height: 24),
 
-        // Admin
-        _buildUserCard(
-          name: 'System Admin',
-          email: 'admin@gtlantin.com',
-          role: 'Administrator',
-          company: 'GT Lantin Internal',
-          permission: 'Full Access',
-          status: 'Active',
-          statusColor: Colors.green,
-        ),
-
-        // Dispatch Staff
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 8.0),
-          child: Text(
-            'DISPATCH STAFF',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-              letterSpacing: 1.2,
+        if (_isLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40.0),
+              child: CircularProgressIndicator(),
             ),
-          ),
-        ),
-        _buildUserCard(
-          name: 'Mark Reyes',
-          email: 'staff.epson@gtlantin.com',
-          role: 'Dispatch Staff',
-          company: 'EPSON Account',
-          permission: 'Logistics Only',
-          status: 'Active',
-          statusColor: Colors.green,
-        ),
-        _buildUserCard(
-          name: 'Sarah Lim',
-          email: 'staff.bandai@gtlantin.com',
-          role: 'Dispatch Staff',
-          company: 'Bandai Account',
-          permission: 'Logistics Only',
-          status: 'Active',
-          statusColor: Colors.green,
-        ),
-        _buildUserCard(
-          name: 'John Torres',
-          email: 'staff.nx@gtlantin.com',
-          role: 'Dispatch Staff',
-          company: 'NX Logistics Account',
-          permission: 'Logistics Only',
-          status: 'Active',
-          statusColor: Colors.green,
-        ),
-
-        // Officers in Charge
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 8.0),
-          child: Text(
-            'CLIENT OFFICERS (OIC)',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-              letterSpacing: 1.2,
+          )
+        else if (_systemUsers.isEmpty)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40.0),
+              child: Text(
+                "No system users found.",
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
             ),
-          ),
-        ),
-        _buildUserCard(
-          name: 'Elena Cruz',
-          email: 'elena.cruz@epson.com',
-          role: 'Officer-in-Charge',
-          company: 'EPSON',
-          permission: 'Schedules & Feedback',
-          status: 'Active',
-          statusColor: Colors.blue,
-        ),
-        _buildUserCard(
-          name: 'Kenji Sato',
-          email: 'k.sato@bandai.com',
-          role: 'Officer-in-Charge',
-          company: 'Bandai',
-          permission: 'Schedules & Feedback',
-          status: 'Active',
-          statusColor: Colors.blue,
-        ),
-        _buildUserCard(
-          name: 'Maria Santos',
-          email: 'msantos@nxlogistics.com',
-          role: 'Officer-in-Charge',
-          company: 'NX Logistics',
-          permission: 'Schedules & Feedback',
-          status: 'Offline',
-          statusColor: Colors.grey,
-        ),
+          )
+        else
+          ..._systemUsers.map((user) {
+            return _buildUserCard(
+              name: user['name'] ?? 'System User',
+              email: user['email'] ?? 'No Email',
+              role: user['role'] ?? 'Staff',
+              company: user['company'] ?? 'Internal',
+              permission: user['permission'] ?? 'Standard',
+              status: user['status'] ?? 'Active',
+              statusColor: user['color'] == 'blue' ? Colors.blue : Colors.green,
+            );
+          }),
 
         const SizedBox(height: 16),
-        _buildResponsivePagination('1 to 7 of 15 system users'),
+        if (!_isLoading && _systemUsers.isNotEmpty)
+          _buildResponsivePagination(
+            '1 to ${_systemUsers.length} of ${_systemUsers.length} system users',
+          ),
       ],
     );
   }
@@ -287,10 +280,7 @@ class AdminUsers extends StatelessWidget {
       spacing: 16,
       runSpacing: 16,
       children: [
-        Text(
-          'Showing $text',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-        ),
+        Text(text, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
         Wrap(
           spacing: 8,
           children: [
@@ -339,7 +329,7 @@ class AdminUsers extends StatelessWidget {
   }
 }
 
-// ─── NEW STATEFUL WIDGET FOR THE MODAL ───
+// ─── MODAL COMPONENT ───
 class RegisterUserDialog extends StatefulWidget {
   const RegisterUserDialog({super.key});
 
@@ -357,7 +347,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
   String? _selectedCompany;
   bool _isLoading = false;
 
-  // Centralized local network gateway
   String get _backendUrl {
     if (kIsWeb) return 'http://127.0.0.1:5000/api';
     return Platform.isAndroid
@@ -389,36 +378,36 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
 
       if (response.statusCode == 201 && responseData['success'] == true) {
         if (!mounted) return;
-        Navigator.pop(context); // Close the modal
-        _showSnackBar(
-          "User registered securely in the Auth Vault!",
-          Colors.green,
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("User registered securely in the Auth Vault!"),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       } else {
-        _showSnackBar(
-          responseData['message'] ?? "Registration failed.",
-          Colors.red,
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(responseData['message'] ?? "Registration failed."),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
-      _showSnackBar(
-        "Network error: Could not reach backend server.",
-        Colors.red,
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Network error: Could not reach backend server."),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-      debugPrint("❌ OIC/Staff Registration Error: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
@@ -468,8 +457,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // ─── NEW SECURE PASSWORD FIELD ───
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
@@ -483,7 +470,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
                 DropdownButtonFormField<String>(
                   validator: (val) => val == null ? "Select a role" : null,
                   decoration: const InputDecoration(
@@ -491,12 +477,9 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.admin_panel_settings),
                   ),
-                  items:
-                      ['Administrator', 'Dispatch Staff', 'Officer-in-Charge']
-                          .map(
-                            (e) => DropdownMenuItem(value: e, child: Text(e)),
-                          )
-                          .toList(),
+                  items: ['Dispatch Staff', 'Officer-in-Charge']
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
                   onChanged: (value) => setState(() => _selectedRole = value),
                 ),
                 const SizedBox(height: 16),
