@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
-import 'layouts/admin_layout.dart';
-import 'layouts/driver_layout.dart';
+import 'layouts/admin/admin_layout.dart';
+import 'layouts/driver/driver_layout.dart';
 import 'login/login.dart';
 
 void main() {

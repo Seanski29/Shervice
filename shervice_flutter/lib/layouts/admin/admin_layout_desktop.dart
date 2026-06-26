@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../screens/admin/admin_dashboard.dart';
-import '../screens/admin/admin_schedules.dart';
-import '../screens/admin/admin_drivers.dart';
-import '../screens/admin/admin_vehicles.dart';
-import '../screens/admin/admin_users.dart';
-import '../screens/admin/admin_settings.dart';
-import '../screens/admin/admin_feedbacks.dart';
-import '../login/login.dart';
+import '../../screens/admin/admin_dashboard.dart';
+import '../../screens/admin/admin_schedules.dart';
+import '../../screens/admin/admin_drivers.dart';
+import '../../screens/admin/admin_vehicles.dart';
+import '../../screens/admin/admin_users.dart';
+import '../../screens/admin/admin_settings.dart';
+import '../../screens/admin/admin_feedbacks.dart';
+import '../../login/login.dart';
 
 
 class AdminDesktopLayout extends StatefulWidget {

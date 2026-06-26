@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../screens/driver/driver_dashboard.dart';
-import '../screens/driver/driver_schedules.dart';
-import '../screens/driver/driver_ratings.dart';
-import '../screens/driver/driver_profile.dart';
-import '../login/login.dart';
+import '../../screens/driver/driver_dashboard.dart';
+import '../../screens/driver/driver_schedules.dart';
+import '../../screens/driver/driver_ratings.dart';
+import '../../screens/driver/driver_profile.dart';
+import '../../login/login.dart';
 
 class DriverLayoutMobile extends StatefulWidget {
   final String driverName; // FIXED: Added property declaration

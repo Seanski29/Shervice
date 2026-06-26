@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
 // Import your screens
-import '../screens/admin/admin_dashboard.dart';
-import '../screens/admin/admin_schedules.dart';
-import '../screens/admin/admin_drivers.dart';
-import '../screens/admin/admin_vehicles.dart';
-import '../screens/admin/admin_users.dart';
-import '../screens/admin/admin_settings.dart';
-import '../screens/admin/admin_feedbacks.dart';
+import '../../screens/admin/admin_dashboard.dart';
+import '../../screens/admin/admin_schedules.dart';
+import '../../screens/admin/admin_drivers.dart';
+import '../../screens/admin/admin_vehicles.dart';
+import '../../screens/admin/admin_users.dart';
+import '../../screens/admin/admin_settings.dart';
+import '../../screens/admin/admin_feedbacks.dart';
 
 // IMPORTANT: Import the Login Screen
-import '../login/login.dart';
+import '../../login/login.dart';
 
 class AdminMobileLayout extends StatefulWidget {
   const AdminMobileLayout({super.key});

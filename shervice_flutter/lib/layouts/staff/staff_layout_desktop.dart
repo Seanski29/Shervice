@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../screens/staff/staff_dashboard.dart';
-import '../../screens/staff/staff_vehicle.dart';
-import '../../screens/staff/staff_schedules.dart';
-import '../../screens/staff/staff_drivers.dart';
-import '../../screens/staff/staff_attendance.dart';
-import '../../screens/staff/staff_analytics.dart';
-import '../../login/login.dart';
+import '../../../screens/staff/staff_dashboard.dart';
+import '../../../screens/staff/staff_vehicle.dart';
+import '../../../screens/staff/staff_schedules.dart';
+import '../../../screens/staff/staff_drivers.dart';
+import '../../../screens/staff/staff_attendance.dart';
+import '../../../screens/staff/staff_analytics.dart';
+import '../../../login/login.dart';
 
 class StaffLayoutDesktop extends StatefulWidget {
   const StaffLayoutDesktop({super.key});

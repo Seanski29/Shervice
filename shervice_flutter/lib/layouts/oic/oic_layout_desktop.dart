@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../screens/oic/oic_dashboard.dart';
-import '../../screens/oic/oic_schedules.dart';
-import '../../screens/oic/oic_trips.dart';
-import '../../login/login.dart';
+import '../../../screens/oic/oic_dashboard.dart';
+import '../../../screens/oic/oic_schedules.dart';
+import '../../../screens/oic/oic_trips.dart';
+import '../../../login/login.dart';
 
 class OicLayoutDesktop extends StatefulWidget {
   const OicLayoutDesktop({super.key});

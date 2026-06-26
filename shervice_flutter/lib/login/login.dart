@@ -6,11 +6,11 @@ import 'package:flutter/gestures.dart';
 import 'package:http/http.dart' as http;
 
 // Imports for your layouts and the forgot password screen
-import '../layouts/admin_layout.dart';
-import '../layouts/driver_layout.dart';
+import '../layouts/admin/admin_layout.dart';
+import '../layouts/driver/driver_layout.dart';
 // TODO: Adjust these two import paths to match exactly what you named your responsive wrapper files
-import '../layouts/oic_layout.dart'; 
-import '../layouts/staff_layout.dart';
+import '../layouts/oic/oic_layout.dart'; 
+import '../layouts/staff/staff_layout.dart';
 import 'forgot_password.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } else if (role == 'driver') {
           if (mounted) {
-            // PASS the backend dynamic name value straight into the driver layout wrapper
+            // PASS the backend dynamic name value 
             final String driverDisplayName =
                 userData['name'] ?? 'Driver Partner';
 
