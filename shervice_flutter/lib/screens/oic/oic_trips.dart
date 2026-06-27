@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 
+// ─── 1. REQUIRE THE ID IN THE WIDGET ───
 class OicTrips extends StatefulWidget {
-  const OicTrips({super.key});
+  final String oicId; // 👈 Add this variable
+
+  const OicTrips({super.key, required this.oicId}); // 👈 Require it here
 
   @override
   State<OicTrips> createState() => _OicTripsState();
@@ -9,17 +16,53 @@ class OicTrips extends StatefulWidget {
 
 class _OicTripsState extends State<OicTrips> {
   String _searchTerm = '';
+  List<dynamic> _trips = [];
+  bool _isLoading = true;
 
-  final List<Map<String, dynamic>> _trips = [
-    {'id': 'TRP-801', 'driver': 'A. Santos', 'vehicle': 'Van 1 (ABC-123)', 'route': 'LIMA - SM Lipa', 'time': '10:00 AM', 'status': 'In Transit', 'passengers': 12, 'capacity': 15},
-    {'id': 'TRP-802', 'driver': 'B. Garcia', 'vehicle': 'Bus 3 (XYZ-987)', 'route': 'LIMA - Malvar', 'time': '09:30 AM', 'status': 'Completed', 'passengers': 28, 'capacity': 30},
-    {'id': 'TRP-803', 'driver': 'C. Mendoza', 'vehicle': 'Van 2 (DEF-456)', 'route': 'LIMA - Tanauan', 'time': '01:00 PM', 'status': 'Scheduled', 'passengers': 0, 'capacity': 15},
-    {'id': 'TRP-804', 'driver': 'D. Reyes', 'vehicle': 'Bus 1 (LMN-111)', 'route': 'LIMA - Sto. Tomas', 'time': '03:30 PM', 'status': 'Scheduled', 'passengers': 0, 'capacity': 30},
-  ];
+  String get _backendUrl {
+    if (kIsWeb) return 'http://127.0.0.1:5000/api';
+    return Platform.isAndroid
+        ? 'http://10.0.2.2:5000/api'
+        : 'http://127.0.0.1:5000/api';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDeploymentLogs();
+  }
+
+  Future<void> _fetchDeploymentLogs() async {
+    try {
+      // ─── 2. USE THE SPECIFIC OIC ROUTE ───
+      final res = await http.get(
+        Uri.parse('$_backendUrl/schedules/oic/${widget.oicId}'),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (mounted) {
+          setState(() {
+            _trips = data['data'] ?? [];
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching deployment logs: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredTrips = _trips.where((trip) => trip['id'].toString().toLowerCase().contains(_searchTerm.toLowerCase())).toList();
+    // Dynamically searches by Route Name or Driver Name
+    final filteredTrips = _trips.where((trip) {
+      final route = (trip['route_name'] ?? '').toString().toLowerCase();
+      final driver = (trip['driver_name'] ?? '').toString().toLowerCase();
+      final search = _searchTerm.toLowerCase();
+      return route.contains(search) || driver.contains(search);
+    }).toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -33,9 +76,19 @@ class _OicTripsState extends State<OicTrips> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Trip Details', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  const Text(
+                    'Trip Details',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Comprehensive log of all fleet deployments and passenger counts.', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+                  Text(
+                    'Comprehensive log of all fleet deployments and passenger counts.',
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  ),
                 ],
               ),
               Row(
@@ -50,104 +103,252 @@ class _OicTripsState extends State<OicTrips> {
                         filled: true,
                         fillColor: Colors.white,
                         contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.filter_list, color: Colors.black87),
-                    label: const Text('Filters', style: TextStyle(color: Colors.black87)),
-                    style: OutlinedButton.styleFrom(backgroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16)),
-                  )
                 ],
-              )
+              ),
             ],
           ),
           const SizedBox(height: 24),
 
           // List Container
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
             child: Column(
               children: [
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.grey.shade50, border: Border(bottom: BorderSide(color: Colors.grey.shade100))),
-                  child: Row(
-                    children: [
-                      Icon(Icons.list_alt, color: Colors.blue.shade600),
-                      const SizedBox(width: 8),
-                      const Text('Deployment Logs', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade100),
+                    ),
                   ),
-                ),
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: filteredTrips.length,
-                  separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade100),
-                  itemBuilder: (context, index) {
-                    final trip = filteredTrips[index];
-                    Color statusColor = trip['status'] == 'Completed' ? Colors.green : trip['status'] == 'In Transit' ? Colors.blue : Colors.orange;
-
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
                         children: [
-                          Expanded(
-                            flex: 2,
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(trip['id'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 4),
-                              Row(children: [const Icon(Icons.local_shipping, size: 14, color: Colors.grey), const SizedBox(width: 4), Text(trip['vehicle'], style: TextStyle(fontSize: 12, color: Colors.grey.shade600))]),
-                            ]),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Row(children: [const Icon(Icons.location_on, size: 14, color: Colors.blue), const SizedBox(width: 4), Text(trip['route'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))]),
-                              const SizedBox(height: 4),
-                              Row(children: [const Icon(Icons.access_time, size: 14, color: Colors.grey), const SizedBox(width: 4), Text(trip['time'], style: TextStyle(fontSize: 12, color: Colors.grey.shade600))]),
-                            ]),
-                          ),
-                          Expanded(flex: 1, child: Text(trip['driver'], style: const TextStyle(fontWeight: FontWeight.w500))),
-                          Expanded(
-                            flex: 1,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(color: Colors.grey.shade100, border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6)),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.people, size: 12, color: Colors.grey.shade600),
-                                  const SizedBox(width: 4),
-                                  Text('${trip['passengers']} / ${trip['capacity']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 1,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), border: Border.all(color: statusColor.withValues(alpha: 0.3)), borderRadius: BorderRadius.circular(20)),
-                                child: Text(trip['status'].toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor)),
-                              ),
-                            ),
+                          Icon(Icons.list_alt, color: Colors.blue.shade600),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Deployment Logs',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
-                    );
-                  },
+                      IconButton(
+                        icon: const Icon(Icons.refresh, size: 20),
+                        onPressed: () {
+                          setState(() => _isLoading = true);
+                          _fetchDeploymentLogs();
+                        },
+                      ),
+                    ],
+                  ),
                 ),
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (filteredTrips.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Center(child: Text("No records found.")),
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: filteredTrips.length,
+                    separatorBuilder: (context, index) =>
+                        Divider(height: 1, color: Colors.grey.shade100),
+                    itemBuilder: (context, index) {
+                      final trip = filteredTrips[index];
+                      final String status = trip['trip_status'] ?? 'Scheduled';
+
+                      Color statusColor = Colors.orange;
+                      if (status == 'Completed') {
+                        statusColor = Colors.green;
+                      } else if (status == 'Ongoing') {
+                        statusColor = Colors.blue;
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "TRP-${trip['trip_id']}",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.local_shipping,
+                                        size: 14,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        trip['plate_number'] ??
+                                            'No Plate Assigned',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.location_on,
+                                        size: 14,
+                                        color: Colors.blue,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        trip['route_name'] ?? 'Unknown Route',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.access_time,
+                                        size: 14,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        trip['departure_time']
+                                                ?.toString()
+                                                .substring(0, 5) ??
+                                            '--:--',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                trip['driver_name'] ?? 'Unassigned',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 1,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.people,
+                                      size: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${trip['passenger_count'] ?? 0}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 1,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withOpacity(0.1),
+                                    border: Border.all(
+                                      color: statusColor.withOpacity(0.3),
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    status.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: statusColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );

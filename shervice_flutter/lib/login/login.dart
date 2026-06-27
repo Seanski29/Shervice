@@ -87,16 +87,19 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } else if (role == 'oic') {
           if (mounted) {
-            // 1. Grab the name from the database payload
-            final String oicDisplayName = userData['name'] ?? 'Officer';
-            final String oicCompany = userData['company'] ?? 'Unknown Company';
+            final String realUserId =
+                (userData['user_id'] ?? userData['id'] ?? '').toString();
+            final String oicDisplayName =
+                (userData['name'] ?? userData['full_name'] ?? 'OIC').toString();
+            final String oicCompany = (userData['company'] ?? 'Internal')
+                .toString();
 
             navigator.pushReplacement(
               MaterialPageRoute(
-                // Pass BOTH into the layout
                 builder: (context) => OicLayout(
+                  oicId: realUserId, // 👈 Start the baton pass here
                   oicName: oicDisplayName,
-                  companyName: oicCompany, // <── NEW
+                  companyName: oicCompany,
                 ),
               ),
             );
@@ -125,14 +128,22 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } else if (role == 'driver') {
           if (mounted) {
-            // PASS the backend dynamic name value straight into the driver layout wrapper
+            // Safely extract all three pieces of data from the database
+            final String realUserId =
+                (userData['user_id'] ?? userData['id'] ?? '').toString();
             final String driverDisplayName =
-                userData['name'] ?? 'Driver Partner';
+                (userData['name'] ?? userData['full_name'] ?? 'Driver')
+                    .toString();
+            final String driverCompany = (userData['company'] ?? 'Internal')
+                .toString();
 
             navigator.pushReplacement(
               MaterialPageRoute(
-                builder: (context) =>
-                    DriverLayout(driverName: driverDisplayName),
+                builder: (context) => DriverLayout(
+                  driverId: realUserId, // ✅ Added missing parameter
+                  driverName: driverDisplayName,
+                  companyName: driverCompany, // ✅ Added missing parameter
+                ),
               ),
             );
           }
