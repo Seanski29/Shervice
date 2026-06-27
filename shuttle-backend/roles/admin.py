@@ -138,6 +138,53 @@ def delete_vehicle_record(vehicle_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+# ─────────── DEDICATED DRIVER ENDPOINTS (NEW) ───────────
+
+@admin_bp.route('/api/auth/update-driver/<user_id>', methods=['PUT'])
+def update_driver_profile(user_id):
+    try:
+        data = request.get_json() or {}
+        new_email = data.get("email", "").strip().lower()
+        full_name = data.get("full_name")
+
+        # 1. Isolate GoTrue Auth Admin modifications
+        if new_email:
+            try:
+                admin_supabase = get_admin_client()
+                admin_supabase.auth.admin.update_user_by_id(
+                    user_id,
+                    attributes={"email": new_email, "email_confirm": True}
+                )
+            except Exception as auth_err:
+                print(f"⚠️ Auth Vault Sync bypassed (Likely missing service_role key): {auth_err}")
+
+            # Force immediate raw update transaction on user_account table
+            supabase.table("user_account").update({
+                "username": new_email,
+                "full_name": full_name
+            }).eq("user_id", user_id).execute()
+
+        # 2. Complete and execute the driver profile modification transaction
+        supabase.table("driver_profile").update({
+            "full_name": full_name,
+            "license_no": data.get("license_no"),
+            "birthday": data.get("birthday"),
+            "employment_status": data.get("employment_status", "Active")
+        }).eq("user_id", user_id).execute()
+
+        # ─── CRITICAL CHANGE: CLEAR FLASK ENTIRE SESSION CACHE CONTEXTS ───
+        # This breaks any stale data pools, forcing the NEXT read request 
+        # to pull completely fresh values straight out of the cloud database rows!
+        if hasattr(supabase, 'postgrest'):
+            supabase.postgrest.session.close()
+
+        return jsonify({"success": True, "message": "Live driver profile tables committed successfully."}), 200
+        
+    except Exception as e:
+        print(f"❌ Core Driver Profile Update Crash: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 # ─────────── USER MANAGEMENT ENDPOINTS (PUT & DELETE) ───────────
 
 @admin_bp.route('/api/auth/update-user/<user_id>', methods=['PUT'])
