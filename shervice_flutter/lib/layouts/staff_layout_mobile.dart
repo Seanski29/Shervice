@@ -7,6 +7,7 @@ import '../../screens/staff/staff_drivers.dart';
 import '../../screens/staff/staff_attendance.dart';
 import '../../screens/staff/staff_analytics.dart';
 import '../../login/login.dart';
+import '../../screens/staff/staff_settings.dart';
 
 class StaffLayoutMobile extends StatefulWidget {
   final String staffId;
@@ -34,10 +35,15 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
     ),
     const StaffVehicle(),
     StaffSchedules(staffId: widget.staffId),
-    StaffTrips(staffId: widget.staffId), // 👈 2. Add to the screens list
+    StaffTrips(staffId: widget.staffId),
     const StaffDrivers(),
     const StaffAttendance(),
     const StaffAnalytics(),
+    StaffSettings(
+      staffId: widget.staffId,
+      staffName: widget.staffName,
+      companyName: widget.companyName,
+    ),
   ];
 
   @override
@@ -86,6 +92,7 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
                   _buildDrawerTile(4, 'Driver Records', Icons.people_outline),
                   _buildDrawerTile(5, 'Attendance', Icons.how_to_reg),
                   _buildDrawerTile(6, 'Predictive AI', Icons.analytics),
+                  _buildDrawerTile(7, 'Settings', Icons.settings_outlined),
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.logout, color: Colors.red),
