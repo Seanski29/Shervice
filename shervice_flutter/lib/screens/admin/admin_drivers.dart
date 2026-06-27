@@ -28,6 +28,20 @@ class _AdminDriverState extends State<AdminDriver> {
         : 'http://127.0.0.1:5000/api/test-db';
   }
 
+  String _backendUpdateUrl(String id) {
+    if (kIsWeb) return 'http://127.0.0.1:5000/api/auth/update-driver/$id';
+    return Platform.isAndroid
+        ? 'http://10.0.2.2:5000/api/auth/update-driver/$id'
+        : 'http://127.0.0.1:5000/api/auth/update-driver/$id';
+  }
+
+  String _backendDeleteUrl(String id) {
+    if (kIsWeb) return 'http://127.0.0.1:5000/api/auth/delete-driver/$id';
+    return Platform.isAndroid
+        ? 'http://10.0.2.2:5000/api/auth/delete-driver/$id'
+        : 'http://127.0.0.1:5000/api/auth/delete-driver/$id';
+  }
+
   // --- State Variables ---
   bool _isLoading = true;
   List<dynamic> _allDrivers = [];
@@ -83,7 +97,6 @@ class _AdminDriverState extends State<AdminDriver> {
       final nameA = (a['full_name'] ?? '').toString().toLowerCase();
       final nameB = (b['full_name'] ?? '').toString().toLowerCase();
       
-      // Parse rating (defaults to 5.0 if not found in db)
       final ratingA = double.tryParse(a['rating']?.toString() ?? '5.0') ?? 5.0;
       final ratingB = double.tryParse(b['rating']?.toString() ?? '5.0') ?? 5.0;
 
@@ -102,7 +115,6 @@ class _AdminDriverState extends State<AdminDriver> {
 
     setState(() {
       _filteredDrivers = temp;
-      // Reset to first page when filters change to prevent out-of-bounds errors
       _currentPage = 0;
       _isLoading = false;
     });
@@ -130,115 +142,310 @@ class _AdminDriverState extends State<AdminDriver> {
     }
   }
 
-  // --- Registration Modal ---
-  void _showNewDriverModal(BuildContext context) {
+  // --- CORE DRIVER MODAL (VIEW MODE BY DEFAULT -> EDIT MODE FLIP) ---
+  void _showNewDriverModal(BuildContext context, {Map<String, dynamic>? driver}) {
+    final bool isDriverMode = driver != null;
     final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController();
-    final licenseController = TextEditingController();
-    final emailController = TextEditingController();
+
+    bool isWritingUnlocked = !isDriverMode; 
+
+    final String initialName = isDriverMode ? (driver['full_name'] ?? '').toString() : '';
+    final String initialLicense = isDriverMode ? (driver['license_no'] ?? '').toString() : '';
+    final String initialEmail = isDriverMode 
+        ? (driver['username'] ?? driver['email'] ?? driver['Username'] ?? driver['Email'] ?? '').toString() 
+        : '';
+    final String initialBirthday = isDriverMode ? (driver['birthday'] ?? '1995-05-15').toString() : '1995-05-15';
+
+    final nameController = TextEditingController(text: initialName);
+    final licenseController = TextEditingController(text: initialLicense);
+    final emailController = TextEditingController(text: initialEmail);
+    final birthdayController = TextEditingController(text: initialBirthday);
     final passwordController = TextEditingController();
+    
+    final String driverId = isDriverMode ? (driver['driver_id']?.toString() ?? 'TBD') : '';
+    final String licenseExpiry = isDriverMode ? (driver['license_expiry'] ?? '2031-12-31') : '2031-12-31';
+    final String dateHired = isDriverMode ? (driver['date_hired'] ?? 'Not Recorded') : '';
+    String currentStatus = isDriverMode ? (driver['employment_status'] ?? 'Active') : 'Active';
+
+    InputDecoration _fieldStyle({required String label, required IconData icon, bool forcesDisabled = false}) {
+      final bool editable = isWritingUnlocked && !forcesDisabled;
+      return InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: const Color(0xFF475569)),
+        filled: true,
+        fillColor: editable ? const Color(0xFFF1F5F9) : const Color(0xFFE2E8F0),
+        labelStyle: const TextStyle(color: Color(0xFF64748B)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+        ),
+      );
+    }
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Register New Driver', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: SizedBox(
-            width: 500,
-            child: SingleChildScrollView(
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFFF8FAFC),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Text(
+                isDriverMode ? 'Driver Profile (DRV-$driverId)' : 'Register New Driver', 
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Color(0xFF0F172A)),
+              ),
+              content: SizedBox(
+                width: 500,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: nameController,
+                          readOnly: !isWritingUnlocked,
+                          decoration: _fieldStyle(label: 'Full Name', icon: Icons.person),
+                          validator: (value) => value == null || value.isEmpty ? 'Field required' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: licenseController,
+                          readOnly: !isWritingUnlocked,
+                          decoration: _fieldStyle(label: 'License Number', icon: Icons.card_membership),
+                          validator: (value) => value == null || value.isEmpty ? 'Field required' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          readOnly: !isWritingUnlocked, 
+                          decoration: _fieldStyle(label: 'Account Email', icon: Icons.email),
+                          validator: (value) => value == null || value.isEmpty ? 'Field required' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Dynamic Birthday Selector for BOTH states
+                        TextFormField(
+                          controller: birthdayController,
+                          readOnly: true,
+                          decoration: _fieldStyle(label: 'Date of Birth (YYYY-MM-DD)', icon: Icons.cake),
+                          onTap: !isWritingUnlocked ? null : () async {
+                            DateTime currentParsedDate = DateTime.tryParse(birthdayController.text) ?? DateTime(1995, 5, 15);
+                            final DateTime? pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate: currentParsedDate,
+                              firstDate: DateTime(1950),
+                              lastDate: DateTime.now(),
+                            );
+                            if (pickedDate != null) {
+                              setDialogState(() {
+                                birthdayController.text = "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        if (!isDriverMode) ...[
+                          TextFormField(
+                            controller: passwordController,
+                            obscureText: true,
+                            decoration: _fieldStyle(label: 'Account Password', icon: Icons.lock),
+                            validator: (value) => value == null || value.length < 6 ? 'Password must be >= 6 chars' : null,
+                          ),
+                        ] else ...[
+                          DropdownButtonFormField<String>(
+                            value: currentStatus,
+                            decoration: _fieldStyle(label: 'Employment Status', icon: Icons.info_outline),
+                            dropdownColor: const Color(0xFFF8FAFC),
+                            onChanged: !isWritingUnlocked ? null : (val) {
+                              if (val != null) {
+                                setDialogState(() => currentStatus = val);
+                              }
+                            },
+                            items: ['Active', 'Suspended'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            initialValue: dateHired,
+                            readOnly: true,
+                            decoration: _fieldStyle(label: 'Date Hired', icon: Icons.event_available, forcesDisabled: true),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            initialValue: licenseExpiry,
+                            readOnly: true,
+                            decoration: _fieldStyle(label: 'License Expiration', icon: Icons.assignment_late, forcesDisabled: true),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actionsPadding: const EdgeInsets.only(bottom: 24, right: 24, left: 24),
+              actions: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    TextFormField(
-                      controller: nameController,
-                      decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person)),
-                      validator: (value) => value == null || value.isEmpty ? 'Field required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: licenseController,
-                      decoration: const InputDecoration(labelText: 'License Number', border: OutlineInputBorder(), prefixIcon: Icon(Icons.card_membership)),
-                      validator: (value) => value == null || value.isEmpty ? 'Field required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(labelText: 'Account Email', border: OutlineInputBorder(), prefixIcon: Icon(Icons.email)),
-                      validator: (value) => value == null || value.isEmpty ? 'Field required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(labelText: 'Account Password', border: OutlineInputBorder(), prefixIcon: Icon(Icons.lock)),
-                      validator: (value) => value == null || value.length < 6 ? 'Password must be >= 6 chars' : null,
+                    isDriverMode
+                        ? TextButton(
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _confirmPurgeDriver(driver);
+                            },
+                            child: const Text(
+                              'Delete', 
+                              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                    
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                        ),
+                        const SizedBox(width: 12),
+                        if (isDriverMode && !isWritingUnlocked)
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF64748B),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              setDialogState(() => isWritingUnlocked = true);
+                            },
+                            child: const Text('Edit Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          )
+                        else
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1D83E4),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: () async {
+                              if (formKey.currentState!.validate()) {
+                                Navigator.pop(context);
+                                setState(() => _isLoading = true);
+                                
+                                try {
+                                  if (isDriverMode) {
+                                    final res = await http.put(
+                                      Uri.parse(_backendUpdateUrl(driver['user_id'].toString())),
+                                      headers: {'Content-Type': 'application/json'},
+                                      body: jsonEncode({
+                                        'full_name': nameController.text.trim(),
+                                        'license_no': licenseController.text.trim(),
+                                        'email': emailController.text.trim(),
+                                        'birthday': birthdayController.text.trim(), 
+                                        'employment_status': currentStatus,
+                                      }),
+                                    ).timeout(const Duration(seconds: 10));
+
+                                    if (!mounted) return;
+                                    if (res.statusCode == 200) {
+                                      _showSnackBar('Profile successfully modified!', Colors.green);
+                                    } else {
+                                      _showSnackBar('Update rejected by server.', Colors.red);
+                                    }
+                                  } else {
+                                    final DateTime now = DateTime.now();
+                                    final String formattedDateHired = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+                                    final res = await http.post(
+                                      Uri.parse(_backendRegisterUrl),
+                                      headers: {'Content-Type': 'application/json'},
+                                      body: jsonEncode({
+                                        'email': emailController.text.trim(),
+                                        'password': passwordController.text,
+                                        'full_name': nameController.text.trim(),
+                                        'license_no': licenseController.text.trim(),
+                                        'birthday': birthdayController.text.trim(), 
+                                        'license_expiry': '2031-12-31',
+                                        'date_hired': formattedDateHired,
+                                      }),
+                                    ).timeout(const Duration(seconds: 10));
+
+                                    if (!mounted) return;
+                                    final responseData = jsonDecode(res.body);
+
+                                    if (res.statusCode == 201 || responseData['success'] == true) {
+                                      _showSnackBar('Driver registered securely in database!', Colors.green);
+                                    } else {
+                                      _showSnackBar('Server Error: ${responseData['message']}', Colors.red);
+                                    }
+                                  }
+                                } catch (e) {
+                                  if (mounted) _showSnackBar('Network connection failure.', Colors.red);
+                                } finally {
+                                  _fetchDriversFromDatabase();
+                                }
+                              }
+                            },
+                            child: Text(
+                              isDriverMode ? 'Save Changes' : 'Register Driver', 
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (ctx) => const Center(child: CircularProgressIndicator()),
-                  );
-
-                  try {
-                    final DateTime now = DateTime.now();
-                    final String formattedDateHired = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-
-                    final response = await http.post(
-                      Uri.parse(_backendRegisterUrl),
-                      headers: {'Content-Type': 'application/json'},
-                      body: jsonEncode({
-                        'email': emailController.text.trim(),
-                        'password': passwordController.text,
-                        'full_name': nameController.text.trim(),
-                        'license_no': licenseController.text.trim(),
-                        'birthday': '1995-05-15',
-                        'license_expiry': '2031-12-31',
-                        'date_hired': formattedDateHired,
-                      }),
-                    ).timeout(const Duration(seconds: 10));
-
-                    if (!context.mounted) return;
-                    Navigator.pop(context); // Pop loader
-
-                    final responseData = jsonDecode(response.body);
-
-                    if (response.statusCode == 201 || responseData['success'] == true) {
-                      Navigator.pop(context); // Dismiss alert modal
-                      _showSnackBar('Driver registered securely in live system database!', Colors.green);
-                      _fetchDriversFromDatabase(); // Refresh data to show new driver
-                    } else {
-                      final serverMsg = responseData['message'] ?? 'Registration rejected.';
-                      _showSnackBar('Server Error: $serverMsg', Colors.red);
-                    }
-                  } catch (e) {
-                    if (context.mounted) Navigator.pop(context);
-                    _showSnackBar('Network Failure: Cannot connect to Python backend.', Colors.red);
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-              child: const Text('Register Driver', style: TextStyle(color: Colors.white)),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
+    );
+  }
+
+  // --- DELETE CONFIRMATION INTERFACE ---
+  void _confirmPurgeDriver(Map<String, dynamic> driver) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Deletion'),
+        content: Text('Are you sure you want to permanently erase ${driver['full_name']} from the fleet network?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isLoading = true);
+              try {
+                final res = await http.delete(
+                  Uri.parse(_backendDeleteUrl(driver['user_id'].toString()))
+                ).timeout(const Duration(seconds: 10));
+                
+                if (res.statusCode == 200) {
+                  _showSnackBar('Driver records completely expunged.', Colors.orange);
+                } else {
+                  _showSnackBar('Purge request denied by backend.', Colors.red);
+                }
+              } catch (e) {
+                _showSnackBar('Network error occurred.', Colors.red);
+              } finally {
+                _fetchDriversFromDatabase();
+              }
+            },
+            child: const Text('Delete permanently', style: TextStyle(color: Colors.white)),
+          )
+        ],
+      ),
     );
   }
 
@@ -249,7 +456,7 @@ class _AdminDriverState extends State<AdminDriver> {
     );
   }
 
-  // --- UI Components ---
+  // --- CORE UI VIEW BUILDER ---
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -257,7 +464,6 @@ class _AdminDriverState extends State<AdminDriver> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row Component
           Wrap(
             alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -282,7 +488,6 @@ class _AdminDriverState extends State<AdminDriver> {
           ),
           const SizedBox(height: 24),
 
-          // Search and Sort Control Bar
           Row(
             children: [
               Expanded(
@@ -316,10 +521,7 @@ class _AdminDriverState extends State<AdminDriver> {
                     value: _currentSort,
                     icon: const Icon(Icons.sort),
                     items: _sortOptions.map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
+                      return DropdownMenuItem<String>(value: value, child: Text(value));
                     }).toList(),
                     onChanged: (newValue) {
                       if (newValue != null) {
@@ -334,7 +536,6 @@ class _AdminDriverState extends State<AdminDriver> {
           ),
           const SizedBox(height: 24),
 
-          // Dynamic List View
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -353,20 +554,58 @@ class _AdminDriverState extends State<AdminDriver> {
                         itemCount: _paginatedDrivers.length,
                         itemBuilder: (context, index) {
                           final driver = _paginatedDrivers[index];
-                          return _buildDriverCard(
-                            context: context,
-                            name: driver['full_name'] ?? 'Unnamed Driver',
-                            rating: driver['rating']?.toString() ?? '5.0', 
-                            driverId: 'DRV-${driver['driver_id']}',
-                            license: driver['license_no'] ?? 'No License Records',
-                            status: driver['employment_status'] ?? 'Active',
-                            statusColor: (driver['employment_status'] == 'Active') ? Colors.green : Colors.orange,
+                          final String status = driver['employment_status'] ?? 'Active';
+                          final Color statusColor = (status == 'Active') ? Colors.green : Colors.orange;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Material(
+                              color: Colors.transparent, 
+                              child: ListTile(
+                                splashColor: Colors.grey.withOpacity(0.1),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                title: Text(
+                                  driver['full_name'] ?? 'Unnamed Driver', 
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 16)
+                                ),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8)),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.star, color: Colors.amber.shade600, size: 12),
+                                            const SizedBox(width: 4),
+                                            Text(driver['rating']?.toString() ?? '5.0', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                        child: Text(status, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                                onTap: () => _showNewDriverModal(context, driver: Map<String, dynamic>.from(driver)),
+                              ),
+                            ),
                           );
                         },
                       ),
           ),
           
-          // Pagination Controls
           if (!_isLoading && _filteredDrivers.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 16),
@@ -384,10 +623,7 @@ class _AdminDriverState extends State<AdminDriver> {
                         child: const Text('Previous'),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Page ${_currentPage + 1} of $_totalPages',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      Text('Page ${_currentPage + 1} of $_totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(width: 8),
                       OutlinedButton(
                         onPressed: _currentPage < _totalPages - 1 ? _nextPage : null,
@@ -400,84 +636,6 @@ class _AdminDriverState extends State<AdminDriver> {
             ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDriverCard({
-    required BuildContext context,
-    required String name,
-    required String rating,
-    required String driverId,
-    required String license,
-    required String status,
-    required Color statusColor,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16,
-            runSpacing: 12,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.amber.shade50, border: Border.all(color: Colors.amber.shade200), borderRadius: BorderRadius.circular(12)),
-                    child: Row(
-                      children: [
-                        Icon(Icons.star, color: Colors.amber.shade600, size: 14),
-                        const SizedBox(width: 4),
-                        Text(rating, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: statusColor.withAlpha(25), borderRadius: BorderRadius.circular(20)),
-                child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            children: [
-              _iconText(Icons.badge_outlined, 'ID: $driverId'),
-              _iconText(Icons.card_membership, 'License: $license'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _iconText(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 20, color: Colors.grey),
-        const SizedBox(width: 8),
-        Text(text, style: const TextStyle(fontWeight: FontWeight.w500)),
-      ],
     );
   }
 }

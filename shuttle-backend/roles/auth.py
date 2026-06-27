@@ -90,7 +90,7 @@ def register_driver():
             "user_id": uid, 
             "role": "driver", 
             "username": email,
-            "full_name": full_name # <-- ADDED
+            "full_name": full_name
         }).execute()
 
         supabase.table('driver_profile').insert({
@@ -134,7 +134,7 @@ def register_staff_oic():
             "user_id": uid,
             "role": normalized_role,
             "username": email,
-            "full_name": full_name # <-- ADDED
+            "full_name": full_name
         }).execute()
 
         if normalized_role == 'oic':
@@ -173,8 +173,6 @@ def get_system_users():
 
         for u in users_query.data:
             role = str(u.get('role', 'staff')).lower()
-            
-            # 1. Grab the actual name here!
             actual_name = u.get('full_name') or 'System User'
             
             company = "GT Lantin Internal"
@@ -193,7 +191,7 @@ def get_system_users():
 
             formatted_users.append({
                 "id": u['user_id'],
-                "name": actual_name, # <-- APPLIED TO DASHBOARD
+                "name": actual_name,
                 "email": u.get('username', ''),
                 "role": display_role,
                 "company": company,
@@ -205,3 +203,57 @@ def get_system_users():
         return jsonify({"success": True, "data": formatted_users}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ─────────── ENDPOINT: UPDATE DRIVER DATA ───────────
+@auth_bp.route('/api/auth/update-driver/<driver_id>', methods=['PUT'])
+def update_driver(driver_id):
+    try:
+        data = request.get_json() or {}
+        new_email = data.get("email", "").strip().lower()
+        
+        # 1. Update the email directly inside the core Supabase Auth Vault
+        if new_email:
+            admin_supabase = get_admin_client()
+            admin_supabase.auth.admin.update_user_by_id(
+                driver_id,
+                attributes={"email": new_email, "email_confirm": True}
+            )
+        
+        # 2. Sync full name and email inside your public user_account tracking folder
+        supabase.table("user_account").update({
+            "full_name": data.get("full_name"),
+            "username": new_email # Syncing login identifier
+        }).eq("user_id", driver_id).execute()
+        
+        # 3. Sync profile operational descriptors
+        supabase.table("driver_profile").update({
+            "full_name": data.get("full_name"),
+            "birthday": data.get("birthday"),
+            "license_no": data.get("license_no"),
+            "employment_status": data.get("employment_status")
+        }).eq("user_id", driver_id).execute()
+        
+        return jsonify({"success": True, "message": "Driver fields and login credentials updated safely."}), 200
+    except Exception as e:
+        print(f"❌ Driver Update Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# ─────────── ENDPOINT: PURGE DRIVER FROM SYSTEM ───────────
+@auth_bp.route('/api/auth/delete-driver/<driver_id>', methods=['DELETE'])
+def delete_driver(driver_id):
+    try:
+        # Step 1: Wipe profile relations first to free foreign key constraints
+        supabase.table("driver_profile").delete().eq("user_id", driver_id).execute()
+        
+        # Step 2: Wipe custom user account metadata tracking row
+        supabase.table("user_account").delete().eq("user_id", driver_id).execute()
+        
+        # Step 3: Now it is safe to completely clear the user out of Supabase GoTrue Auth
+        admin_supabase = get_admin_client()
+        admin_supabase.auth.admin.delete_user(driver_id)
+        
+        return jsonify({"success": True, "message": "Driver completely expunged from system."}), 200
+    except Exception as e:
+        print(f"❌ Driver Delete Error: {e}")
+        return jsonify({"success": False, "message": f"Server processing error: {str(e)}"}), 500
