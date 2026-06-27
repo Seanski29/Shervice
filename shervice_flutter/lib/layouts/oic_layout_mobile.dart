@@ -26,10 +26,10 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
 
   @override
   Widget build(BuildContext context) {
-    // Define screens here so we can access widget.oicName
+    // Define screens here so we can access widget.oicName and widget.oicId
     final List<Widget> screens = [
       OicDashboard(oicName: widget.oicName, companyName: widget.companyName),
-      const OicSchedules(),
+      OicSchedules(oicId: widget.oicId), // 💡 Removed 'const' and passed oicId
       OicTrips(oicId: widget.oicId),
     ];
 

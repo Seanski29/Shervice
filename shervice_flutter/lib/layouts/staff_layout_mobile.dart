@@ -2,19 +2,20 @@ import 'package:flutter/material.dart';
 import '../../screens/staff/staff_dashboard.dart';
 import '../../screens/staff/staff_vehicle.dart';
 import '../../screens/staff/staff_schedules.dart';
+import '../../screens/staff/staff_trips.dart';
 import '../../screens/staff/staff_drivers.dart';
 import '../../screens/staff/staff_attendance.dart';
 import '../../screens/staff/staff_analytics.dart';
 import '../../login/login.dart';
 
 class StaffLayoutMobile extends StatefulWidget {
-  final String staffId; // 👈 1. Add variable
+  final String staffId;
   final String staffName;
   final String companyName;
 
   const StaffLayoutMobile({
     super.key,
-    required this.staffId, // 👈 2. Require it
+    required this.staffId,
     required this.staffName,
     required this.companyName,
   });
@@ -32,9 +33,8 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
       companyName: widget.companyName,
     ),
     const StaffVehicle(),
-    StaffSchedules(
-      staffId: widget.staffId,
-    ), // 👈 3. Inject it here! (Notice 'const' is gone)
+    StaffSchedules(staffId: widget.staffId),
+    StaffTrips(staffId: widget.staffId), // 👈 2. Add to the screens list
     const StaffDrivers(),
     const StaffAttendance(),
     const StaffAnalytics(),
@@ -68,15 +68,24 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
                 padding: EdgeInsets.zero,
                 children: [
                   _buildDrawerTile(0, 'Dashboard', Icons.grid_view),
-                  _buildDrawerTile(1, 'Fleet', Icons.directions_car_outlined),
+                  _buildDrawerTile(
+                    1,
+                    'Fleet Management',
+                    Icons.directions_car_outlined,
+                  ),
                   _buildDrawerTile(
                     2,
-                    'Schedules',
+                    'Pending Requests',
                     Icons.calendar_month_outlined,
                   ),
-                  _buildDrawerTile(3, 'Drivers', Icons.people_outline),
-                  _buildDrawerTile(4, 'Attendance', Icons.how_to_reg),
-                  _buildDrawerTile(5, 'Analytics', Icons.analytics),
+                  _buildDrawerTile(
+                    3,
+                    'Dispatch History',
+                    Icons.assignment_turned_in,
+                  ), // 👈 3. Add the navigation tile
+                  _buildDrawerTile(4, 'Driver Records', Icons.people_outline),
+                  _buildDrawerTile(5, 'Attendance', Icons.how_to_reg),
+                  _buildDrawerTile(6, 'Predictive AI', Icons.analytics),
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.logout, color: Colors.red),

@@ -4,6 +4,7 @@ schedules_bp = Blueprint('schedules', __name__)
 supabase = None  # Injected in app.py
 
 @schedules_bp.route('/api/schedules/request', methods=['POST'])
+@schedules_bp.route('/api/schedules/request', methods=['POST'])
 def create_trip_request():
     """OIC submits a new trip request"""
     try:
@@ -13,17 +14,29 @@ def create_trip_request():
         try:
             p_count = int(data.get('passenger_count', 0))
         except (ValueError, TypeError):
-            p_count = 0 # Fallback to 0 if they send letters like "adsdasda"
+            p_count = 0 
+            
+        oic_uuid = data.get('oic_id')
         
-        # Wrapped in () to prevent IndentationErrors
+        # 1. Lookup the integer ID from the oic_profile table
+        oic_lookup = (
+            supabase.table('oic_profile')
+            .select('oic_id')
+            .eq('user_id', oic_uuid)
+            .single()
+            .execute()
+        )
+        oic_int_id = oic_lookup.data['oic_id']
+        
+        # 2. Insert using the correct integer ID
         response = (
             supabase.table('trip_schedule')
             .insert({
-                "oic_id": data.get('oic_id'), 
+                "oic_id": oic_int_id, # 👈 Uses the looked-up integer!
                 "staff_id": data.get('staff_id'),
                 "route_name": data.get('destination', 'Unspecified Route'),
                 "route_distance": 0.0, 
-                "passenger_count": p_count,
+                "passenger_count": p_count, 
                 "schedule_date": data.get('departure_date'), 
                 "departure_time": data.get('departure_time'),
                 "estimated_arrival_time": data.get('departure_time'), 
@@ -37,7 +50,6 @@ def create_trip_request():
         print(f"❌ Trip Request Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-
 @schedules_bp.route('/api/schedules/staff-options', methods=['GET'])
 def get_staff_options():
     """Fetches list of Dispatch Staff for the OIC dropdown"""
@@ -48,27 +60,48 @@ def get_staff_options():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@schedules_bp.route('/api/schedules/oic/<string:oic_id>', methods=['GET'])
-def get_oic_trips(oic_id):
-    """Fetches all trips requested by this specific OIC, with names attached"""
+@schedules_bp.route('/api/schedules/oic/<string:oic_uuid>', methods=['GET'])
+def get_oic_trips(oic_uuid):
+    """Fetches all trips requested by ANY OIC within the same company"""
     try:
-        # 1. Fetch ONLY the trips belonging to this OIC
+        # 1. Find out which company this specific OIC belongs to
+        user_profile = (
+            supabase.table('oic_profile')
+            .select('company_name')
+            .eq('user_id', oic_uuid)
+            .single()
+            .execute()
+        )
+        company_name = user_profile.data['company_name']
+
+        # 2. Find ALL OIC integer IDs that belong to this same company
+        company_colleagues = (
+            supabase.table('oic_profile')
+            .select('oic_id')
+            .eq('company_name', company_name)
+            .execute()
+        )
+        
+        # Create a list of allowed integer IDs (e.g., [1, 4, 7])
+        allowed_oic_ids = [colleague['oic_id'] for colleague in company_colleagues.data]
+
+        # 3. Fetch all trips where the requested oic_id is in our allowed list
         trips = (
             supabase.table('trip_schedule')
             .select('*')
-            .eq('oic_id', oic_id)
+            .in_('oic_id', allowed_oic_ids) # 👈 The magic filter!
             .order('schedule_date', desc=True)
             .execute()
         )
         
-        # 2. Fetch reference data to match IDs to names
+        # 4. Fetch reference data to match IDs to names (Vehicle Plates & Driver Names)
         vehicles = supabase.table('vehicle').select('vehicle_id, plate_number').execute()
         drivers = supabase.table('driver_profile').select('user_id, full_name').execute()
 
         v_map = {v['vehicle_id']: v['plate_number'] for v in vehicles.data}
         d_map = {d['user_id']: d['full_name'] for d in drivers.data}
 
-        # 3. Attach the names to the trips
+        # 5. Attach the names to the trips
         formatted_trips = []
         for t in trips.data:
             t['plate_number'] = v_map.get(t.get('vehicle_id'), 'No Plate Assigned')
@@ -76,10 +109,11 @@ def get_oic_trips(oic_id):
             formatted_trips.append(t)
 
         return jsonify({"success": True, "data": formatted_trips}), 200
+        
     except Exception as e:
-        print(f"❌ OIC Fetch Error: {e}")
+        print(f"❌ OIC Company Fetch Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
-
+    
 @schedules_bp.route('/api/schedules/pending', methods=['GET'])
 def get_pending_schedules():
     """Staff views all requests waiting for driver/vehicle allocation"""
@@ -163,23 +197,6 @@ def assign_trip_assets():
         print(f"❌ Dispatch Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
     
-
-@schedules_bp.route('/api/schedules/staff/<string:staff_id>', methods=['GET'])
-def get_staff_assigned_trips(staff_id):
-    """Fetches all trips routed specifically to this Staff member"""
-    try:
-        query = (
-            supabase.table('trip_schedule')
-            .select('*')
-            .eq('staff_id', staff_id)
-            .order('trip_id', desc=True)
-            .execute()
-        )
-        return jsonify({"success": True, "data": query.data}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    
-
 @schedules_bp.route('/api/schedules/complete', methods=['POST'])
 def complete_trip():
     """Driver marks their trip as finished"""
@@ -264,4 +281,39 @@ def get_all_trips():
         return jsonify({"success": True, "data": formatted_trips}), 200
     except Exception as e:
         print(f"❌ Fetch All Trips Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+    
+@schedules_bp.route('/api/schedules/staff/<string:staff_uuid>', methods=['GET'])
+def get_staff_assigned_trips(staff_uuid):
+    """Fetches all trips handled specifically by this Staff member"""
+    try:
+        # 1. Fetch only trips where this staff member is assigned
+        trips = (
+            supabase.table('trip_schedule')
+            .select('*')
+            .eq('staff_id', staff_uuid) # 👈 Strict individual privacy filter
+            .order('schedule_date', desc=True)
+            .execute()
+        )
+        
+        # 2. Fetch reference data to attach names
+        vehicles = supabase.table('vehicle').select('vehicle_id, plate_number').execute()
+        drivers = supabase.table('driver_profile').select('user_id, full_name').execute()
+        oics = supabase.table('oic_profile').select('oic_id, company_name').execute()
+
+        v_map = {v['vehicle_id']: v['plate_number'] for v in vehicles.data}
+        d_map = {d['user_id']: d['full_name'] for d in drivers.data}
+        o_map = {o['oic_id']: o['company_name'] for o in oics.data}
+
+        # 3. Attach the readable data to the trips
+        formatted_trips = []
+        for t in trips.data:
+            t['plate_number'] = v_map.get(t.get('vehicle_id'), 'Pending Assignment')
+            t['driver_name'] = d_map.get(t.get('user_id'), 'Pending Assignment')
+            t['client_company'] = o_map.get(t.get('oic_id'), 'Unknown Client')
+            formatted_trips.append(t)
+
+        return jsonify({"success": True, "data": formatted_trips}), 200
+    except Exception as e:
+        print(f"❌ Staff Fetch Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500

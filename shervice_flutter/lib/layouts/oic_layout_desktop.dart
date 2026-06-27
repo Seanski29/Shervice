@@ -29,7 +29,7 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
     // Define screens here to access widget variables
     final List<Widget> screens = [
       OicDashboard(oicName: widget.oicName, companyName: widget.companyName),
-      const OicSchedules(),
+      OicSchedules(oicId: widget.oicId), // 💡 Removed 'const' and passed oicId
       OicTrips(oicId: widget.oicId),
     ];
 

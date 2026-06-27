@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class OicSchedules extends StatefulWidget {
-  const OicSchedules({super.key});
+  final String oicId; // ✅ Require the UUID from the layout
+
+  const OicSchedules({super.key, required this.oicId});
 
   @override
   State<OicSchedules> createState() => _OicSchedulesState();
@@ -14,9 +16,6 @@ class OicSchedules extends StatefulWidget {
 class _OicSchedulesState extends State<OicSchedules> {
   bool _isLoading = true;
   List<dynamic> _myTrips = [];
-
-  // TODO: Replace with the actual logged-in OIC integer ID later
-  final int currentOicId = 1;
 
   String get _backendUrl {
     if (kIsWeb) return 'http://127.0.0.1:5000/api';
@@ -33,9 +32,11 @@ class _OicSchedulesState extends State<OicSchedules> {
 
   Future<void> _fetchMyTrips() async {
     try {
+      // ✅ Use the dynamic UUID!
       final response = await http.get(
-        Uri.parse('$_backendUrl/schedules/oic/$currentOicId'),
+        Uri.parse('$_backendUrl/schedules/oic/${widget.oicId}'),
       );
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && mounted) {
@@ -45,9 +46,12 @@ class _OicSchedulesState extends State<OicSchedules> {
           });
           return;
         }
+      } else {
+        debugPrint("Server Error: ${response.statusCode}");
       }
       if (mounted) setState(() => _isLoading = false);
     } catch (e) {
+      debugPrint("Fetch Error: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -56,9 +60,10 @@ class _OicSchedulesState extends State<OicSchedules> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) => const CreateTripRequestDialog(),
+      // ✅ Pass the UUID down into the dialog so they can create trips
+      builder: (BuildContext context) =>
+          CreateTripRequestDialog(oicId: widget.oicId),
     ).then((_) {
-      // Refresh the list when the modal closes!
       if (mounted) {
         setState(() => _isLoading = true);
         _fetchMyTrips();
@@ -192,7 +197,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                       _iconText(
                         Icons.access_time,
                         trip['departure_time'].toString().substring(0, 5),
-                      ), // Trims seconds
+                      ),
                       const SizedBox(width: 24),
                       _iconText(
                         Icons.people,
@@ -227,7 +232,9 @@ class _OicSchedulesState extends State<OicSchedules> {
 
 // ─── NEW TRIP REQUEST FORM DIALOG ───
 class CreateTripRequestDialog extends StatefulWidget {
-  const CreateTripRequestDialog({super.key});
+  final String oicId; // ✅ Require the UUID here too
+
+  const CreateTripRequestDialog({super.key, required this.oicId});
 
   @override
   State<CreateTripRequestDialog> createState() =>
@@ -305,7 +312,7 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
         Uri.parse('$_backendUrl/schedules/request'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          "oic_id": 1, // Will be dynamic later
+          "oic_id": widget.oicId, // ✅ Sends the secure UUID!
           "staff_id": _selectedStaffId,
           "destination": _destinationController.text.trim(),
           "passenger_count": _passengerController.text.trim(),
