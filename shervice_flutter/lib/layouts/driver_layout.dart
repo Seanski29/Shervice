@@ -3,27 +3,33 @@ import 'driver_layout_desktop.dart';
 import 'driver_layout_mobile.dart';
 
 class DriverLayout extends StatelessWidget {
-  final String driverName; // 1. Added the property definition
+  final String driverId; // 👈 1. Add this
+  final String driverName;
+  final String companyName;
 
-  // 2. Updated constructor to require the driverName parameter
-  const DriverLayout({super.key, required this.driverName});
+  const DriverLayout({
+    super.key,
+    required this.driverId, // 👈 2. Require this
+    required this.driverName,
+    required this.companyName,
+  });
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // If the screen width is less than 600 pixels, show the Mobile layout
-        if (constraints.maxWidth < 600) {
-          return DriverLayoutMobile(
-            driverName: driverName,
-          ); // 3. Passed name down
-        }
-        // Otherwise, show the Desktop layout
-        else {
+        if (constraints.maxWidth > 800) {
           return DriverLayoutDesktop(
+            driverId: driverId, // 👈 3. Pass it down
             driverName: driverName,
-          ); // 3. Passed name down
+            companyName: companyName,
+          );
         }
+        return DriverLayoutMobile(
+          driverId: driverId, // 👈 3. Pass it down
+          driverName: driverName,
+          companyName: companyName,
+        );
       },
     );
   }

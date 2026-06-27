@@ -2,19 +2,20 @@ import 'package:flutter/material.dart';
 import '../../screens/staff/staff_dashboard.dart';
 import '../../screens/staff/staff_vehicle.dart';
 import '../../screens/staff/staff_schedules.dart';
+import '../../screens/staff/staff_trips.dart';
 import '../../screens/staff/staff_drivers.dart';
 import '../../screens/staff/staff_attendance.dart';
 import '../../screens/staff/staff_analytics.dart';
 import '../../login/login.dart';
 
 class StaffLayoutDesktop extends StatefulWidget {
-  final String staffId; // 👈 1. Add variable
+  final String staffId;
   final String staffName;
   final String companyName;
 
   const StaffLayoutDesktop({
     super.key,
-    required this.staffId, // 👈 2. Require it
+    required this.staffId,
     required this.staffName,
     required this.companyName,
   });
@@ -33,7 +34,8 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
       companyName: widget.companyName,
     ),
     const StaffVehicle(),
-    StaffSchedules(staffId: widget.staffId), // 👈 3. Inject it here!
+    StaffSchedules(staffId: widget.staffId),
+    StaffTrips(staffId: widget.staffId), // 👈 2. Add to the screens list
     const StaffDrivers(),
     const StaffAttendance(),
     const StaffAnalytics(),
@@ -137,10 +139,19 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
                   'Fleet Management',
                   Icons.directions_car_outlined,
                 ),
-                _buildNavItem(2, 'Schedules', Icons.calendar_month_outlined),
-                _buildNavItem(3, 'Driver Records', Icons.people_outline),
-                _buildNavItem(4, 'Attendance', Icons.how_to_reg),
-                _buildNavItem(5, 'Predictive AI', Icons.analytics),
+                _buildNavItem(
+                  2,
+                  'Pending Requests',
+                  Icons.calendar_month_outlined,
+                ), // Renamed for clarity
+                _buildNavItem(
+                  3,
+                  'Dispatch History',
+                  Icons.assignment_turned_in,
+                ), // 👈 3. Add the navigation button
+                _buildNavItem(4, 'Driver Records', Icons.people_outline),
+                _buildNavItem(5, 'Attendance', Icons.how_to_reg),
+                _buildNavItem(6, 'Predictive AI', Icons.analytics),
               ],
             ),
           ),
