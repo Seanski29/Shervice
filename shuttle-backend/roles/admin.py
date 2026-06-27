@@ -67,3 +67,23 @@ def diagnostic_database_check():
     except Exception as e:
         print(f"❌ Diagnostic database connection failed: {e}")
         return jsonify({"connection_status": "FAILED", "error_details": str(e)}), 500
+
+@admin_bp.route('/api/trips', methods=['GET'])
+def get_admin_schedules():
+    """
+    Dedicated Schedule Pipeline:
+    Fetches all live rows inside trip_schedule sorted chronologically.
+    """
+    try:
+        trips_res = supabase.table('trip_schedule').select('*').order('schedule_date', desc=False).execute()
+        print(f"📊 [Admin Pipeline] Dispatched {len(trips_res.data or [])} trip records to dashboard.")
+        return jsonify({
+            "success": True, 
+            "trips": trips_res.data or []
+        }), 200
+    except Exception as e:
+        print(f"❌ Admin Schedule Fetch Exception: {e}")
+        return jsonify({
+            "success": False, 
+            "error": "Failed to sync system schedule streams."
+        }), 500

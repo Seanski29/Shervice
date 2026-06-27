@@ -15,6 +15,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   double averagePunctuality = 5.0;
   int maintenanceAlerts = 0;
   List<dynamic> maintenanceLogs = [];
+  List<dynamic> _companyTripsData = []; // State array linked to dynamic block
   bool isLoading = true;
   String? errorMessage;
 
@@ -22,6 +23,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void initState() {
     super.initState();
     fetchLiveDashboardData();
+  }
+
+  // Helper method to procedurally style alternating client tracks
+  Color _proceduralColorAssigner(int index) {
+    final List<Color> designPalette = [
+      Colors.blue.shade600,
+      Colors.orange.shade500,
+      Colors.green.shade500,
+      Colors.purple.shade500,
+      Colors.teal.shade500,
+    ];
+    return designPalette[index % designPalette.length];
   }
 
   Future<void> fetchLiveDashboardData() async {
@@ -40,6 +53,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
             averagePunctuality = (metrics['averagePunctuality'] ?? 5.0).toDouble();
             maintenanceAlerts = metrics['maintenanceAlerts'] ?? 0;
             maintenanceLogs = data['alerts'] ?? [];
+            // Extracts client metrics data if delivered alongside summary parameters
+            _companyTripsData = data['company_weekly_metrics'] ?? [];
             isLoading = false;
           });
         }
@@ -106,23 +121,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const SizedBox(height: 20),
             
-Wrap(
-  spacing: 16.0,
-  runSpacing: 16.0,
-  children: [
-    // FIXED: Changed total_Drivers to totalDrivers
-    _KpiCard(width: dynamicWidth, title: 'Active Drivers', value: totalDrivers.toString(), subtitle: 'Registered profiles', icon: Icons.people, iconColor: Colors.blue),
-    
-    // FIXED: Changed active_Vehicles to activeVehicles
-    _KpiCard(width: dynamicWidth, title: 'Active Vehicles', value: activeVehicles.toString(), subtitle: 'Status: Good', icon: Icons.directions_car, iconColor: Colors.green),
-    
-    // FIXED: Changed average_Punctuality to averagePunctuality
-    _KpiCard(width: dynamicWidth, title: 'Avg Punctuality', value: averagePunctuality.toString(), subtitle: 'Out of 5.0 rating', icon: Icons.star, iconColor: Colors.orange),
-    
-    // FIXED: Changed maintenance_Alerts to maintenanceAlerts
-    _KpiCard(width: dynamicWidth, title: 'Maintenance Alerts', value: maintenanceAlerts.toString(), subtitle: 'Status: Maintenance', icon: Icons.warning_rounded, iconColor: Colors.red),
-  ],
-),
+            Wrap(
+              spacing: 16.0,
+              runSpacing: 16.0,
+              children: [
+                _KpiCard(width: dynamicWidth, title: 'Active Drivers', value: totalDrivers.toString(), subtitle: 'Registered profiles', icon: Icons.people, iconColor: Colors.blue),
+                _KpiCard(width: dynamicWidth, title: 'Active Vehicles', value: activeVehicles.toString(), subtitle: 'Status: Good', icon: Icons.directions_car, iconColor: Colors.green),
+                _KpiCard(width: dynamicWidth, title: 'Avg Punctuality', value: averagePunctuality.toString(), subtitle: 'Out of 5.0 rating', icon: Icons.star, iconColor: Colors.orange),
+                _KpiCard(width: dynamicWidth, title: 'Maintenance Alerts', value: maintenanceAlerts.toString(), subtitle: 'Status: Maintenance', icon: Icons.warning_rounded, iconColor: Colors.red),
+              ],
+            ),
             
             const SizedBox(height: 24),
             
@@ -186,7 +194,7 @@ Wrap(
             
             const SizedBox(height: 24),
 
-            // TRIPS DONE PER COMPANY (NEW SECTION)
+            // TRIPS DONE PER COMPANY (DYNAMICALLY FETCHED SECTION)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -198,33 +206,55 @@ Wrap(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Weekly Passenger Trips by Client',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Weekly Passenger Trips by Client',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      ),
+                      if (_companyTripsData.isEmpty)
+                        Text(
+                          'No live data',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 20),
                   
-                  // Company List Execution
-                  _CompanyTripItem(
-                    companyName: 'Bandai Namco', 
-                    tripCount: '5,250 Trips', 
-                    indicatorColor: Colors.orange.shade500, 
-                    utilization: 0.95,
-                  ),
-                  const Divider(height: 24, thickness: 1, color: Color(0xFFF1F5F9)),
-                  _CompanyTripItem(
-                    companyName: 'EPSON', 
-                    tripCount: '5,000 Trips', 
-                    indicatorColor: Colors.blue.shade600, 
-                    utilization: 0.90,
-                  ),
-                  const Divider(height: 24, thickness: 1, color: Color(0xFFF1F5F9)),
-                  _CompanyTripItem(
-                    companyName: 'NX Logistics', 
-                    tripCount: '2,100 Trips', 
-                    indicatorColor: Colors.green.shade500, 
-                    utilization: 0.40,
-                  ),
+                  _companyTripsData.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24.0),
+                          child: Center(
+                            child: Text(
+                              'No active client records retrieved.',
+                              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _companyTripsData.length,
+                          separatorBuilder: (context, index) => const Divider(
+                            height: 24, 
+                            thickness: 1, 
+                            color: Color(0xFFF1F5F9),
+                          ),
+                          itemBuilder: (context, index) {
+                            final item = _companyTripsData[index];
+                            final String name = item['company_name'] ?? 'Unknown Client';
+                            final int counts = int.tryParse(item['trip_count']?.toString() ?? '0') ?? 0;
+                            final double utilValue = double.tryParse(item['utilization']?.toString() ?? '0.0') ?? 0.0;
+
+                            return _CompanyTripItem(
+                              companyName: name,
+                              tripCount: '$counts Trips',
+                              indicatorColor: _proceduralColorAssigner(index),
+                              utilization: utilValue.clamp(0.0, 1.0),
+                            );
+                          },
+                        ),
                 ],
               ),
             ),
