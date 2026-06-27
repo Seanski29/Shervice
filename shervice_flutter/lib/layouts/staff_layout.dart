@@ -3,13 +3,34 @@ import 'staff_layout_desktop.dart';
 import 'staff_layout_mobile.dart';
 
 class StaffLayout extends StatelessWidget {
-  const StaffLayout({super.key});
+  final String staffId; // 👈 1. Receive the ID
+  final String staffName;
+  final String companyName;
+
+  const StaffLayout({
+    super.key,
+    required this.staffId, // 👈 2. Require it
+    required this.staffName,
+    required this.companyName,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      if (constraints.maxWidth > 800) return const StaffLayoutDesktop();
-      return const StaffLayoutMobile();
-    });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth > 800) {
+          return StaffLayoutDesktop(
+            staffId: staffId, // 👈 3. Pass it down
+            staffName: staffName,
+            companyName: companyName,
+          );
+        }
+        return StaffLayoutMobile(
+          staffId: staffId, // 👈 3. Pass it down
+          staffName: staffName,
+          companyName: companyName,
+        );
+      },
+    );
   }
 }

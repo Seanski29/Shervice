@@ -9,6 +9,10 @@ auth_bp = Blueprint('auth', __name__)
 # Dynamically assigned by app.py upon initialization
 supabase = None 
 
+def get_admin_client():
+    """Helper to create a dedicated Admin Client for secure tasks"""
+    return create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+
 @auth_bp.route('/api/auth/login', methods=['POST'])
 def handle_api_login():
     try:
@@ -19,213 +23,185 @@ def handle_api_login():
         if not email or not password:
             return jsonify({"success": False, "message": "Missing authentication parameters"}), 400
 
-        # ─── STRICT SECURITY CHECK: NO MORE BYPASS ───
-        try:
-            # This line FORCES the password to be correct for EVERYONE. 
-            # If they type the wrong password, it immediately throws an error and rejects them.
-            auth_response = supabase.auth.sign_in_with_password({
-                "email": email,
-                "password": password
-            })
-            
-            user_uuid = auth_response.user.id
-            token = auth_response.session.access_token
-            
-        except Exception as auth_err:
-            print(f"❌ Login Rejected (Wrong Password or Email): {auth_err}")
-            return jsonify({"success": False, "status": "error", "message": "Invalid email or password credentials."}), 401
-
-        # ─── IF THE PASSWORD WAS CORRECT, GET THEIR ROLE ───
+        # Strict Security Verification
+        auth_response = supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+        user_uuid = auth_response.user.id
+        token = auth_response.session.access_token
+        
+        # 1. Initialize variables before the 'if' checks
         role = "admin" 
         display_name = "System User"
+        company_str = "GT Lantin Internal" # Default value
 
         user_query = supabase.table('user_account').select('*').eq('user_id', user_uuid).execute()
         
         if user_query.data:
-            account: dict = user_query.data[0]
+            account = user_query.data[0]
             role = account.get('role', '').lower()
+            display_name = account.get('full_name') or "System User"
             
-            if role == 'driver':
-                driver_profile = supabase.table('driver_profile').select('full_name').eq('user_id', user_uuid).execute()
-                if driver_profile.data:
-                    display_name = driver_profile.data[0].get('full_name')
-            elif role == 'oic':
+            # 2. Add specific formatting for OICs
+            if role == 'oic':
                 oic_profile = supabase.table('oic_profile').select('company_name').eq('user_id', user_uuid).execute()
                 if oic_profile.data:
-                    display_name = f"OIC ({oic_profile.data[0].get('company_name')})"
-            elif role == 'staff':
-                display_name = "Dispatch Staff"
-            else:
-                display_name = "Admin Management"
-                
-        print(f"✅ Secure Login Success: {email} ({role})")
+                    company_str = oic_profile.data[0].get('company_name', 'Unknown')
+            
+            # 3. Fallback for old Drivers registered before the SQL update
+            elif role == 'driver' and display_name == "System User":
+                driver_profile = supabase.table('driver_profile').select('full_name').eq('user_id', user_uuid).execute()
+                if driver_profile.data:
+                    display_name = driver_profile.data[0].get('full_name', 'Driver')
 
+        # Now company_str is guaranteed to be defined
         return jsonify({
             "success": True,
-            "status": "success",
             "data": {
                 "id": user_uuid,
                 "role": role,
                 "name": display_name,
+                "company": company_str, 
                 "token": token
-            },
-            "user": { 
-                "id": user_uuid,
-                "role": role,
-                "name": display_name
             }
         }), 200
 
     except Exception as e:
-        print(f"❌ Core Auth Pipeline Exception Tracker: {e}")
-        return jsonify({"success": False, "status": "error", "message": "Invalid email or password credentials."}), 401
+        print(f"❌ Login Rejected: {e}")
+        return jsonify({"success": False, "message": "Invalid email or password credentials."}), 401
+
 
 @auth_bp.route('/api/auth/register-driver', methods=['POST'])
 def register_driver():
-    """
-    Fallback registration engine creating structural user assets 
-    directly inside your public schemas to bypass dashboard security blocks.
-    """
-    try:
-        data = cast(Dict[str, Any], request.get_json() or {})
-        email = data.get('email')
-        password = data.get('password') # Captured securely for system profiles
-        full_name = data.get('full_name')
-        license_no = data.get('license_no')
-        birthday = data.get('birthday', '1995-05-15')
-        license_expiry = data.get('license_expiry', '2031-12-31')
-        date_hired = data.get('date_hired')
-        
-        if not email or not password or not full_name or not license_no:
-            return jsonify({"success": False, "message": "Missing required field configurations."}), 400
-
-        # 1. Register the driver officially in the Supabase Vault (Saves the real password!)
-        auth_response = supabase.auth.sign_up({
-            "email": email,
-            "password": password
-        })
-        driver_uuid = auth_response.user.id
-
-        # 2. Sync baseline login directory record straight into user_account table
-        supabase.table('user_account').insert({
-            "user_id": driver_uuid,
-            "role": "driver",
-            "username": email
-        }).execute()
-
-        # 3. Inject operational metrics context inside public.driver_profile matching your SQL constraints
-        supabase.table('driver_profile').insert({
-            "user_id": driver_uuid,
-            "full_name": full_name,
-            "birthday": birthday,
-            "license_no": license_no,
-            "license_expiry": license_expiry,
-            "date_hired": date_hired,
-            "employment_status": "Active",
-            "is_backup": "No"
-        }).execute()
-
-        print(f"✅ Driver registered manually under local system bypass UUID: {driver_uuid}")
-        return jsonify({"success": True, "message": "Driver account recorded successfully!"}), 201
-
-    except Exception as e:
-        print(f"❌ Driver Creation Intercept Failure: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
-    
-@auth_bp.route('/api/auth/update-password', methods=['POST'])
-def update_user_password():
-    """
-    Foolproof Password Reset:
-    Creates a localized, temporary Admin client to bypass any global public key restrictions.
-    """
-    try:
-        data = request.get_json() or {}
-        user_id = data.get('user_id')
-        new_password = data.get('new_password')
-
-        if not user_id or not new_password:
-            return jsonify({"success": False, "message": "Missing user ID or new password."}), 400
-
-        ADMIN_URL = os.getenv("SUPABASE_URL")
-        ADMIN_KEY = os.getenv("SUPABASE_KEY")
-        
-        if not ADMIN_URL or not ADMIN_KEY:
-             return jsonify({"success": False, "message": "Server configuration missing keys."}), 500
-        
-        # Creates a localized master-admin connection just for this specific password task
-        admin_supabase = create_client(ADMIN_URL, ADMIN_KEY)
-
-        print(f"🔄 Admin attempting to update password for UUID: {user_id}")
-
-        # Use the dedicated admin client to force the update
-        update_response = admin_supabase.auth.admin.update_user_by_id(
-            user_id, 
-            attributes={"password": new_password}
-        )
-
-        print(f"✅ Supabase Vault Confirmed: Password changed successfully.")
-        
-        return jsonify({"success": True, "message": "Password updated successfully!"}), 200
-
-    except Exception as e:
-        print(f"❌ EXACT Password Update Error: {str(e)}")
-        return jsonify({"success": False, "message": f"Server failed: {str(e)}"}), 500
-    
-
-@auth_bp.route('/api/auth/register-staff-oic', methods=['POST'])
-def register_staff_oic():
-    """
-    Securely registers Staff or OIC accounts using Admin API.
-    """
     try:
         data = request.get_json() or {}
         email = str(data.get('email', '')).strip().lower()
-        password = data.get('password')
-        role_raw = data.get('role')
-        company_name = data.get('company_name')
         full_name = data.get('full_name')
-
-        if not email or not password or not role_raw:
-            return jsonify({"success": False, "message": "Missing required fields"}), 400
-
-        # Mapping UI roles to database values
-        role_map = {
-            'Administrator': 'admin',
-            'Dispatch Staff': 'staff',
-            'Officer-in-Charge': 'oic'
-        }
-        normalized_role = role_map.get(role_raw, 'staff')
-
-        # 1. Create Admin Client for Administrative actions
-        ADMIN_KEY = os.getenv("SUPABASE_KEY")
-        ADMIN_URL = os.getenv("SUPABASE_URL")
-        admin_supabase = create_client(ADMIN_URL, ADMIN_KEY)
-
-        # 2. Create in Vault (Using Admin Client)
-        auth_res = admin_supabase.auth.admin.create_user({
+        
+        auth_res = supabase.auth.sign_up({
             "email": email,
-            "password": password,
-            "email_confirm": True
+            "password": data.get('password')
         })
-        user_uuid = auth_res.user.id
+        uid = auth_res.user.id
 
-        # 3. Add to Directory (Standard Client is fine for this)
+        # SAVE NAME TO USER ACCOUNT
         supabase.table('user_account').insert({
-            "user_id": user_uuid,
-            "role": normalized_role,
-            "username": email
+            "user_id": uid, 
+            "role": "driver", 
+            "username": email,
+            "full_name": full_name # <-- ADDED
         }).execute()
 
-        # 4. If OIC, add to Profile
+        supabase.table('driver_profile').insert({
+            "user_id": uid, 
+            "full_name": full_name, 
+            "birthday": data.get('birthday', '1995-05-15'),
+            "license_no": data.get('license_no'),
+            "license_expiry": data.get('license_expiry', '2031-12-31'),
+            "date_hired": data.get('date_hired'),
+            "employment_status": "Active", 
+            "is_backup": "No"
+        }).execute()
+
+        return jsonify({"success": True, "message": "Driver registered!"}), 201
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@auth_bp.route('/api/auth/register-staff-oic', methods=['POST'])
+def register_staff_oic():
+    try:
+        data = request.get_json() or {}
+        email = str(data.get('email', '')).strip().lower()
+        full_name = data.get('full_name')
+        role_raw = data.get('role')
+        company_name = data.get('company_name')
+
+        role_map = {'Administrator': 'admin', 'Dispatch Staff': 'staff', 'Officer-in-Charge': 'oic'}
+        normalized_role = role_map.get(role_raw, 'staff')
+
+        admin_supabase = get_admin_client()
+        auth_res = admin_supabase.auth.admin.create_user({
+            "email": email,
+            "password": data.get('password'),
+            "email_confirm": True
+        })
+        uid = auth_res.user.id
+
+        # SAVE NAME TO USER ACCOUNT
+        supabase.table('user_account').insert({
+            "user_id": uid,
+            "role": normalized_role,
+            "username": email,
+            "full_name": full_name # <-- ADDED
+        }).execute()
+
         if normalized_role == 'oic':
             supabase.table('oic_profile').insert({
-                "user_id": user_uuid,
+                "user_id": uid,
                 "company_name": company_name
             }).execute()
 
-        print(f"✅ Secure Registration Success for: {email}")
-        return jsonify({"success": True, "message": "User registered successfully"}), 201
-
+        return jsonify({"success": True, "message": "User registered!"}), 201
     except Exception as e:
-        print(f"❌ Registration Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@auth_bp.route('/api/auth/update-password', methods=['POST'])
+def update_user_password():
+    try:
+        data = request.get_json() or {}
+        admin_client = get_admin_client()
+        admin_client.auth.admin.update_user_by_id(
+            data['user_id'], 
+            attributes={"password": data['new_password']}
+        )
+        return jsonify({"success": True, "message": "Password updated!"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@auth_bp.route('/api/auth/system-users', methods=['GET'])
+def get_system_users():
+    try:
+        users_query = supabase.table('user_account').select('*').neq('role', 'driver').execute()
+        oic_query = supabase.table('oic_profile').select('*').execute()
+        
+        oic_map = {oic['user_id']: oic['company_name'] for oic in oic_query.data}
+        formatted_users = []
+
+        for u in users_query.data:
+            role = str(u.get('role', 'staff')).lower()
+            
+            # 1. Grab the actual name here!
+            actual_name = u.get('full_name') or 'System User'
+            
+            company = "GT Lantin Internal"
+            permission = "Logistics Only"
+            display_role = "Dispatch Staff"
+            status_color = "green"
+
+            if role == 'admin':
+                display_role = "Administrator"
+                permission = "Full Access"
+            elif role == 'oic':
+                display_role = "Officer-in-Charge"
+                company = oic_map.get(u['user_id'], 'Unknown Client')
+                permission = "Schedules & Feedback"
+                status_color = "blue"
+
+            formatted_users.append({
+                "id": u['user_id'],
+                "name": actual_name, # <-- APPLIED TO DASHBOARD
+                "email": u.get('username', ''),
+                "role": display_role,
+                "company": company,
+                "permission": permission,
+                "status": "Active",
+                "color": status_color
+            })
+
+        return jsonify({"success": True, "data": formatted_users}), 200
+    except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
