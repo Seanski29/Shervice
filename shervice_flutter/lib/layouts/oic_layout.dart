@@ -3,11 +3,13 @@ import 'oic_layout_desktop.dart';
 import 'oic_layout_mobile.dart';
 
 class OicLayout extends StatelessWidget {
+  final String oicId; // ✅ Added
   final String oicName;
   final String companyName;
 
   const OicLayout({
     super.key,
+    required this.oicId, // ✅ Added
     required this.oicName,
     required this.companyName,
   });
@@ -17,9 +19,17 @@ class OicLayout extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth > 800) {
-          return OicLayoutDesktop(oicName: oicName, companyName: companyName);
+          return OicLayoutDesktop(
+            oicId: oicId,
+            oicName: oicName,
+            companyName: companyName,
+          );
         }
-        return OicLayoutMobile(oicName: oicName, companyName: companyName);
+        return OicLayoutMobile(
+          oicId: oicId,
+          oicName: oicName,
+          companyName: companyName,
+        );
       },
     );
   }

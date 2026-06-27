@@ -5,11 +5,13 @@ import '../../screens/oic/oic_trips.dart';
 import '../../login/login.dart';
 
 class OicLayoutMobile extends StatefulWidget {
+  final String oicId;
   final String oicName;
   final String companyName;
 
   const OicLayoutMobile({
     super.key,
+    required this.oicId,
     required this.oicName,
     required this.companyName,
   });
@@ -28,7 +30,7 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
     final List<Widget> screens = [
       OicDashboard(oicName: widget.oicName, companyName: widget.companyName),
       const OicSchedules(),
-      const OicTrips(),
+      OicTrips(oicId: widget.oicId),
     ];
 
     return Scaffold(
