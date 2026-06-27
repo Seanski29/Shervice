@@ -257,10 +257,21 @@ class _OicTripsState extends State<OicTrips> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        trip['departure_time']
-                                                ?.toString()
-                                                .substring(0, 5) ??
-                                            '--:--',
+                                        "${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'} ➔ ${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Icon(
+                                        Icons.map,
+                                        size: 14,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "${trip['route_distance'] ?? 0} km",
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey.shade600,

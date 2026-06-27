@@ -193,16 +193,30 @@ class _OicSchedulesState extends State<OicSchedules> {
                   Row(
                     children: [
                       _iconText(Icons.calendar_today, trip['schedule_date']),
-                      const SizedBox(width: 24),
-                      _iconText(
-                        Icons.access_time,
-                        trip['departure_time'].toString().substring(0, 5),
+                      const SizedBox(width: 16),
+                      // Departure to Arrival Arrow
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.access_time,
+                            size: 16,
+                            color: Colors.blue,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'} ➔ ${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 24),
-                      _iconText(
-                        Icons.people,
-                        "${trip['passenger_count']} Passengers",
-                      ),
+                      const SizedBox(width: 16),
+                      // Distance Display
+                      _iconText(Icons.map, "${trip['route_distance']} km"),
+                      const SizedBox(width: 16),
+                      _iconText(Icons.people, "${trip['passenger_count']} Pax"),
                     ],
                   ),
                 ],
@@ -251,9 +265,11 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
 
   final _destinationController = TextEditingController();
   final _passengerController = TextEditingController();
+  final _distanceController = TextEditingController();
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+  TimeOfDay? _selectedArrivalTime;
 
   String get _backendUrl {
     if (kIsWeb) return 'http://127.0.0.1:5000/api';
@@ -290,6 +306,7 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
 
     if (_selectedDate == null ||
         _selectedTime == null ||
+        _selectedArrivalTime == null ||
         _selectedStaffId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -306,18 +323,22 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
         "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
     final formattedTime =
         "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
+    final formattedETA =
+        "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
 
     try {
       final response = await http.post(
         Uri.parse('$_backendUrl/schedules/request'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          "oic_id": widget.oicId, // ✅ Sends the secure UUID!
+          "oic_id": widget.oicId,
           "staff_id": _selectedStaffId,
           "destination": _destinationController.text.trim(),
           "passenger_count": _passengerController.text.trim(),
+          "route_distance": _distanceController.text.trim(),
           "departure_date": formattedDate,
           "departure_time": formattedTime,
+          "estimated_arrival_time": formattedETA,
         }),
       );
 
@@ -393,6 +414,24 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
               ),
               const SizedBox(height: 16),
 
+              // 👇 NEW DISTANCE FIELD
+              TextFormField(
+                controller: _distanceController,
+                keyboardType: TextInputType.number,
+                validator: (val) {
+                  if (val == null || val.isEmpty) return "Required";
+                  if (double.tryParse(val) == null)
+                    return "Must be a valid number";
+                  return null;
+                },
+                decoration: const InputDecoration(
+                  labelText: "Distance (km)",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.map),
+                ),
+              ),
+              const SizedBox(height: 16),
+
               TextFormField(
                 controller: _passengerController,
                 keyboardType: TextInputType.number,
@@ -439,7 +478,7 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: InkWell(
                       onTap: () async {
@@ -452,13 +491,38 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                       },
                       child: InputDecorator(
                         decoration: const InputDecoration(
-                          labelText: 'Time',
+                          labelText: 'Departure',
                           border: OutlineInputBorder(),
                         ),
                         child: Text(
                           _selectedTime == null
-                              ? "Select Time"
+                              ? "Time"
                               : _selectedTime!.format(context),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // 👇 THE NEW ETA PICKER
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: const TimeOfDay(hour: 17, minute: 0),
+                        );
+                        if (picked != null)
+                          setState(() => _selectedArrivalTime = picked);
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'ETA',
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _selectedArrivalTime == null
+                              ? "Arrival"
+                              : _selectedArrivalTime!.format(context),
                         ),
                       ),
                     ),
