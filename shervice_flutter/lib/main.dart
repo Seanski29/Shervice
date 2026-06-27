@@ -20,7 +20,12 @@ class SherviceApp extends StatelessWidget {
 
     Widget getInitialScreen() {
       if (role == 'admin') {
-        return const AdminLayout();
+        // FIXED: Provided required parameters for Admin URL testing
+        return const AdminLayout(
+          adminId: '00000000-0000-0000-0000-000000000000', // Dummy UUID
+          adminName: 'System Admin',
+          companyName: 'Internal',
+        );
       } else if (role == 'driver') {
         // FIXED: Provided all three required parameters for URL testing
         return const DriverLayout(

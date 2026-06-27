@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../screens/oic/oic_dashboard.dart';
 import '../../screens/oic/oic_schedules.dart';
 import '../../screens/oic/oic_trips.dart';
+import '../../screens/oic/oic_settings.dart';
 import '../../login/login.dart';
 
 class OicLayoutDesktop extends StatefulWidget {
@@ -29,8 +30,15 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
     // Define screens here to access widget variables
     final List<Widget> screens = [
       OicDashboard(oicName: widget.oicName, companyName: widget.companyName),
-      OicSchedules(oicId: widget.oicId), // 💡 Removed 'const' and passed oicId
+      OicSchedules(oicId: widget.oicId),
       OicTrips(oicId: widget.oicId),
+
+      // 👇 ADD THE SETTINGS SCREEN HERE
+      OicSettings(
+        oicId: widget.oicId,
+        oicName: widget.oicName,
+        companyName: widget.companyName,
+      ),
     ];
 
     return Scaffold(
@@ -88,6 +96,11 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
                 _buildNavItem(0, 'Manage', Icons.dashboard),
                 _buildNavItem(1, 'Schedules', Icons.calendar_month_outlined),
                 _buildNavItem(2, 'Trip Logs', Icons.list_alt),
+                _buildNavItem(
+                  3,
+                  'Settings',
+                  Icons.settings,
+                ), // 👈 FIXED: Index 3 and Settings Icon
               ],
             ),
           ),

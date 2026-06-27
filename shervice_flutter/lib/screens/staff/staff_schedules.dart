@@ -141,6 +141,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                                         const SizedBox(height: 8),
                                         Row(
                                           children: [
+                                            // Departure ➔ Arrival Container
                                             Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -153,9 +154,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                                                     BorderRadius.circular(4),
                                               ),
                                               child: Text(
-                                                trip['departure_time']
-                                                    .toString()
-                                                    .substring(0, 5),
+                                                "${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'} ➔ ${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}",
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color: Colors.blue.shade700,
@@ -164,6 +163,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                                               ),
                                             ),
                                             const SizedBox(width: 8),
+                                            // Date Container
                                             Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -176,10 +176,32 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                                                     BorderRadius.circular(4),
                                               ),
                                               child: Text(
-                                                trip['schedule_date'],
+                                                trip['schedule_date'] ?? '',
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color: Colors.grey.shade700,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            // Distance Container
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.orange.shade50,
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                "${trip['route_distance'] ?? 0} km",
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.orange.shade700,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
                                               ),
                                             ),
