@@ -197,23 +197,6 @@ def assign_trip_assets():
         print(f"❌ Dispatch Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
     
-
-@schedules_bp.route('/api/schedules/staff/<string:staff_id>', methods=['GET'])
-def get_staff_assigned_trips(staff_id):
-    """Fetches all trips routed specifically to this Staff member"""
-    try:
-        query = (
-            supabase.table('trip_schedule')
-            .select('*')
-            .eq('staff_id', staff_id)
-            .order('trip_id', desc=True)
-            .execute()
-        )
-        return jsonify({"success": True, "data": query.data}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    
-
 @schedules_bp.route('/api/schedules/complete', methods=['POST'])
 def complete_trip():
     """Driver marks their trip as finished"""
@@ -298,4 +281,39 @@ def get_all_trips():
         return jsonify({"success": True, "data": formatted_trips}), 200
     except Exception as e:
         print(f"❌ Fetch All Trips Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+    
+@schedules_bp.route('/api/schedules/staff/<string:staff_uuid>', methods=['GET'])
+def get_staff_assigned_trips(staff_uuid):
+    """Fetches all trips handled specifically by this Staff member"""
+    try:
+        # 1. Fetch only trips where this staff member is assigned
+        trips = (
+            supabase.table('trip_schedule')
+            .select('*')
+            .eq('staff_id', staff_uuid) # 👈 Strict individual privacy filter
+            .order('schedule_date', desc=True)
+            .execute()
+        )
+        
+        # 2. Fetch reference data to attach names
+        vehicles = supabase.table('vehicle').select('vehicle_id, plate_number').execute()
+        drivers = supabase.table('driver_profile').select('user_id, full_name').execute()
+        oics = supabase.table('oic_profile').select('oic_id, company_name').execute()
+
+        v_map = {v['vehicle_id']: v['plate_number'] for v in vehicles.data}
+        d_map = {d['user_id']: d['full_name'] for d in drivers.data}
+        o_map = {o['oic_id']: o['company_name'] for o in oics.data}
+
+        # 3. Attach the readable data to the trips
+        formatted_trips = []
+        for t in trips.data:
+            t['plate_number'] = v_map.get(t.get('vehicle_id'), 'Pending Assignment')
+            t['driver_name'] = d_map.get(t.get('user_id'), 'Pending Assignment')
+            t['client_company'] = o_map.get(t.get('oic_id'), 'Unknown Client')
+            formatted_trips.append(t)
+
+        return jsonify({"success": True, "data": formatted_trips}), 200
+    except Exception as e:
+        print(f"❌ Staff Fetch Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
