@@ -4,17 +4,16 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 
-// ─── 1. REQUIRE THE ID IN THE WIDGET ───
-class OicTrips extends StatefulWidget {
-  final String oicId; // 👈 Add this variable
+class StaffTrips extends StatefulWidget {
+  final String staffId; // 👈 Requires the specific Staff's UUID
 
-  const OicTrips({super.key, required this.oicId}); // 👈 Require it here
+  const StaffTrips({super.key, required this.staffId});
 
   @override
-  State<OicTrips> createState() => _OicTripsState();
+  State<StaffTrips> createState() => _StaffTripsState();
 }
 
-class _OicTripsState extends State<OicTrips> {
+class _StaffTripsState extends State<StaffTrips> {
   String _searchTerm = '';
   List<dynamic> _trips = [];
   bool _isLoading = true;
@@ -29,14 +28,13 @@ class _OicTripsState extends State<OicTrips> {
   @override
   void initState() {
     super.initState();
-    _fetchDeploymentLogs();
+    _fetchStaffLogs();
   }
 
-  Future<void> _fetchDeploymentLogs() async {
+  Future<void> _fetchStaffLogs() async {
     try {
-      // ─── 2. USE THE SPECIFIC OIC ROUTE ───
       final res = await http.get(
-        Uri.parse('$_backendUrl/schedules/oic/${widget.oicId}'),
+        Uri.parse('$_backendUrl/schedules/staff/${widget.staffId}'),
       );
 
       if (res.statusCode == 200) {
@@ -47,21 +45,26 @@ class _OicTripsState extends State<OicTrips> {
             _isLoading = false;
           });
         }
+      } else {
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
-      debugPrint("Error fetching deployment logs: $e");
+      debugPrint("Error fetching staff logs: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Dynamically searches by Route Name or Driver Name
+    // Search by Route, Driver, or Client Company
     final filteredTrips = _trips.where((trip) {
       final route = (trip['route_name'] ?? '').toString().toLowerCase();
       final driver = (trip['driver_name'] ?? '').toString().toLowerCase();
+      final client = (trip['client_company'] ?? '').toString().toLowerCase();
       final search = _searchTerm.toLowerCase();
-      return route.contains(search) || driver.contains(search);
+      return route.contains(search) ||
+          driver.contains(search) ||
+          client.contains(search);
     }).toList();
 
     return SingleChildScrollView(
@@ -69,7 +72,6 @@ class _OicTripsState extends State<OicTrips> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -77,7 +79,7 @@ class _OicTripsState extends State<OicTrips> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Trip Details',
+                    'My Dispatched Trips',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -86,41 +88,36 @@ class _OicTripsState extends State<OicTrips> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Comprehensive log of all fleet deployments and passenger counts.',
+                    'History of trips you have actively assigned.',
                     style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                 ],
               ),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 250,
-                    child: TextField(
-                      onChanged: (val) => setState(() => _searchTerm = val),
-                      decoration: InputDecoration(
-                        hintText: 'Search trips...',
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
+              SizedBox(
+                width: 250,
+                child: TextField(
+                  onChanged: (val) => setState(() => _searchTerm = val),
+                  decoration: InputDecoration(
+                    hintText: 'Search logs...',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
                     ),
                   ),
-                ],
+                ),
               ),
             ],
           ),
           const SizedBox(height: 24),
 
-          // List Container
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -142,10 +139,13 @@ class _OicTripsState extends State<OicTrips> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.list_alt, color: Colors.blue.shade600),
+                          Icon(
+                            Icons.assignment_turned_in,
+                            color: Colors.blue.shade600,
+                          ),
                           const SizedBox(width: 8),
                           const Text(
-                            'Deployment Logs',
+                            'Dispatch History',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -154,7 +154,7 @@ class _OicTripsState extends State<OicTrips> {
                         icon: const Icon(Icons.refresh, size: 20),
                         onPressed: () {
                           setState(() => _isLoading = true);
-                          _fetchDeploymentLogs();
+                          _fetchStaffLogs();
                         },
                       ),
                     ],
@@ -168,7 +168,9 @@ class _OicTripsState extends State<OicTrips> {
                 else if (filteredTrips.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(32.0),
-                    child: Center(child: Text("No records found.")),
+                    child: Center(
+                      child: Text("You have not dispatched any trips yet."),
+                    ),
                   )
                 else
                   ListView.separated(
@@ -179,14 +181,13 @@ class _OicTripsState extends State<OicTrips> {
                         Divider(height: 1, color: Colors.grey.shade100),
                     itemBuilder: (context, index) {
                       final trip = filteredTrips[index];
-                      final String status = trip['trip_status'] ?? 'Scheduled';
+                      final String status = trip['trip_status'] ?? 'Unknown';
 
                       Color statusColor = Colors.orange;
-                      if (status == 'Completed') {
+                      if (status == 'Completed')
                         statusColor = Colors.green;
-                      } else if (status == 'Ongoing') {
+                      else if (status == 'Ongoing' || status == 'Scheduled')
                         statusColor = Colors.blue;
-                      }
 
                       return Padding(
                         padding: const EdgeInsets.all(16),
@@ -198,7 +199,7 @@ class _OicTripsState extends State<OicTrips> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "TRP-${trip['trip_id']}",
+                                    trip['client_company'] ?? 'Unknown Client',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -207,14 +208,13 @@ class _OicTripsState extends State<OicTrips> {
                                   Row(
                                     children: [
                                       const Icon(
-                                        Icons.local_shipping,
+                                        Icons.location_on,
                                         size: 14,
-                                        color: Colors.grey,
+                                        color: Colors.blue,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        trip['plate_number'] ??
-                                            'No Plate Assigned',
+                                        trip['route_name'] ?? 'Unknown Route',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey.shade600,
@@ -233,13 +233,13 @@ class _OicTripsState extends State<OicTrips> {
                                   Row(
                                     children: [
                                       const Icon(
-                                        Icons.location_on,
+                                        Icons.person,
                                         size: 14,
-                                        color: Colors.blue,
+                                        color: Colors.grey,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        trip['route_name'] ?? 'Unknown Route',
+                                        trip['driver_name'],
                                         style: const TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
@@ -251,16 +251,13 @@ class _OicTripsState extends State<OicTrips> {
                                   Row(
                                     children: [
                                       const Icon(
-                                        Icons.access_time,
+                                        Icons.local_shipping,
                                         size: 14,
                                         color: Colors.grey,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        trip['departure_time']
-                                                ?.toString()
-                                                .substring(0, 5) ??
-                                            '--:--',
+                                        trip['plate_number'],
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey.shade600,
@@ -273,45 +270,27 @@ class _OicTripsState extends State<OicTrips> {
                             ),
                             Expanded(
                               flex: 1,
-                              child: Text(
-                                trip['driver_name'] ?? 'Unassigned',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  border: Border.all(
-                                    color: Colors.grey.shade300,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    trip['schedule_date'] ?? '',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
                                   ),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.people,
-                                      size: 12,
+                                  Text(
+                                    trip['departure_time']
+                                            ?.toString()
+                                            .substring(0, 5) ??
+                                        '',
+                                    style: TextStyle(
                                       color: Colors.grey.shade600,
+                                      fontSize: 12,
                                     ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${trip['passenger_count'] ?? 0}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                             Expanded(
