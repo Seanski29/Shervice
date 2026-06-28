@@ -280,14 +280,20 @@ class _StaffTripsState extends State<StaffTrips> {
                                       fontSize: 13,
                                     ),
                                   ),
+                                  const SizedBox(height: 2),
                                   Text(
-                                    trip['departure_time']
-                                            ?.toString()
-                                            .substring(0, 5) ??
-                                        '',
+                                    "${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'} ➔ ${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}",
                                     style: TextStyle(
                                       color: Colors.grey.shade600,
                                       fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "Distance: ${trip['route_distance'] ?? 0} km",
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 11,
                                     ),
                                   ),
                                 ],

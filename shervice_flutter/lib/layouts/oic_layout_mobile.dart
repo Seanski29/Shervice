@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../screens/oic/oic_dashboard.dart';
 import '../../screens/oic/oic_schedules.dart';
 import '../../screens/oic/oic_trips.dart';
+import '../../screens/oic/oic_settings.dart';
 import '../../login/login.dart';
 
 class OicLayoutMobile extends StatefulWidget {
@@ -22,20 +23,22 @@ class OicLayoutMobile extends StatefulWidget {
 
 class _OicLayoutMobileState extends State<OicLayoutMobile> {
   int _selectedIndex = 0;
-  final List<String> _titles = ['Manage', 'Schedules', 'Logs'];
+  final List<String> _titles = ['Manage', 'Schedules', 'Logs', 'Settings'];
 
   @override
   Widget build(BuildContext context) {
-    // Define screens here so we can access widget.oicName and widget.oicId
+    // Define screens here to access widget variables
     final List<Widget> screens = [
-      // FIXED: Passed the required oicId constructor parameter down to the dashboard instance
-      OicDashboard(
-        oicName: widget.oicName, 
-        companyName: widget.companyName,
-        oicId: widget.oicId,
-      ),
+      OicDashboard(oicName: widget.oicName, companyName: widget.companyName),
       OicSchedules(oicId: widget.oicId),
       OicTrips(oicId: widget.oicId),
+
+      // 👇 ADD THE SETTINGS SCREEN HERE
+      OicSettings(
+        oicId: widget.oicId,
+        oicName: widget.oicName,
+        companyName: widget.companyName,
+      ),
     ];
 
     return Scaffold(
@@ -60,7 +63,7 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
                 padding: EdgeInsets.zero,
                 children: [
                   ...List.generate(
-                    3,
+                    4,
                     (i) => ListTile(
                       title: Text(_titles[i]),
                       onTap: () {

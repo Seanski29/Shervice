@@ -7,6 +7,7 @@ import '../../screens/staff/staff_drivers.dart';
 import '../../screens/staff/staff_attendance.dart';
 import '../../screens/staff/staff_analytics.dart';
 import '../../login/login.dart';
+import '../../screens/staff/staff_settings.dart';
 
 class StaffLayoutDesktop extends StatefulWidget {
   final String staffId;
@@ -35,10 +36,16 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
     ),
     const StaffVehicle(),
     StaffSchedules(staffId: widget.staffId),
-    StaffTrips(staffId: widget.staffId), // 👈 2. Add to the screens list
+    StaffTrips(staffId: widget.staffId),
     const StaffDrivers(),
     const StaffAttendance(),
     const StaffAnalytics(),
+
+    StaffSettings(
+      staffId: widget.staffId,
+      staffName: widget.staffName,
+      companyName: widget.companyName,
+    ),
   ];
 
   @override
@@ -152,6 +159,7 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
                 _buildNavItem(4, 'Driver Records', Icons.people_outline),
                 _buildNavItem(5, 'Attendance', Icons.how_to_reg),
                 _buildNavItem(6, 'Predictive AI', Icons.analytics),
+                _buildNavItem(7, 'Settings', Icons.settings_outlined),
               ],
             ),
           ),

@@ -4,18 +4,22 @@ schedules_bp = Blueprint('schedules', __name__)
 supabase = None  # Injected in app.py
 
 @schedules_bp.route('/api/schedules/request', methods=['POST'])
-@schedules_bp.route('/api/schedules/request', methods=['POST'])
 def create_trip_request():
     """OIC submits a new trip request"""
     try:
         data = request.get_json() or {}
         
-        # ─── BULLETPROOF INTEGER CONVERSION ───
+        # ─── SAFE CONVERSIONS ───
         try:
             p_count = int(data.get('passenger_count', 0))
         except (ValueError, TypeError):
             p_count = 0 
             
+        try:
+            r_distance = float(data.get('route_distance', 0.0)) # 👈 Safe conversion for distance
+        except (ValueError, TypeError):
+            r_distance = 0.0
+
         oic_uuid = data.get('oic_id')
         
         # 1. Lookup the integer ID from the oic_profile table
@@ -32,14 +36,14 @@ def create_trip_request():
         response = (
             supabase.table('trip_schedule')
             .insert({
-                "oic_id": oic_int_id, # 👈 Uses the looked-up integer!
+                "oic_id": oic_int_id, 
                 "staff_id": data.get('staff_id'),
                 "route_name": data.get('destination', 'Unspecified Route'),
-                "route_distance": 0.0, 
+                "route_distance": r_distance, # 👈 Save the distance to the database
                 "passenger_count": p_count, 
                 "schedule_date": data.get('departure_date'), 
                 "departure_time": data.get('departure_time'),
-                "estimated_arrival_time": data.get('departure_time'), 
+                "estimated_arrival_time": data.get('estimated_arrival_time'), 
                 "trip_status": "Pending Staff Assignment" 
             })
             .execute()
