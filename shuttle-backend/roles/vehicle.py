@@ -7,38 +7,6 @@ vehicles_bp = Blueprint('vehicles', __name__)
 # This will be assigned dynamically in app.py
 supabase = None 
 
-@vehicles_bp.route('/api/vehicles/register', methods=['POST'])
-def register_vehicle():
-    try:
-        data = request.get_json() or {}
-        
-        role = str(data.get('role', '')).lower()
-        if role != 'admin':
-            return jsonify({"success": False, "message": "Unauthorized. Only Administrators can register fleet vehicles."}), 403
-        
-        # Now dynamically accepting ALL data from the Flutter app
-        supabase.table('vehicle').insert({
-            "plate_number": data.get('plate_number', '').upper(),
-            "bus_type": data.get('bus_type', ''),
-            "model_year": data.get('model_year', ''),
-            "engine_no": data.get('engine_no', ''),
-            "insurance_policy_no": data.get('insurance_policy_no', ''),
-            "insurance_expiry": data.get('insurance_expiry', None),
-            "franchise_no": data.get('franchise_no', ''),
-            "franchise_expiry": data.get('franchise_expiry', None),
-            "cr_no": data.get('cr_no', ''),
-            "cr_date": data.get('cr_date', None),
-            "or_no": data.get('or_no', ''),
-            "or_expiry": data.get('or_expiry', None),
-            "health_status": "Excellent"
-        }).execute()
-
-        return jsonify({"success": True, "message": "Vehicle securely registered!"}), 201
-
-    except Exception as e:
-        print(f"❌ Vehicle Registration Error: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
 @vehicles_bp.route('/api/vehicles', methods=['GET'])
 def get_vehicles():
     """Fetches all vehicles to display on the dashboard"""
@@ -46,4 +14,38 @@ def get_vehicles():
         query = supabase.table('vehicle').select('*').execute()
         return jsonify({"success": True, "data": query.data}), 200
     except Exception as e:
+        print(f"❌ Fetch Vehicles Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@vehicles_bp.route('/api/vehicles/maintenance', methods=['POST'])
+def add_maintenance_log():
+    try:
+        data = request.get_json() or {}
+        
+        # Pull parameters safely matching your production schema types
+        new_log = {
+            "repair_date": data.get('repair_date'),       # Format: YYYY-MM-DD
+            "description": data.get('description', ''),
+            "vehicle_id": int(data.get('vehicle_id')),    # Native table link
+            "user_id": data.get('user_id')                # Staff user account UUID
+        }
+
+        # Operational validations
+        if not new_log["repair_date"] or not new_log["description"] or not new_log["vehicle_id"]:
+            return jsonify({"success": False, "message": "Missing required log entries fields."}), 400
+
+        supabase.table('maintenance_log').insert(new_log).execute()
+        
+        # Optional extension optimization: Update vehicle health status concurrently
+        updated_health = data.get('health_status')
+        if updated_health:
+            supabase.table('vehicle')\
+                .update({"health_status": updated_health})\
+                .eq('vehicle_id', new_log["vehicle_id"])\
+                .execute()
+
+        return jsonify({"success": True, "message": "Maintenance log securely saved!"}), 201
+
+    except Exception as e:
+        print(f"❌ Maintenance Logging Exception: {e}")
         return jsonify({"success": False, "message": str(e)}), 500

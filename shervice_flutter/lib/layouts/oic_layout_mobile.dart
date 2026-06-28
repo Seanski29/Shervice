@@ -29,7 +29,7 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
   Widget build(BuildContext context) {
     // Define screens here to access widget variables
     final List<Widget> screens = [
-      OicDashboard(oicName: widget.oicName, companyName: widget.companyName),
+      OicDashboard(oicName: widget.oicName, companyName: widget.companyName, oicId: widget.oicId),
       OicSchedules(oicId: widget.oicId),
       OicTrips(oicId: widget.oicId),
 
