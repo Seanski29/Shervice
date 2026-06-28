@@ -241,32 +241,37 @@ class _AdminSchedulesState extends State<AdminSchedules> {
           ),
 
           // Pagination System Footnotes
-          if (!_isLoading && _filteredSchedules.isNotEmpty)
+                   if (!_isLoading && _filteredSchedules.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredSchedules.length)} of ${_filteredSchedules.length} schedules',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                  ),
-                  Row(
-                    children: [
-                      OutlinedButton(
-                        onPressed: _currentPage > 0 ? _prevPage : null,
-                        child: const Text('Previous'),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('Page ${_currentPage + 1} of $_totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: _currentPage < _totalPages - 1 ? _nextPage : null,
-                        child: const Text('Next'),
-                      ),
-                    ],
-                  ),
-                ],
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredSchedules.length)} of ${_filteredSchedules.length} schedules',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                    ),
+                    const SizedBox(width: 16),
+                    Row(
+                      children: [
+                        OutlinedButton(
+                          onPressed: _currentPage > 0 ? _prevPage : null,
+                          child: const Text('Previous'),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('Page ${_currentPage + 1} of $_totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: _currentPage < _totalPages - 1 ? _nextPage : null,
+                          child: const Text('Next'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
         ],

@@ -9,8 +9,8 @@ import 'package:http/http.dart' as http;
 import '../layouts/admin/admin_layout.dart';
 import '../layouts/driver/driver_layout.dart';
 // TODO: Adjust these two import paths to match exactly what you named your responsive wrapper files
-import '../layouts/oic_layout.dart';
-import '../layouts/staff_layout.dart';
+import '../layouts/oic/oic_layout.dart';
+import '../layouts/staff/staff_layout.dart';
 import 'forgot_password.dart';
 
 class LoginScreen extends StatefulWidget {

@@ -64,21 +64,66 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
       child: Column(
         children: [
           const SizedBox(height: 20),
+          // Header Logo and Title section matching Admin UI
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
               children: [
-                const Icon(Icons.bus_alert, color: Colors.white, size: 40),
+                // Perfectly circular logo container with white background
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset(
+                    'assets/logo.jpg',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Icon(Icons.directions_car, color: Colors.blue, size: 24),
+                      );
+                    },
+                  ),
+                ),
                 if (_isSidebarExpanded) ...[
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Text(
-                      'SHERVICE\nOIC Portal',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // White text logo image
+                        Image.asset(
+                          'assets/shervice - white.jpg',
+                          height: 25, 
+                          fit: BoxFit.contain, 
+                          alignment: Alignment.centerLeft,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Text(
+                              'SHERVICE',
+                              style: TextStyle(
+                                color: Colors.white, 
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                letterSpacing: 1.0,
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'OIC Portal',
+                          style: TextStyle(
+                            color: Colors.white54, 
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -88,6 +133,7 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
           const SizedBox(height: 32),
           Expanded(
             child: ListView(
+              padding: EdgeInsets.zero,
               children: [
                 _buildNavItem(0, 'Manage', Icons.dashboard),
                 _buildNavItem(1, 'Schedules', Icons.calendar_month_outlined),
@@ -121,6 +167,7 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
+          mainAxisAlignment: _isSidebarExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
           children: [
             Icon(
               icon,
@@ -129,11 +176,15 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
             ),
             if (_isSidebarExpanded) ...[
               const SizedBox(width: 16),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isActive ? Colors.white : Colors.white70,
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -153,19 +204,14 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
     child: Row(
       children: [
         IconButton(
-          icon: const Icon(Icons.menu),
+          icon: const Icon(Icons.menu, color: Colors.grey),
           onPressed: () =>
               setState(() => _isSidebarExpanded = !_isSidebarExpanded),
         ),
         const Spacer(),
-        Text(
-          widget.oicName,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: Color(0xFF0F172A),
-          ),
-        ),
+        // Dynamically passing the OIC's name into the welcome widget!
+        SlideInWelcomeWidget(role: widget.oicName),
+        const SizedBox(width: 16),
       ],
     ),
   );
@@ -174,20 +220,102 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Logout'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to log out of your account?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Logout'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
+            child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// ANIMATED WELCOME WIDGET
+// ============================================================================
+class SlideInWelcomeWidget extends StatefulWidget {
+  final String role;
+  const SlideInWelcomeWidget({super.key, required this.role});
+
+  @override
+  State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
+}
+
+class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _offsetAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(1.5, 0.0), 
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutQuart,
+    ));
+
+    _controller.forward().then((_) {
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) _controller.reverse();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _offsetAnimation,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          border: Border.all(color: Colors.green.shade200),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Welcome, ${widget.role}!',
+              style: TextStyle(
+                color: Colors.green.shade800,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

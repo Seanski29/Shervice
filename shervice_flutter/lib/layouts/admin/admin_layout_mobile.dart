@@ -22,16 +22,36 @@ class AdminMobileLayout extends StatefulWidget {
 class _AdminMobileLayoutState extends State<AdminMobileLayout> {
   int _selectedIndex = 0;
 
-  // 6 Screens total
+  // 7 Screens total
   final List<Widget> _screens = [
-    const AdminDashboard(), // Index 0
-    const AdminSchedules(), // Index 1
-    const AdminDriver(),   // Index 2
-    const AdminFleet(),  // Index 3
-    const AdminUsers(),     // Index 4
-    const AdminSettings(),  // Index 5
-    // Note: AdminFeedbacks() is index 6, but your BottomNav only has 6 items (indices 0-5). 
-    // You might need to add a 7th item to the bottom nav if you want to access this screen on mobile!
+    const AdminDashboard(),
+    const AdminSchedules(),
+    const AdminDriver(),
+    const AdminFleet(),
+    const AdminUsers(),
+    const AdminSettings(),
+  ];
+
+  // Shortened Titles for Bottom Nav to prevent text from overflowing
+  final List<String> _shortTitles = [
+    'Overview',
+    'Schedules',
+    'Drivers',
+    'Fleet',
+    'Users',
+    'Settings',
+    'Feedbacks',
+  ];
+
+  // Icons matching each screen
+  final List<IconData> _icons = [
+    Icons.grid_view,
+    Icons.calendar_month_outlined,
+    Icons.people_outline,
+    Icons.directions_car_outlined,
+    Icons.admin_panel_settings_outlined,
+    Icons.settings_outlined,
+    Icons.forum_outlined,
   ];
 
   @override
@@ -39,134 +59,170 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
+        automaticallyImplyLeading: false, // Hide back button
+        centerTitle: true,
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(15),
+            // Perfectly circular logo container with white background
+            Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              clipBehavior: Clip.antiAlias,
               child: Image.asset(
-                'assets/logo.jpg', // Make sure you include the 'assets/' path
-                width: 30,
-                height: 30,
+                'assets/logo.jpg',
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 30,
-                    height: 30,
-                    color: Colors.white,
-                    child: const Icon(Icons.directions_car, color: Colors.green, size: 16),
+                  return const Center(
+                    child: Icon(Icons.directions_car, color: Colors.blue, size: 18),
                   );
                 },
               ),
             ),
             const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'SHERVICE',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white, 
-                  fontWeight: FontWeight.bold, 
-                  fontSize: 18,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+            // White text logo image
+            Image.asset(
+              'assets/shervice - white.jpg',
+              height: 14, 
+              fit: BoxFit.contain, 
+              errorBuilder: (context, error, stackTrace) {
+                return const Text(
+                  'SHERVICE',
+                  style: TextStyle(
+                    color: Colors.white, 
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 1.0,
+                  ),
+                );
+              },
             ),
           ],
         ),
-        // Added the Log Out button to the top right with Confirmation Dialog
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white70),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext dialogContext) {
-                  return AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-                    content: const Text('Are you sure you want to log out of your account?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(dialogContext); // Close dialog
-                        },
-                        child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(dialogContext); // Close dialog
-                          // Properly route back to LoginScreen
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade600,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
+            icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
+            onPressed: () => _handleLogout(context),
           ),
+          const SizedBox(width: 4),
         ],
       ),
+      
+      // FIX: Added Padding inside SafeArea to fix pagination elements from being crushed at the bottom
       body: SafeArea(
-        child: _screens[_selectedIndex],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: _screens[_selectedIndex],
         ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: Colors.blue.shade600,
-          unselectedItemColor: Colors.grey.shade500,
-          selectedFontSize: 10,
-          unselectedFontSize: 10,
-          iconSize: 20,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.grid_view)),
-              label: 'Overview',
+      ),
+      
+      // FIX: Custom horizontally scrollable Bottom Navigation Bar to prevent yellow/black tapes!
+      bottomNavigationBar: _buildCustomBottomNav(),
+    );
+  }
+
+  Widget _buildCustomBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          )
+        ]
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          height: 64,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: List.generate(_screens.length, (index) {
+                final isSelected = _selectedIndex == index;
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedIndex = index;
+                    });
+                  },
+                  child: Container(
+                    // Dividing by 5 displays exactly 5 items and peeks at the next, prompting scrolling
+                    width: MediaQuery.of(context).size.width / 5,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _icons[index],
+                          color: isSelected ? Colors.blue.shade600 : Colors.grey.shade400,
+                          size: 22,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _shortTitles[index],
+                          style: TextStyle(
+                            color: isSelected ? Colors.blue.shade700 : Colors.grey.shade500,
+                            fontSize: 10,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ),
-            BottomNavigationBarItem(
-              icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.calendar_month_outlined)),
-              label: 'Schedules',
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleLogout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text('Are you sure you want to log out of your account?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+              },
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
-            BottomNavigationBarItem(
-              icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.people_outline)),
-              label: 'Drivers',
-            ),
-            BottomNavigationBarItem(
-              icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.directions_car_outlined)),
-              label: 'Fleet',
-            ),
-            BottomNavigationBarItem(
-              icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.admin_panel_settings_outlined)),
-              label: 'Users',
-            ),
-            BottomNavigationBarItem(
-              icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.settings_outlined)),
-              label: 'Settings',
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+                // Properly route back to LoginScreen
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -177,7 +177,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Recent Vehicle Maintenance Logs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-              Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(20)), child: const Text('Live Stream', style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold))),
             ],
           ),
           const SizedBox(height: 20),

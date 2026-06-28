@@ -134,6 +134,7 @@ class _OicDashboardState extends State<OicDashboard> {
   }
 
   void _showSnackBar(String msg, Color color) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: color, behavior: SnackBarBehavior.floating),
     );
@@ -149,20 +150,24 @@ class _OicDashboardState extends State<OicDashboard> {
         }),
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
           decoration: BoxDecoration(
             color: isActive ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: isActive ? Border.all(color: Colors.grey.shade200) : null,
-            boxShadow: isActive ? [BoxShadow(color: Colors.black12, blurRadius: 4)] : [],
+            boxShadow: isActive ? [const BoxShadow(color: Colors.black12, blurRadius: 4)] : [],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: isActive ? activeColor : Colors.grey.shade500),
-              const SizedBox(width: 8),
-              Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isActive ? activeColor : Colors.grey.shade500)),
-            ],
+          // FIX: FittedBox ensures tabs don't overflow on very narrow screens
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: isActive ? activeColor : Colors.grey.shade500),
+                const SizedBox(width: 8),
+                Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isActive ? activeColor : Colors.grey.shade500)),
+              ],
+            ),
           ),
         ),
       ),
@@ -171,17 +176,23 @@ class _OicDashboardState extends State<OicDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    // FIX: Determine if the screen is mobile or desktop for responsive layout switching
+    final bool isMobile = MediaQuery.of(context).size.width < 850;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            // FIX: Use Wrap for the header to prevent overlap if names are too long
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
               children: [
                 Text('Welcome, ${widget.oicName}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                const SizedBox(width: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.blue.shade200)),
@@ -209,244 +220,294 @@ class _OicDashboardState extends State<OicDashboard> {
             _isLoading 
                 ? const Padding(padding: EdgeInsets.all(40.0), child: Center(child: CircularProgressIndicator()))
                 : _currentPath == 'view_status' 
-                    ? _buildSchedulesView()
+                    ? _buildSchedulesView(isMobile)
                     : _currentPath == 'manage_trip' 
-                        ? _buildDispatchView() 
-                        : _buildFeedbackView(),
+                        ? _buildDispatchView(isMobile) 
+                        : _buildFeedbackView(isMobile),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSchedulesView() {
+  // ─── RESPONSIVE SCHEDULES VIEW ───
+  Widget _buildSchedulesView(bool isMobile) {
     if (_trips.isEmpty) {
       return Center(child: Padding(padding: const EdgeInsets.all(32.0), child: Text("No trips scheduled for your fleet records.", style: TextStyle(color: Colors.grey.shade600))));
     }
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 2.2,
-      ),
-      itemCount: _trips.length,
-      itemBuilder: (context, index) {
-        final trip = _trips[index];
-        final String status = trip['status'] ?? 'Scheduled';
-        final isScheduled = status == 'Scheduled';
 
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    // FIX: Automatically swap to a ListView on mobile, and GridView on desktop
+    if (isMobile) {
+      return ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _trips.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 16),
+        itemBuilder: (context, index) => _buildTripCard(_trips[index]),
+      );
+    } else {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 2.2,
+        ),
+        itemCount: _trips.length,
+        itemBuilder: (context, index) => _buildTripCard(_trips[index]),
+      );
+    }
+  }
+
+  Widget _buildTripCard(dynamic trip) {
+    final String status = trip['status'] ?? 'Scheduled';
+    final isScheduled = status == 'Scheduled';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // Prevents excessive spacing
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text((trip['trip_id'] ?? trip['id'] ?? 'TBD').toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: isScheduled ? Colors.blue.shade50 : Colors.orange.shade50, borderRadius: BorderRadius.circular(20)),
-                    child: Text(status.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isScheduled ? Colors.blue.shade700 : Colors.orange.shade700)),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Row(
-                children: [
-                  const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text(trip['schedule_time'] ?? trip['time'] ?? 'N/A', style: TextStyle(color: Colors.grey.shade700)),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text(trip['route_name'] ?? trip['route'] ?? 'Route Unassigned', style: TextStyle(color: Colors.grey.shade700, overflow: TextOverflow.ellipsis)),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.person, size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text('Driver: ${trip['driver_name'] ?? trip['driver'] ?? 'Unassigned'}', style: TextStyle(color: Colors.grey.shade700)),
-                ],
+              Text((trip['trip_id'] ?? trip['id'] ?? 'TBD').toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: isScheduled ? Colors.blue.shade50 : Colors.orange.shade50, borderRadius: BorderRadius.circular(20)),
+                child: Text(status.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isScheduled ? Colors.blue.shade700 : Colors.orange.shade700)),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 16), // Replaced Spacer to fix ListView compatibility
+          Row(
+            children: [
+              const Icon(Icons.access_time, size: 16, color: Colors.grey),
+              const SizedBox(width: 8),
+              Text(trip['schedule_time'] ?? trip['time'] ?? 'N/A', style: TextStyle(color: Colors.grey.shade700)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // FIX: Expanded prevents overflow if the route name is too long
+          Row(
+            children: [
+              const Icon(Icons.location_on, size: 16, color: Colors.grey),
+              const SizedBox(width: 8),
+              Expanded(child: Text(trip['route_name'] ?? trip['route'] ?? 'Route Unassigned', style: TextStyle(color: Colors.grey.shade700, overflow: TextOverflow.ellipsis))),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.person, size: 16, color: Colors.grey),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Driver: ${trip['driver_name'] ?? trip['driver'] ?? 'Unassigned'}', style: TextStyle(color: Colors.grey.shade700, overflow: TextOverflow.ellipsis))),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildDispatchView() {
+  // ─── RESPONSIVE DISPATCH VIEW ───
+  Widget _buildDispatchView(bool isMobile) {
     final scheduledTrips = _trips.where((t) => (t['status'] ?? 'Scheduled') == 'Scheduled').toList();
 
-    return Row(
+    Widget tripSelectionList = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Select Scheduled Trip', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 16),
-              if (scheduledTrips.isEmpty)
-                Text("No pending scheduled departures.", style: TextStyle(color: Colors.grey.shade500))
-              else
-                ...scheduledTrips.map((trip) {
-                  final tripId = trip['trip_id'] ?? trip['id'];
-                  final isSelected = _selectedTrip?['trip_id'] == tripId || _selectedTrip?['id'] == tripId;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedTrip = trip),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.green.shade50 : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: isSelected ? Colors.green.shade500 : Colors.grey.shade300, width: 2),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('$tripId - ${trip['schedule_time'] ?? trip['time']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          Text('${trip['route_name'] ?? trip['route']} | Driver: ${trip['driver_name'] ?? trip['driver']}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-            ],
-          ),
-        ),
-        const SizedBox(width: 32),
-        Expanded(
-          child: _selectedTrip == null
-              ? Center(child: Text("Select a trip row from the list to prompt headcount configuration.", style: TextStyle(color: Colors.grey.shade500)))
-              : Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Confirm Passenger Count', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                      Text('Dispatching ${_selectedTrip!['trip_id'] ?? _selectedTrip!['id']}', style: TextStyle(color: Colors.grey.shade600)),
-                      const SizedBox(height: 24),
-                      Text('HEADCOUNT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        keyboardType: TextInputType.number,
-                        onChanged: (val) => _passengerCount = val,
-                        decoration: InputDecoration(hintText: '0', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.green), borderRadius: BorderRadius.circular(8))),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade600, padding: const EdgeInsets.symmetric(vertical: 16)),
-                          onPressed: _dispatchTripWithHeadcount,
-                          child: const Text('Dispatch Trip', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ],
-                  ),
+        const Text('Select Scheduled Trip', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 16),
+        if (scheduledTrips.isEmpty)
+          Text("No pending scheduled departures.", style: TextStyle(color: Colors.grey.shade500))
+        else
+          ...scheduledTrips.map((trip) {
+            final tripId = trip['trip_id'] ?? trip['id'];
+            final isSelected = _selectedTrip?['trip_id'] == tripId || _selectedTrip?['id'] == tripId;
+            return GestureDetector(
+              onTap: () => setState(() => _selectedTrip = trip),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.green.shade50 : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isSelected ? Colors.green.shade500 : Colors.grey.shade300, width: 2),
                 ),
-        ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$tripId - ${trip['schedule_time'] ?? trip['time']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text('${trip['route_name'] ?? trip['route']} | Driver: ${trip['driver_name'] ?? trip['driver']}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+            );
+          }),
       ],
     );
+
+    Widget actionPanel = _selectedTrip == null
+        ? Container(
+            padding: const EdgeInsets.all(32),
+            alignment: Alignment.center,
+            child: Text("Select a trip row from the list to prompt headcount configuration.", style: TextStyle(color: Colors.grey.shade500), textAlign: TextAlign.center),
+          )
+        : Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Confirm Passenger Count', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                Text('Dispatching ${_selectedTrip!['trip_id'] ?? _selectedTrip!['id']}', style: TextStyle(color: Colors.grey.shade600)),
+                const SizedBox(height: 24),
+                Text('HEADCOUNT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
+                const SizedBox(height: 8),
+                TextField(
+                  keyboardType: TextInputType.number,
+                  onChanged: (val) => _passengerCount = val,
+                  decoration: InputDecoration(hintText: '0', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.green), borderRadius: BorderRadius.circular(8))),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade600, padding: const EdgeInsets.symmetric(vertical: 16)),
+                    onPressed: _dispatchTripWithHeadcount,
+                    child: const Text('Dispatch Trip', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          );
+
+    // FIX: Switch to a stacked Column on mobile to prevent crushing the UI
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          tripSelectionList,
+          const SizedBox(height: 32),
+          actionPanel,
+        ],
+      );
+    } else {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: tripSelectionList),
+          const SizedBox(width: 32),
+          Expanded(child: actionPanel),
+        ],
+      );
+    }
   }
 
-  Widget _buildFeedbackView() {
-    return Row(
+  // ─── RESPONSIVE FEEDBACK VIEW ───
+  Widget _buildFeedbackView(bool isMobile) {
+    Widget tripSelectionList = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Select Trip for Evaluation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 16),
-              if (_trips.isEmpty)
-                Text("No system records found to evaluate.", style: TextStyle(color: Colors.grey.shade500))
-              else
-                ..._trips.map((trip) {
-                  final tripId = trip['trip_id'] ?? trip['id'];
-                  final isSelected = _selectedTrip?['trip_id'] == tripId || _selectedTrip?['id'] == tripId;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedTrip = trip),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.purple.shade50 : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: isSelected ? Colors.purple.shade500 : Colors.grey.shade300, width: 2),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('$tripId', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          Text('Driver: ${trip['driver_name'] ?? trip['driver'] ?? 'Unknown'}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-            ],
-          ),
-        ),
-        const SizedBox(width: 32),
-        Expanded(
-          child: _selectedTrip == null
-              ? Center(child: Text("Select a trip from the registry index to open feedback fields.", style: TextStyle(color: Colors.grey.shade500)))
-              : Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('OIC Evaluation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                      const SizedBox(height: 24),
-                      Text('PERFORMANCE RATING', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<int>(
-                        value: _rating,
-                        decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-                        items: const [
-                          DropdownMenuItem(value: 5, child: Text('5 - Excellent')),
-                          DropdownMenuItem(value: 4, child: Text('4 - Good')),
-                          DropdownMenuItem(value: 3, child: Text('3 - Average')),
-                          DropdownMenuItem(value: 1, child: Text('1 - Poor')),
-                        ],
-                        onChanged: (val) => setState(() => _rating = val!),
-                      ),
-                      const SizedBox(height: 16),
-                      Text('COMMENTS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        maxLines: 4,
-                        onChanged: (val) => _comments = val,
-                        decoration: InputDecoration(hintText: 'Log incident details or praise...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.purple.shade600, padding: const EdgeInsets.symmetric(vertical: 16)),
-                          onPressed: _submitOicEvaluation,
-                          child: const Text('Submit Evaluation', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ],
-                  ),
+        const Text('Select Trip for Evaluation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 16),
+        if (_trips.isEmpty)
+          Text("No system records found to evaluate.", style: TextStyle(color: Colors.grey.shade500))
+        else
+          ..._trips.map((trip) {
+            final tripId = trip['trip_id'] ?? trip['id'];
+            final isSelected = _selectedTrip?['trip_id'] == tripId || _selectedTrip?['id'] == tripId;
+            return GestureDetector(
+              onTap: () => setState(() => _selectedTrip = trip),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.purple.shade50 : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isSelected ? Colors.purple.shade500 : Colors.grey.shade300, width: 2),
                 ),
-        ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$tripId', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text('Driver: ${trip['driver_name'] ?? trip['driver'] ?? 'Unknown'}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+            );
+          }),
       ],
     );
+
+    Widget actionPanel = _selectedTrip == null
+        ? Container(
+            padding: const EdgeInsets.all(32),
+            alignment: Alignment.center,
+            child: Text("Select a trip from the registry index to open feedback fields.", style: TextStyle(color: Colors.grey.shade500), textAlign: TextAlign.center),
+          )
+        : Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('OIC Evaluation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                const SizedBox(height: 24),
+                Text('PERFORMANCE RATING', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<int>(
+                  value: _rating,
+                  decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                  items: const [
+                    DropdownMenuItem(value: 5, child: Text('5 - Excellent')),
+                    DropdownMenuItem(value: 4, child: Text('4 - Good')),
+                    DropdownMenuItem(value: 3, child: Text('3 - Average')),
+                    DropdownMenuItem(value: 1, child: Text('1 - Poor')),
+                  ],
+                  onChanged: (val) => setState(() => _rating = val!),
+                ),
+                const SizedBox(height: 16),
+                Text('COMMENTS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
+                const SizedBox(height: 8),
+                TextField(
+                  maxLines: 4,
+                  onChanged: (val) => _comments = val,
+                  decoration: InputDecoration(hintText: 'Log incident details or praise...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.purple.shade600, padding: const EdgeInsets.symmetric(vertical: 16)),
+                    onPressed: _submitOicEvaluation,
+                    child: const Text('Submit Evaluation', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          );
+
+    // FIX: Switch to a stacked Column on mobile to prevent crushing the UI
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          tripSelectionList,
+          const SizedBox(height: 32),
+          actionPanel,
+        ],
+      );
+    } else {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: tripSelectionList),
+          const SizedBox(width: 32),
+          Expanded(child: actionPanel),
+        ],
+      );
+    }
   }
 }
