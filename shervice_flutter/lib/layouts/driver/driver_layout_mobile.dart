@@ -6,11 +6,15 @@ import '../../screens/driver/driver_profile.dart';
 import '../../login/login.dart';
 
 class DriverLayoutMobile extends StatefulWidget {
-  final String driverName; // FIXED: Added property declaration
+  final String driverId; // ✅ Added driverId
+  final String driverName;
+  final String companyName; // ✅ Added companyName
 
   const DriverLayoutMobile({
     super.key,
-    required this.driverName, // FIXED: Required constructor variable
+    required this.driverId,
+    required this.driverName,
+    required this.companyName,
   });
 
   @override
@@ -20,12 +24,13 @@ class DriverLayoutMobile extends StatefulWidget {
 class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
   int _selectedIndex = 0;
 
-  // FIXED: Converted layout list into a runtime property tracker map
   List<Widget> get _screens => [
-    DriverDashboard(driverName: widget.driverName), // PIPED TO DASHBOARD
-    const DriverSchedules(),
+    DriverDashboard(driverName: widget.driverName),
+    DriverSchedules(
+      driverId: widget.driverId,
+    ), // ✅ Removed 'const' and passed the ID
     const DriverRatings(),
-    DriverProfile(driverName: widget.driverName), // ✅ To this dynamic line
+    DriverProfile(driverName: widget.driverName),
   ];
 
   @override

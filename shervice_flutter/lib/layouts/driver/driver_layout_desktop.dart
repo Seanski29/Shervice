@@ -6,11 +6,15 @@ import '../../screens/driver/driver_profile.dart';
 import '../../login/login.dart';
 
 class DriverLayoutDesktop extends StatefulWidget {
-  final String driverName; // FIXED: Added property declaration
+  final String driverId; // ✅ Added driverId
+  final String driverName;
+  final String companyName; // ✅ Added companyName
 
   const DriverLayoutDesktop({
     super.key,
-    required this.driverName, // FIXED: Required constructor variable
+    required this.driverId,
+    required this.driverName,
+    required this.companyName,
   });
 
   @override
@@ -20,12 +24,13 @@ class DriverLayoutDesktop extends StatefulWidget {
 class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
   int _selectedIndex = 0;
 
-  // FIXED: Changed layout to a getter method so it can reference widget properties reactively
   List<Widget> get _screens => [
-    DriverDashboard(driverName: widget.driverName), // PIPED TO DASHBOARD
-    const DriverSchedules(),
+    DriverDashboard(driverName: widget.driverName),
+    DriverSchedules(
+      driverId: widget.driverId,
+    ), // ✅ Removed 'const' and passed the ID
     const DriverRatings(),
-    DriverProfile(driverName: widget.driverName), // ✅ To this dynamic line
+    DriverProfile(driverName: widget.driverName),
   ];
 
   @override
@@ -193,7 +198,6 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                     children: [
                       const Icon(Icons.notifications_none, color: Colors.grey),
                       const SizedBox(width: 24),
-                      // Dynamic Title reflection in the shell header framework
                       Text(
                         widget.driverName,
                         style: TextStyle(

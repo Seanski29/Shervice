@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'admin_feedbacks.dart';
 
+// ─── MAIN DASHBOARD COMPONENT ───
 class AdminUsers extends StatefulWidget {
   const AdminUsers({super.key});
 
@@ -13,14 +15,20 @@ class AdminUsers extends StatefulWidget {
 }
 
 class _AdminUsersState extends State<AdminUsers> {
+  // --- State Variables ---
   bool _isLoading = true;
-  
-  // Categorized Data Lists
-  List<dynamic> _adminUsers = [];
-  List<dynamic> _staffUsers = [];
-  List<dynamic> _oicUsers = [];
+  List<dynamic> _allUsers = [];
+  List<dynamic> _filteredUsers = [];
 
-  // Centralized local network gateway
+  // Filtering, Searching & Sorting Configuration
+  String _searchQuery = '';
+  String _currentSort = 'Name (A to Z)';
+  final List<String> _sortOptions = ['Name (A to Z)', 'Name (Z to A)', 'Role'];
+
+  // Pagination Parameters
+  int _currentPage = 0;
+  final int _itemsPerPage = 5;
+
   String get _backendUrl {
     if (kIsWeb) return 'http://127.0.0.1:5000/api';
     return Platform.isAndroid
@@ -35,63 +43,106 @@ class _AdminUsersState extends State<AdminUsers> {
   }
 
   Future<void> _fetchSystemUsers() async {
-    setState(() => _isLoading = true);
-
     try {
-      // CACHE BUSTER: Prevents Flutter Web from aggressively caching the JSON response
-      final String fetchUrl = '$_backendUrl/users/system-users?v=${DateTime.now().millisecondsSinceEpoch}';
-      
-      final response = await http.get(
-        Uri.parse(fetchUrl),
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(Uri.parse('$_backendUrl/auth/system-users'))
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
-        // Assuming your backend returns a list in "data" or "sample_data_payload"
-        final List<dynamic> allUsers = data['data'] ?? data['sample_data_payload'] ?? [];
-
-        setState(() {
-          // Dynamically categorize based on the role string returned from the database
-          _adminUsers = allUsers.where((u) => 
-            u['role'].toString().toLowerCase() == 'admin' || 
-            u['role'].toString().toLowerCase() == 'administrator'
-          ).toList();
-          
-          _staffUsers = allUsers.where((u) => 
-            u['role'].toString().toLowerCase() == 'staff' || 
-            u['role'].toString().toLowerCase() == 'dispatch staff'
-          ).toList();
-          
-          _oicUsers = allUsers.where((u) => 
-            u['role'].toString().toLowerCase() == 'oic' || 
-            u['role'].toString().toLowerCase() == 'officer-in-charge'
-          ).toList();
-          
-          _isLoading = false;
-        });
-      } else {
-        setState(() => _isLoading = false);
-        _showSnackBar('Failed to load users from database.', Colors.red);
+        if (data['success'] == true) {
+          _allUsers = data['data'] ?? [];
+        }
       }
     } catch (e) {
-      setState(() => _isLoading = false);
-      _showSnackBar('Network error: Could not reach backend server.', Colors.red);
-      debugPrint("❌ User Fetch Error: $e");
+      debugPrint("❌ Failed to fetch users: $e");
+      _allUsers = [];
+    } finally {
+      if (mounted) {
+        _applyFiltersAndSort();
+      }
     }
   }
 
-  void _showNewUserModal(BuildContext context) {
+  void _applyFiltersAndSort() {
+    List<dynamic> temp = _allUsers.where((user) {
+      final name = (user['name'] ?? '').toString().toLowerCase();
+      final email = (user['email'] ?? '').toString().toLowerCase();
+      final company = (user['company'] ?? '').toString().toLowerCase();
+      return name.contains(_searchQuery.toLowerCase()) || 
+             email.contains(_searchQuery.toLowerCase()) || 
+             company.contains(_searchQuery.toLowerCase());
+    }).toList();
+
+    temp.sort((a, b) {
+      final nameA = (a['name'] ?? '').toString().toLowerCase();
+      final nameB = (b['name'] ?? '').toString().toLowerCase();
+      final roleA = (a['role'] ?? '').toString().toLowerCase();
+      final roleB = (b['role'] ?? '').toString().toLowerCase();
+
+      switch (_currentSort) {
+        case 'Name (Z to A)':
+          return nameB.compareTo(nameA);
+        case 'Role':
+          return roleA.compareTo(roleB);
+        case 'Name (A to Z)':
+        default:
+          return nameA.compareTo(nameB);
+      }
+    });
+
+    setState(() {
+      _filteredUsers = temp;
+      _currentPage = 0;
+      _isLoading = false;
+    });
+  }
+
+  int get _totalPages => (_filteredUsers.length / _itemsPerPage).ceil();
+
+  List<dynamic> get _paginatedUsers {
+    if (_filteredUsers.isEmpty) return [];
+    int start = _currentPage * _itemsPerPage;
+    int end = min(start + _itemsPerPage, _filteredUsers.length);
+    return _filteredUsers.sublist(start, end);
+  }
+
+  void _nextPage() => _currentPage < _totalPages - 1 ? setState(() => _currentPage++) : null;
+  void _prevPage() => _currentPage > 0 ? setState(() => _currentPage--) : null;
+
+  void _confirmPurgeUser(Map<String, dynamic> user) {
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevent closing while loading
-      builder: (BuildContext context) {
-        return RegisterUserDialog(onUserRegistered: _fetchSystemUsers);
-      },
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Deletion'),
+        content: Text('Are you sure you want to permanently revoke accesses and delete system account records for ${user['name']}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isLoading = true);
+              try {
+                final res = await http.delete(
+                  Uri.parse('$_backendUrl/auth/delete-user/${user['id']}'),
+                ).timeout(const Duration(seconds: 10));
+                
+                if (res.statusCode == 200) {
+                  _showSnackBar('User identity context completely deleted.', Colors.orange);
+                } else {
+                  _showSnackBar('Purge validation request rejected by server.', Colors.red);
+                }
+              } catch (e) {
+                _showSnackBar('Network layer timing exception error.', Colors.red);
+              } finally {
+                _fetchSystemUsers();
+              }
+            },
+            child: const Text('Delete permanently', style: TextStyle(color: Colors.white)),
+          )
+        ],
+      ),
     );
   }
 
@@ -102,192 +153,210 @@ class _AdminUsersState extends State<AdminUsers> {
     );
   }
 
+  void _showUserModal(BuildContext context, {Map<String, dynamic>? user}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return RegisterUserDialog(
+          user: user,
+          onDelete: user == null ? null : () => _confirmPurgeUser(user),
+        );
+      },
+    ).then((_) {
+      if (mounted) {
+        setState(() => _isLoading = true);
+        _fetchSystemUsers();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final int totalUsers = _adminUsers.length + _staffUsers.length + _oicUsers.length;
-
-    return _isLoading 
-      ? const Center(child: CircularProgressIndicator()) 
-      : ListView(
-          padding: const EdgeInsets.all(24.0),
-          children: [
-            // --- HEADER ---
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                const Text(
-                  'User Management',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Wrap(
-                  spacing: 12,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminFeedbacks()));
-                      },
-                      icon: const Icon(Icons.forum_outlined, size: 20),
-                      label: const Text('View Feedbacks', style: TextStyle(fontWeight: FontWeight.bold)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.blue.shade700,
-                        side: BorderSide(color: Colors.blue.shade600),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () => _showNewUserModal(context),
-                      icon: const Icon(Icons.person_add_alt_1, color: Colors.white, size: 20),
-                      label: const Text('Register User', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade600,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // --- SYSTEM ADMINS DYNAMIC LIST ---
-            if (_adminUsers.isNotEmpty) ...[
-              _buildSectionHeader('SYSTEM ADMINISTRATORS'),
-              ..._adminUsers.map((user) => _buildUserCard(
-                    name: user['full_name'] ?? user['username'] ?? 'Unknown Admin',
-                    email: user['username'] ?? 'No Email',
-                    role: 'Administrator',
-                    company: user['company_name'] ?? 'GT Lantin Internal',
-                    permission: 'Full Access',
-                    status: user['status'] ?? 'Active',
-                    statusColor: Colors.green,
-                  )),
-            ],
-
-            // --- DISPATCH STAFF DYNAMIC LIST ---
-            if (_staffUsers.isNotEmpty) ...[
-              _buildSectionHeader('DISPATCH STAFF'),
-              ..._staffUsers.map((user) => _buildUserCard(
-                    name: user['full_name'] ?? user['username'] ?? 'Unknown Staff',
-                    email: user['username'] ?? 'No Email Provided',
-                    role: 'Dispatch Staff',
-                    company: user['company_name'] ?? 'Assigned Account',
-                    permission: 'Logistics Only',
-                    status: user['status'] ?? 'Active',
-                    statusColor: Colors.green,
-                  )),
-            ],
-
-            // --- OIC DYNAMIC LIST ---
-            if (_oicUsers.isNotEmpty) ...[
-              _buildSectionHeader('CLIENT OFFICERS (OIC)'),
-              ..._oicUsers.map((user) => _buildUserCard(
-                    name: user['full_name'] ?? user['username'] ?? 'Unknown OIC',
-                    email: user['username'] ?? 'No Email Provided',
-                    role: 'Officer-in-Charge',
-                    company: user['company_name'] ?? 'Client Company',
-                    permission: 'Schedules & Feedback',
-                    status: user['status'] ?? 'Active',
-                    statusColor: Colors.blue,
-                  )),
-            ],
-
-            // Empty State Handling
-            if (_adminUsers.isEmpty && _staffUsers.isEmpty && _oicUsers.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(40.0),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.admin_panel_settings_outlined, size: 64, color: Colors.grey.shade300),
-                      const SizedBox(height: 16),
-                      Text("No system users found in the database.", style: TextStyle(color: Colors.grey.shade500)),
-                    ],
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 16),
-            _buildResponsivePagination('1 to $totalUsers of $totalUsers system users'),
-          ],
-        );
-  }
-
-  Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(top: 16.0, bottom: 12.0),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2),
-      ),
-    );
-  }
-
-  Widget _buildUserCard({
-    required String name,
-    required String email,
-    required String role,
-    required String company,
-    required String permission,
-    required String status,
-    required Color statusColor,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Wrap(
             alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              Text(
-                name,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  status,
-                  style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(),
-          const SizedBox(height: 12),
-          Wrap(
             spacing: 16,
-            runSpacing: 12,
+            runSpacing: 16,
             children: [
-              _iconText(Icons.business, company),
-              _iconText(Icons.email_outlined, email),
-              _iconText(Icons.admin_panel_settings_outlined, role),
-              _iconText(Icons.verified_user_outlined, permission),
+              const Text(
+                'User Management',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
+              ),
+              Wrap(
+                spacing: 12,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminFeedbacks()));
+                    },
+                    icon: const Icon(Icons.forum_outlined, size: 20),
+                    label: const Text('View Feedbacks', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue.shade700,
+                      side: BorderSide(color: Colors.blue.shade600),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _showUserModal(context),
+                    icon: const Icon(Icons.person_add_alt_1, color: Colors.white, size: 20),
+                    label: const Text('Register User', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade600,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
+          const SizedBox(height: 24),
+
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  onChanged: (value) {
+                    _searchQuery = value;
+                    _applyFiltersAndSort();
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Search system accounts by name, email, or associated groups...',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _currentSort,
+                    icon: const Icon(Icons.sort),
+                    items: _sortOptions.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
+                    onChanged: (newValue) {
+                      if (newValue != null) {
+                        _currentSort = newValue;
+                        _applyFiltersAndSort();
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredUsers.isEmpty
+                    ? const Center(child: Text("No operational system users found matching filters.", style: TextStyle(color: Colors.grey, fontSize: 16)))
+                    : ListView.builder(
+                        itemCount: _paginatedUsers.length,
+                        itemBuilder: (context, index) {
+                          final user = _paginatedUsers[index];
+                          final String status = user['status'] ?? 'Active';
+                          final Color statusColor = user['color'] == 'blue' ? Colors.blue : Colors.green;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () => _showUserModal(context, user: Map<String, dynamic>.from(user)),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(user['name'] ?? 'System User', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                            decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                                            child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Divider(),
+                                      const SizedBox(height: 12),
+                                      Wrap(
+                                        spacing: 16,
+                                        runSpacing: 12,
+                                        children: [
+                                          _iconText(Icons.business, user['company'] ?? 'Internal'),
+                                          _iconText(Icons.email_outlined, user['email'] ?? 'No Email Bound'),
+                                          _iconText(Icons.admin_panel_settings_outlined, user['role'] ?? 'Staff'),
+                                          _iconText(Icons.verified_user_outlined, user['permission'] ?? 'Standard'),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+
+          if (!_isLoading && _filteredUsers.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredUsers.length)} of ${_filteredUsers.length} system users',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                  ),
+                  Row(
+                    children: [
+                      OutlinedButton(
+                        onPressed: _currentPage > 0 ? _prevPage : null,
+                        child: const Text('Previous'),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('Page ${_currentPage + 1} of $_totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: _currentPage < _totalPages - 1 ? _nextPage : null,
+                        child: const Text('Next'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -303,33 +372,13 @@ class _AdminUsersState extends State<AdminUsers> {
       ],
     );
   }
-
-  Widget _buildResponsivePagination(String text) {
-    return Wrap(
-      alignment: WrapAlignment.end,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 16,
-      runSpacing: 16,
-      children: [
-        Text(text, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-        Wrap(
-          spacing: 8,
-          children: [
-            OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: const Text('Prev', style: TextStyle(color: Colors.black87))),
-            Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: Colors.blue.shade600, borderRadius: BorderRadius.circular(8)), child: const Text('1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-            OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: const Text('Next', style: TextStyle(color: Colors.black87))),
-          ],
-        ),
-      ],
-    );
-  }
 }
 
-// ─── REGISTER USER MODAL ───
 class RegisterUserDialog extends StatefulWidget {
-  final VoidCallback onUserRegistered; // Callback to refresh UI after success
+  final Map<String, dynamic>? user;
+  final VoidCallback? onDelete;
 
-  const RegisterUserDialog({super.key, required this.onUserRegistered});
+  const RegisterUserDialog({super.key, this.user, this.onDelete});
 
   @override
   State<RegisterUserDialog> createState() => _RegisterUserDialogState();
@@ -337,55 +386,109 @@ class RegisterUserDialog extends StatefulWidget {
 
 class _RegisterUserDialogState extends State<RegisterUserDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  bool _isWritingUnlocked = false;
+
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
 
   String? _selectedRole;
   String? _selectedCompany;
-  bool _isLoading = false;
 
   String get _backendUrl {
     if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
+    return Platform.isAndroid ? 'http://10.0.2.2:5000/api' : 'http://127.0.0.1:5000/api';
   }
 
-  Future<void> _registerUser() async {
+  @override
+  void initState() {
+    super.initState();
+    final bool isEdit = widget.user != null;
+    _isWritingUnlocked = !isEdit;
+
+    _nameController = TextEditingController(text: isEdit ? widget.user!['name'] : '');
+    _emailController = TextEditingController(text: isEdit ? widget.user!['email'] : '');
+    _passwordController = TextEditingController();
+
+    if (isEdit) {
+      _selectedRole = widget.user!['role'];
+      _selectedCompany = widget.user!['company'] == 'Internal' ? 'None (Internal)' : widget.user!['company'];
+    }
+  }
+
+  InputDecoration _fieldStyle({required String label, required IconData icon, bool forceDisable = false}) {
+    final bool active = _isWritingUnlocked && !forceDisable;
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: const Color(0xFF475569)),
+      filled: true,
+      fillColor: active ? const Color(0xFFF1F5F9) : const Color(0xFFE2E8F0),
+      labelStyle: const TextStyle(color: Color(0xFF64748B)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+      ),
+    );
+  }
+
+  Future<void> _submitUserForm() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
+    final bool isEditMode = widget.user != null;
 
     try {
-      final response = await http.post(
-        Uri.parse('$_backendUrl/auth/register-staff-oic'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': _emailController.text.trim(),
-          'password': _passwordController.text,
-          'role': _selectedRole,
-          'company_name': _selectedCompany ?? 'None (Internal)',
-          'full_name': _nameController.text.trim(),
-        }),
-      ).timeout(const Duration(seconds: 15));
+      final http.Response response;
+      if (isEditMode) {
+        response = await http.put(
+          Uri.parse('$_backendUrl/auth/update-user/${widget.user!['id']}'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'full_name': _nameController.text.trim(),
+            'email': _emailController.text.trim(),
+            'role': _selectedRole,
+            'company_name': _selectedCompany ?? 'None (Internal)',
+          }),
+        ).timeout(const Duration(seconds: 15));
+      } else {
+        response = await http.post(
+          Uri.parse('$_backendUrl/auth/register-staff-oic'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': _emailController.text.trim(),
+            'password': _passwordController.text,
+            'role': _selectedRole,
+            'company_name': _selectedCompany ?? 'None (Internal)',
+            'full_name': _nameController.text.trim(),
+          }),
+        ).timeout(const Duration(seconds: 15));
+      }
 
       final responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 201 && responseData['success'] == true) {
+      if ((response.statusCode == 201 || response.statusCode == 200) && responseData['success'] == true) {
         if (!mounted) return;
-        Navigator.pop(context); // Close the modal
-        
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User registered securely!"), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
-        
-        // Trigger the parent refresh to paint the new user immediately!
-        widget.onUserRegistered(); 
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isEditMode ? "Account profile layout details synchronized!" : "User registered securely in the Auth Vault!"),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(responseData['message'] ?? "Registration failed."), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
+        throw Exception(responseData['message'] ?? "Request operation rejected.");
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Network error: Could not reach backend server."), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -401,59 +504,126 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isEditMode = widget.user != null;
+
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Register System User', style: TextStyle(fontWeight: FontWeight.bold)),
+      backgroundColor: const Color(0xFFF8FAFC),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: Text(
+        isEditMode ? 'System User Profile Context' : 'Register System User',
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Color(0xFF0F172A)),
+      ),
       content: SizedBox(
         width: 500,
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  validator: (val) => val == null || val.isEmpty ? "Required" : null,
-                  decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person)),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: _nameController,
+                      readOnly: !_isWritingUnlocked,
+                      validator: (val) => val == null || val.isEmpty ? "Required" : null,
+                      decoration: _fieldStyle(label: 'Full Name', icon: Icons.person),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _emailController,
+                      readOnly: !_isWritingUnlocked,
+                      validator: (val) => val == null || !val.contains('@') ? "Enter a valid email" : null,
+                      decoration: _fieldStyle(label: 'Email Address', icon: Icons.email),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    if (!isEditMode) ...[
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: _fieldStyle(label: 'Secure Password', icon: Icons.lock),
+                        validator: (val) => val == null || val.length < 6 ? "Minimum 6 characters" : null,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    DropdownButtonFormField<String>(
+                      value: _selectedRole,
+                      validator: (val) => val == null ? "Select a role" : null,
+                      decoration: _fieldStyle(label: 'Assign Role', icon: Icons.admin_panel_settings),
+                      onChanged: !_isWritingUnlocked ? null : (value) => setState(() => _selectedRole = value),
+                      dropdownColor: const Color(0xFFF8FAFC),
+                      items: ['Administrator', 'Dispatch Staff', 'Officer-in-Charge']
+                          .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                            value: _selectedCompany,
+                            decoration: _fieldStyle(label: 'Assign Company Account', icon: Icons.business),
+                            onChanged: !_isWritingUnlocked ? null : (value) => setState(() => _selectedCompany = value),
+                            dropdownColor: const Color(0xFFF8FAFC),
+                            
+                            // UPDATED: Added 'GT Lantin Internal' to match your database defaults safely
+                            items: ['None (Internal)', 'GT Lantin Internal', 'EPSON', 'Bandai', 'NX Logistics']
+                                .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                          ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  validator: (val) => val == null || !val.contains('@') ? "Enter a valid email" : null,
-                  decoration: const InputDecoration(labelText: 'Email Address', border: OutlineInputBorder(), prefixIcon: Icon(Icons.email)),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  validator: (val) => val == null || val.length < 6 ? "Minimum 6 characters" : null,
-                  decoration: const InputDecoration(labelText: 'Secure Password', border: OutlineInputBorder(), prefixIcon: Icon(Icons.lock)),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  validator: (val) => val == null ? "Select a role" : null,
-                  decoration: const InputDecoration(labelText: 'Assign Role', border: OutlineInputBorder(), prefixIcon: Icon(Icons.admin_panel_settings)),
-                  items: ['Administrator', 'Dispatch Staff', 'Officer-in-Charge'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                  onChanged: (value) => setState(() => _selectedRole = value),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Assign Company Account', border: OutlineInputBorder(), prefixIcon: Icon(Icons.business)),
-                  items: ['None (Internal)', 'EPSON', 'Bandai', 'NX Logistics'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                  onChanged: (value) => setState(() => _selectedCompany = value),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
+      actionsPadding: const EdgeInsets.only(bottom: 24, right: 24, left: 24),
       actions: [
-        TextButton(onPressed: _isLoading ? null : () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _registerUser,
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Register User', style: TextStyle(color: Colors.white)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            isEditMode
+                ? TextButton(
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      if (widget.onDelete != null) widget.onDelete!();
+                    },
+                    child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 15)),
+                  )
+                : const SizedBox.shrink(),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 12),
+                if (isEditMode && !_isWritingUnlocked)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF64748B),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    onPressed: () => setState(() => _isWritingUnlocked = true),
+                    child: const Text('Edit Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  )
+                else
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1D83E4),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    onPressed: _isLoading ? null : _submitUserForm,
+                    child: _isLoading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(isEditMode ? 'Save Changes' : 'Register User', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+              ],
+            ),
+          ],
         ),
       ],
     );

@@ -22,8 +22,12 @@ class SherviceApp extends StatelessWidget {
       if (role == 'admin') {
         return const AdminLayout();
       } else if (role == 'driver') {
-        // FIXED: Added a default fallback presentation parameter string for direct URL testing
-        return const DriverLayout(driverName: 'System Driver');
+        // FIXED: Provided all three required parameters for URL testing
+        return const DriverLayout(
+          driverId: '00000000-0000-0000-0000-000000000000', // Dummy UUID
+          driverName: 'System Driver',
+          companyName: 'Test Company',
+        );
       } else {
         return const LoginScreen();
       }
