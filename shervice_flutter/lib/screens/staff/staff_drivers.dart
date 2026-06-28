@@ -3,8 +3,16 @@ import '../../widgets/shared_drivers_view.dart';
 import '../../widgets/driver_form_dialog.dart';
 import '../../models/driver_profile_model.dart';
 
-class StaffDrivers extends StatelessWidget {
+class StaffDrivers extends StatefulWidget {
   const StaffDrivers({super.key});
+
+  @override
+  State<StaffDrivers> createState() => _StaffDriversState();
+}
+
+class _StaffDriversState extends State<StaffDrivers> {
+  // Changing string seed forces an absolute UI state redraw on data operations
+  String _refreshSeed = DateTime.now().millisecondsSinceEpoch.toString();
 
   String get _backendUrl => 'http://127.0.0.1:5000/api';
 
@@ -15,9 +23,20 @@ class StaffDrivers extends StatelessWidget {
       builder: (context) => DriverFormDialog(
         driver: driver,
         backendUrl: _backendUrl,
-        onDelete: null, // 🔒 PASSING NULL HIDES THE DELETE LINK FOR STAFF
+        onDelete: null, // 🔒 Staff cannot delete records
+        onSuccess: () {
+          _triggerInstantRefresh(); // Instantly catches modifications on save
+        },
       ),
     );
+  }
+
+  void _triggerInstantRefresh() {
+    if (mounted) {
+      setState(() {
+        _refreshSeed = DateTime.now().millisecondsSinceEpoch.toString();
+      });
+    }
   }
 
   @override
@@ -25,7 +44,9 @@ class StaffDrivers extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SharedDriversView(
-        canManage: false, // Disables the row card trash-can delete shortcut icons
+        // The unique value key tells Flutter to destroy the old layout cache and fetch fresh data
+        key: ValueKey('staff_drivers_list_$_refreshSeed'),
+        canManage: false, // Hides the row card delete trash icons
         onDriverTapped: (ctx, model) {
           if (model != null) _showDriverModal(ctx, model);
         },
