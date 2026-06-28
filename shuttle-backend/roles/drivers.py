@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 
 # Update the blueprint variable or name string to plural if desired
 drivers_bp = Blueprint('drivers', __name__)
+supabase = None
 
 # Update your route decorators below to use the new variable name:
 @drivers_bp.route('/api/driver/active-trip/<driver_name>', methods=['GET'])
