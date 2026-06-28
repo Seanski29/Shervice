@@ -28,8 +28,13 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
   Widget build(BuildContext context) {
     // Define screens here to access widget variables
     final List<Widget> screens = [
-      OicDashboard(oicName: widget.oicName, companyName: widget.companyName),
-      OicSchedules(oicId: widget.oicId), // 💡 Removed 'const' and passed oicId
+      // FIXED: Passed the required oicId parameter parameter here 
+      OicDashboard(
+        oicName: widget.oicName, 
+        companyName: widget.companyName, 
+        oicId: widget.oicId,
+      ),
+      OicSchedules(oicId: widget.oicId),
       OicTrips(oicId: widget.oicId),
     ];
 
@@ -63,7 +68,6 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
               children: [
-                // Replace with your actual logo path
                 const Icon(Icons.bus_alert, color: Colors.white, size: 40),
                 if (_isSidebarExpanded) ...[
                   const SizedBox(width: 16),
