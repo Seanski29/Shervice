@@ -89,7 +89,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             // White text logo image
             Image.asset(
               'assets/shervice - white.jpg',
-              height: 14, 
+              height: 25, 
               fit: BoxFit.contain, 
               errorBuilder: (context, error, stackTrace) {
                 return const Text(

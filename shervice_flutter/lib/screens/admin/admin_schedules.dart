@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -25,20 +24,45 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   bool _isLoading = true;
   List<dynamic> _allSchedules = [];
   List<dynamic> _filteredSchedules = [];
+  
+  DateTime _selectedMonth = DateTime.now();
+  DateTime? _selectedDate;
 
   // Filtering & Sorting
   String _searchQuery = '';
   String _statusFilter = 'All';
-  final List<String> _statusOptions = ['All', 'Scheduled', 'In Progress', 'Completed', 'Cancelled'];
-
-  // Pagination
-  int _currentPage = 0;
-  final int _itemsPerPage = 5;
+  // Expanded options to catch all possible backend states
+  final List<String> _statusOptions = ['All', 'Scheduled', 'Pending', 'In Progress', 'Ongoing', 'Completed', 'Cancelled'];
 
   @override
   void initState() {
     super.initState();
     _fetchSchedulesFromDatabase();
+  }
+
+  // ─── ROBUST DATA EXTRACTORS ───
+  // These safely grab data regardless of exactly what the backend named the keys
+  String _getTripDate(dynamic trip) {
+    final val = trip['schedule_date'] ?? trip['departure_date'] ?? trip['scheduled_time'] ?? trip['schedule_time'] ?? trip['date'];
+    return val?.toString() ?? '';
+  }
+
+  String _getTripTime(dynamic trip) {
+    final val = trip['departure_time'] ?? trip['time'] ?? trip['scheduled_time'] ?? trip['schedule_time'];
+    if (val == null || val.toString().isEmpty) return 'TBD';
+    
+    // Clean up long datetime strings into just the time
+    final str = val.toString();
+    if (str.length > 10 && str.contains('T')) {
+      return str.split('T')[1].substring(0, 5); // Extracts HH:MM from ISO8601
+    } else if (str.length > 5 && str.contains(':')) {
+      return str.substring(0, 5); // Extracts HH:MM from standard time formats
+    }
+    return str;
+  }
+
+  String _getTripStatus(dynamic trip) {
+    return (trip['status'] ?? trip['trip_status'] ?? 'Scheduled').toString();
   }
 
   // --- Data Fetching & Processing ---
@@ -52,11 +76,12 @@ class _AdminSchedulesState extends State<AdminSchedules> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // Handling both raw arrays or enveloped JSON responses
         if (data is List) {
           _allSchedules = data;
         } else if (data is Map && data.containsKey('trips')) {
           _allSchedules = data['trips'] ?? [];
+        } else if (data is Map && data.containsKey('data')) {
+          _allSchedules = data['data'] ?? [];
         } else if (data is Map && data.containsKey('sample_data_payload')) {
           _allSchedules = data['sample_data_payload'] ?? [];
         } else {
@@ -77,57 +102,72 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   }
 
   void _applyFiltersAndSort() {
-    // 1. Filter by Route Name/Driver Name and Status Dropdown
     List<dynamic> temp = _allSchedules.where((trip) {
-      final routeName = (trip['route_name'] ?? '').toString().toLowerCase();
-      final driverName = (trip['driver_name'] ?? '').toString().toLowerCase();
-      final tripStatus = (trip['status'] ?? 'Scheduled').toString();
+      final routeName = (trip['route_name'] ?? trip['route'] ?? trip['destination'] ?? '').toString().toLowerCase();
+      final driverName = (trip['driver_name'] ?? trip['driver'] ?? '').toString().toLowerCase();
+      final tripStatus = _getTripStatus(trip).toLowerCase();
 
       final matchesSearch = routeName.contains(_searchQuery.toLowerCase()) || 
                             driverName.contains(_searchQuery.toLowerCase());
       
-      final matchesStatus = _statusFilter == 'All' || 
-                            tripStatus.toLowerCase() == _statusFilter.toLowerCase();
+      final matchesStatus = _statusFilter == 'All' || tripStatus == _statusFilter.toLowerCase();
 
       return matchesSearch && matchesStatus;
     }).toList();
 
-    // 2. Sort chronologically by schedule time
+    // Sort chronologically safely
     temp.sort((a, b) {
-      final timeA = DateTime.tryParse(a['scheduled_time']?.toString() ?? '') ?? DateTime.now();
-      final timeB = DateTime.tryParse(b['scheduled_time']?.toString() ?? '') ?? DateTime.now();
+      final timeA = DateTime.tryParse(_getTripDate(a)) ?? DateTime(2000);
+      final timeB = DateTime.tryParse(_getTripDate(b)) ?? DateTime(2000);
       return timeA.compareTo(timeB);
     });
 
     setState(() {
       _filteredSchedules = temp;
-      _currentPage = 0; // Reset page on filter mutation
       _isLoading = false;
     });
   }
 
-  // --- Pagination Logic ---
-  int get _totalPages => (_filteredSchedules.length / _itemsPerPage).ceil();
-
-  List<dynamic> get _paginatedSchedules {
-    if (_filteredSchedules.isEmpty) return [];
-    int start = _currentPage * _itemsPerPage;
-    int end = min(start + _itemsPerPage, _filteredSchedules.length);
-    return _filteredSchedules.sublist(start, end);
+  List<dynamic> _getTripsForDate(DateTime date) {
+    final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    return _filteredSchedules.where((trip) {
+      final tripDateRaw = _getTripDate(trip);
+      
+      // FIX: The ultimate RangeError prevention.
+      // If the backend date format is empty or too short, it skips it instead of crashing.
+      if (tripDateRaw.length >= 10) {
+        return tripDateRaw.substring(0, 10) == dateStr;
+      }
+      return false;
+    }).toList();
   }
 
-  void _nextPage() => setState(() => _currentPage < _totalPages - 1 ? _currentPage++ : null);
-  void _prevPage() => setState(() => _currentPage > 0 ? _currentPage-- : null);
+  List<dynamic> _getDisplayedTrips() {
+    if (_selectedDate == null) return _filteredSchedules;
+    return _getTripsForDate(_selectedDate!);
+  }
+
+  int get _totalTrips => _filteredSchedules.length;
+  int get _scheduledTrips => _filteredSchedules.where((t) {
+    final stat = _getTripStatus(t).toLowerCase();
+    return stat == 'scheduled' || stat == 'pending';
+  }).length;
+  int get _inProgressTrips => _filteredSchedules.where((t) {
+    final stat = _getTripStatus(t).toLowerCase();
+    return stat == 'in progress' || stat == 'ongoing' || stat == 'active';
+  }).length;
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'in progress':
+      case 'ongoing':
       case 'active':
         return Colors.blue;
       case 'completed':
         return Colors.green;
       case 'cancelled':
         return Colors.red;
+      case 'pending':
       case 'scheduled':
       default:
         return Colors.orange;
@@ -137,146 +177,337 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   // --- UI Layout Engine ---
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+
+    return Container(
+      color: const Color(0xFFF8FAFC),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Components
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                const Text(
+                  'Trip Schedules',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
+                ),
+                IconButton(
+                  onPressed: _fetchSchedulesFromDatabase,
+                  icon: const Icon(Icons.refresh, color: Colors.blue),
+                  tooltip: 'Refresh Schedules',
+                  splashRadius: 24,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Control and Filtering Ribbon
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                SizedBox(
+                  width: isMobile ? double.infinity : 350,
+                  child: TextField(
+                    onChanged: (value) {
+                      _searchQuery = value;
+                      _applyFiltersAndSort();
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search routes or drivers...',
+                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: isMobile ? double.infinity : 200,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _statusFilter,
+                      icon: const Icon(Icons.filter_alt_outlined),
+                      items: _statusOptions.map((String value) {
+                        return DropdownMenuItem<String>(value: value, child: Text(value));
+                      }).toList(),
+                      onChanged: (newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _statusFilter = newValue;
+                            _applyFiltersAndSort();
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Core Stream Section - Calendar + Trip List
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.all(40),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (isMobile)
+              // Mobile View: Stack vertically
+              Column(
+                children: [
+                  _buildCompactCalendarGrid(),
+                  const SizedBox(height: 24),
+                  _buildTripListView(),
+                ],
+              )
+            else
+              // Desktop View: Side by side
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: _buildCompactCalendarGrid(),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 2,
+                    child: _buildTripListView(),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 24),
+
+            // Summary Footer
+            if (!_isLoading && _filteredSchedules.isNotEmpty)
+              _buildSummaryFooter(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactCalendarGrid() {
+    final firstDay = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+    final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+    final daysInMonth = lastDay.day;
+    final firstWeekday = firstDay.weekday % 7;
+    final List<String> weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Components
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Trip Schedules',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
+              Text(
+                _monthYearFormat(_selectedMonth),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              IconButton(
-                onPressed: _fetchSchedulesFromDatabase,
-                icon: const Icon(Icons.refresh, color: Colors.blue),
-                tooltip: 'Refresh Schedules',
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, size: 22),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1)),
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, size: 22),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1)),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 24),
-
-          // Control and Filtering Ribbon
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  onChanged: (value) {
-                    _searchQuery = value;
-                    _applyFiltersAndSort();
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search routes or drivers...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+          const SizedBox(height: 16),
+          GridView.count(
+            crossAxisCount: 7,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 1.2,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+            children: weekdays.map((day) {
+              return Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _statusFilter,
-                    icon: const Icon(Icons.filter_alt_outlined),
-                    items: _statusOptions.map((String value) {
-                      return DropdownMenuItem<String>(value: value, child: Text(value));
-                    }).toList(),
-                    onChanged: (newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          _statusFilter = newValue;
-                          _applyFiltersAndSort();
-                        });
-                      }
-                    },
+                child: Center(
+                  child: Text(day, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 4),
+          GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: 1.0,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+            ),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: (daysInMonth + firstWeekday),
+            itemBuilder: (context, index) {
+              if (index < firstWeekday) {
+                return Container();
+              }
+
+              final day = index - firstWeekday + 1;
+              final date = DateTime(_selectedMonth.year, _selectedMonth.month, day);
+              final trips = _getTripsForDate(date);
+              final hasTrips = trips.isNotEmpty;
+              final isSelected = _selectedDate?.year == date.year && 
+                                 _selectedDate?.month == date.month && 
+                                 _selectedDate?.day == date.day;
+              final isToday = DateTime.now().year == date.year && 
+                              DateTime.now().month == date.month && 
+                              DateTime.now().day == date.day;
+
+              return GestureDetector(
+                onTap: () => setState(() => _selectedDate = date),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.blue.shade600 : (hasTrips ? Colors.blue.shade50 : Colors.white),
+                    border: Border.all(
+                      color: isToday ? Colors.orange.shade400 : Colors.grey.shade200,
+                      width: isToday ? 1.5 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Center(
+                    child: Text(
+                      day.toString(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
+                        color: isSelected ? Colors.white : (hasTrips ? Colors.blue.shade700 : Colors.black87),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
-          const SizedBox(height: 24),
-
-          // Core Stream Section
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredSchedules.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.calendar_today_outlined, size: 64, color: Colors.grey.shade400),
-                            const SizedBox(height: 16),
-                            Text('No scheduled trips found.', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _paginatedSchedules.length,
-                        itemBuilder: (context, index) {
-                          final trip = _paginatedSchedules[index];
-                          return _buildTripCard(
-                            routeName: trip['route_name'] ?? 'Unassigned Route',
-                            driverName: trip['driver_name'] ?? 'No Assigned Driver',
-                            vehiclePlate: trip['plate_number'] ?? 'No Shuttle Linked',
-                            timeString: trip['scheduled_time'] ?? 'TBD',
-                            status: trip['status'] ?? 'Scheduled',
-                          );
-                        },
-                      ),
-          ),
-
-          // Pagination System Footnotes
-                   if (!_isLoading && _filteredSchedules.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredSchedules.length)} of ${_filteredSchedules.length} schedules',
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                    ),
-                    const SizedBox(width: 16),
-                    Row(
-                      children: [
-                        OutlinedButton(
-                          onPressed: _currentPage > 0 ? _prevPage : null,
-                          child: const Text('Previous'),
-                        ),
-                        const SizedBox(width: 8),
-                        Text('Page ${_currentPage + 1} of $_totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          onPressed: _currentPage < _totalPages - 1 ? _nextPage : null,
-                          child: const Text('Next'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
         ],
       ),
     );
+  }
+
+  Widget _buildTripListView() {
+    final displayedTrips = _getDisplayedTrips();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: displayedTrips.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(40),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey.shade300),
+                    const SizedBox(height: 16),
+                    Text('No trips scheduled.', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+                  ],
+                ),
+              ),
+            )
+          : ListView.builder(
+              shrinkWrap: true, // Prevents expanding infinitely inside scroll views
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: displayedTrips.length,
+              itemBuilder: (context, index) {
+                final trip = displayedTrips[index];
+                return _buildTripCard(
+                  routeName: trip['route_name'] ?? trip['route'] ?? trip['destination'] ?? 'Unassigned Route',
+                  driverName: trip['driver_name'] ?? trip['driver'] ?? 'No Assigned Driver',
+                  vehiclePlate: trip['plate_number'] ?? trip['vehicle'] ?? 'No Shuttle Linked',
+                  timeString: _getTripTime(trip),
+                  status: _getTripStatus(trip),
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _buildSummaryFooter() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.spaceAround,
+        spacing: 24,
+        runSpacing: 24,
+        children: [
+          _summaryStatCard('Total Trips', _totalTrips.toString(), Colors.blue),
+          _summaryStatCard('Scheduled', _scheduledTrips.toString(), Colors.green),
+          _summaryStatCard('In Progress', _inProgressTrips.toString(), Colors.orange),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryStatCard(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+        ),
+      ],
+    );
+  }
+
+  String _monthYearFormat(DateTime date) {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return '${months[date.month - 1]} ${date.year}';
   }
 
   Widget _buildTripCard({
@@ -288,32 +519,37 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   }) {
     final statusColor = _getStatusColor(status);
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(routeName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              Expanded(
+                child: Text(
+                  routeName, 
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                ),
+              ),
+              const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: statusColor.withAlpha(25), borderRadius: BorderRadius.circular(20)),
-                child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: statusColor.withAlpha(25), borderRadius: BorderRadius.circular(12)),
+                child: Text(
+                  status.toUpperCase(), 
+                  style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(),
-          const SizedBox(height: 12),
           Wrap(
-            spacing: 24,
+            spacing: 20,
             runSpacing: 12,
             children: [
               _cardIconText(Icons.person_outline, 'Driver: $driverName'),
@@ -330,9 +566,12 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 20, color: Colors.grey),
-        const SizedBox(width: 8),
-        Text(text, style: const TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF334155))),
+        Icon(icon, size: 16, color: Colors.grey.shade500),
+        const SizedBox(width: 6),
+        Text(
+          text, 
+          style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey.shade700, fontSize: 13)
+        ),
       ],
     );
   }

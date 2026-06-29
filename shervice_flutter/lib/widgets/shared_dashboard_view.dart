@@ -152,7 +152,10 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(width: 120, child: Text(m.title, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600))),
+                Expanded(
+                  child: Text(m.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
+                ),
+                const SizedBox(width: 8),
                 Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: m.baseColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), child: Icon(m.icon, color: m.baseColor, size: 16)),
               ],
             ),
@@ -188,10 +191,14 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade100), borderRadius: BorderRadius.circular(8), color: Colors.grey.shade50),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), child: const Icon(Icons.build_circle_outlined, color: Colors.red, size: 20)),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), child: const Icon(Icons.build_circle_outlined, color: Colors.red, size: 20)),
+                        ),
                         const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(log.vehicleId, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), Text('Issue: ${log.description}', style: TextStyle(color: Colors.grey.shade600, fontSize: 11))])),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(log.vehicleId, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), const SizedBox(height: 4), Text('Issue: ${log.description}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.grey.shade600, fontSize: 11))])),
                       ],
                     ),
                   )).toList(),
@@ -220,14 +227,24 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                   itemBuilder: (context, index) {
                     final item = _companyTrips[index];
                     final color = _proceduralColorAssigner(index);
-                    return Row(
-                      children: [
-                        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), child: Icon(Icons.business, color: color, size: 20)),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(item.companyName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), const SizedBox(height: 6), ClipRRect(borderRadius: BorderRadius.circular(2), child: LinearProgressIndicator(value: item.utilization, backgroundColor: Colors.grey.shade200, valueColor: AlwaysStoppedAnimation<Color>(color), minHeight: 4))])),
-                        const SizedBox(width: 16),
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(8)), child: Text('${item.tripCount} Trips', style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold, fontSize: 12))),
-                      ],
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), child: Icon(Icons.business, color: color, size: 20)),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 180,
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(item.companyName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              const SizedBox(height: 6),
+                              ClipRRect(borderRadius: BorderRadius.circular(2), child: LinearProgressIndicator(value: item.utilization, backgroundColor: Colors.grey.shade200, valueColor: AlwaysStoppedAnimation<Color>(color), minHeight: 4))
+                            ]),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(8)), child: Text('${item.tripCount} Trips', style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold, fontSize: 12))),
+                        ],
+                      ),
                     );
                   },
                 ),

@@ -35,7 +35,7 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
     ),
     const StaffVehicle(),
     StaffSchedules(staffId: widget.staffId),
-    StaffTrips(staffId: widget.staffId), // 👈 2. Add to the screens list
+    StaffTrips(staffId: widget.staffId),
     const StaffDrivers(),
     const StaffAttendance(),
     const StaffAnalytics(),
@@ -51,38 +51,9 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
           Expanded(
             child: Column(
               children: [
-                _buildTopBar(),
+                _buildHeader(),
                 Expanded(child: _screens[_selectedIndex]),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Container(
-      height: 70,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.grey),
-            onPressed: () =>
-                setState(() => _isSidebarExpanded = !_isSidebarExpanded),
-          ),
-          const Spacer(),
-          Text(
-            widget.staffName,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: Color(0xFF0F172A),
             ),
           ),
         ],
@@ -98,30 +69,50 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
       child: Column(
         children: [
           const SizedBox(height: 20),
+          // Consistent Branding Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  clipBehavior: Clip.antiAlias,
                   child: Image.asset(
                     'assets/logo.jpg',
-                    width: 40,
-                    height: 40,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(child: Icon(Icons.directions_car, color: Colors.blue, size: 24));
+                    },
                   ),
                 ),
                 if (_isSidebarExpanded) ...[
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Text(
-                      'SHERVICE\nStaff Portal',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        fontStyle: FontStyle.italic,
-                      ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/shervice - white.jpg',
+                          height: 25,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.centerLeft,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Text('SHERVICE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold));
+                          },
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Staff Portal',
+                          style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -129,32 +120,23 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
             ),
           ),
           const SizedBox(height: 32),
+          
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
                 _buildNavItem(0, 'Dashboard', Icons.grid_view),
-                _buildNavItem(
-                  1,
-                  'Fleet Management',
-                  Icons.directions_car_outlined,
-                ),
-                _buildNavItem(
-                  2,
-                  'Pending Requests',
-                  Icons.calendar_month_outlined,
-                ), // Renamed for clarity
-                _buildNavItem(
-                  3,
-                  'Dispatch History',
-                  Icons.assignment_turned_in,
-                ), // 👈 3. Add the navigation button
+                _buildNavItem(1, 'Fleet Management', Icons.directions_car_outlined),
+                _buildNavItem(2, 'Pending Requests', Icons.calendar_month_outlined),
+                _buildNavItem(3, 'Dispatch History', Icons.assignment_turned_in),
                 _buildNavItem(4, 'Driver Records', Icons.people_outline),
                 _buildNavItem(5, 'Attendance', Icons.how_to_reg),
                 _buildNavItem(6, 'Predictive AI', Icons.analytics),
               ],
             ),
           ),
+          
+          const Divider(color: Colors.white10, thickness: 1, height: 1),
           _buildNavItem(99, 'Log Out', Icons.logout, isLogout: true),
           const SizedBox(height: 20),
         ],
@@ -162,16 +144,10 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
     );
   }
 
-  Widget _buildNavItem(
-    int index,
-    String title,
-    IconData icon, {
-    bool isLogout = false,
-  }) {
+  Widget _buildNavItem(int index, String title, IconData icon, {bool isLogout = false}) {
     bool isActive = _selectedIndex == index && !isLogout;
     return InkWell(
-      onTap: () =>
-          isLogout ? _confirmLogout() : setState(() => _selectedIndex = index),
+      onTap: () => isLogout ? _confirmLogout() : setState(() => _selectedIndex = index),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -180,19 +156,20 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
+          mainAxisAlignment: _isSidebarExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isActive ? Colors.white : Colors.white70,
-              size: 20,
-            ),
+            Icon(icon, color: isActive ? Colors.white : Colors.white70, size: 20),
             if (_isSidebarExpanded) ...[
               const SizedBox(width: 16),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isActive ? Colors.white : Colors.white70,
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -202,24 +179,113 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
     );
   }
 
+  Widget _buildHeader() {
+    return Container(
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.menu, color: Colors.grey),
+            onPressed: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded),
+          ),
+          const Spacer(),
+          const Icon(Icons.notifications_none, color: Colors.grey),
+          const SizedBox(width: 24),
+          SlideInWelcomeWidget(role: widget.staffName),
+          const SizedBox(width: 16),
+        ],
+      ),
+    );
+  }
+
   void _confirmLogout() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Logout'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to log out of your account?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Logout'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
+            child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// ANIMATED WELCOME WIDGET
+// ============================================================================
+class SlideInWelcomeWidget extends StatefulWidget {
+  final String role;
+  const SlideInWelcomeWidget({super.key, required this.role});
+
+  @override
+  State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
+}
+
+class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _offsetAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
+    _offsetAnimation = Tween<Offset>(begin: const Offset(1.5, 0.0), end: Offset.zero).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
+    _controller.forward().then((_) {
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) _controller.reverse();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _offsetAnimation,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          border: Border.all(color: Colors.green.shade200),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
+            const SizedBox(width: 8),
+            Text('Welcome, ${widget.role}!', style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }
