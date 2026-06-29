@@ -16,15 +16,7 @@ class OicSchedules extends StatefulWidget {
 class _OicSchedulesState extends State<OicSchedules> {
   bool _isLoading = true;
   List<dynamic> _myTrips = [];
-  String _searchTerm = ''; // 👈 Added state variable for search
-
-  // Calendar State
-  late DateTime _focusedMonth;
-  final List<String> _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  final List<String> _weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  String _searchTerm = '';
 
   String get _backendUrl {
     if (kIsWeb) return 'http://127.0.0.1:5000/api';
@@ -36,8 +28,6 @@ class _OicSchedulesState extends State<OicSchedules> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _focusedMonth = DateTime(now.year, now.month);
     _fetchMyTrips();
   }
 
@@ -51,17 +41,17 @@ class _OicSchedulesState extends State<OicSchedules> {
         final data = jsonDecode(response.body);
         if (data['success'] == true && mounted) {
           setState(() {
-            _myTrips = data['data'];
+            _myTrips = data['data'] ?? [];
             _isLoading = false;
           });
           return;
         }
       } else {
-        debugPrint("Server Error: ${response.statusCode}");
+        debugPrint('Server Error: ${response.statusCode}');
       }
       if (mounted) setState(() => _isLoading = false);
     } catch (e) {
-      debugPrint("Fetch Error: $e");
+      debugPrint('Fetch Error: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -80,17 +70,20 @@ class _OicSchedulesState extends State<OicSchedules> {
     });
   }
 
-  // ✅ SAFELY FORMATS TIME WITHOUT CRASHING
   String _formatTimeString(dynamic timeVal) {
     if (timeVal == null || timeVal.toString().trim().isEmpty) return '--:--';
-    String t = timeVal.toString();
-    if (t.length >= 5) return t.substring(0, 5);
-    return t;
+    final String t = timeVal.toString();
+    return t.length >= 5 ? t.substring(0, 5) : t;
   }
 
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
+    final filteredTrips = _myTrips.where((trip) {
+      final route = (trip['route_name'] ?? '').toString().toLowerCase();
+      final search = _searchTerm.toLowerCase();
+      return route.contains(search);
+    }).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -99,7 +92,6 @@ class _OicSchedulesState extends State<OicSchedules> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Responsive Header
             Wrap(
               alignment: WrapAlignment.spaceBetween,
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -140,9 +132,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                 ),
               ],
             ),
-            const SizedBox(height: 16), // Tightened spacing
-
-            // 👈 NEW: Search Bar directly above the calendar
+            const SizedBox(height: 16),
             TextField(
               onChanged: (val) => setState(() => _searchTerm = val),
               decoration: InputDecoration(
@@ -166,130 +156,118 @@ class _OicSchedulesState extends State<OicSchedules> {
               ),
             ),
             const SizedBox(height: 24),
-
-        if (_isLoading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(40),
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else if (_myTrips.isEmpty)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(40),
-              child: Text(
-                "You have no scheduled trips.",
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-          )
-        else
-          ..._myTrips.map((trip) {
-            final bool isPending = trip['trip_status'].toString().contains(
-              'Pending',
-            );
-            final Color statusColor = isPending
-                ? Colors.orange.shade700
-                : Colors.green.shade700;
-            final Color statusBg = isPending
-                ? Colors.orange.shade50
-                : Colors.green.shade50;
-
-            // ✅ USING THE SAFE TIME FORMATTER
-            final departure = _formatTimeString(trip['departure_time']);
-            final arrival = _formatTimeString(trip['estimated_arrival_time']);
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        trip['route_name'] ?? 'Unknown Route',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          trip['trip_status'],
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
+            if (_isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (filteredTrips.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Text(
+                    'You have no scheduled trips.',
+                    style: TextStyle(color: Colors.grey),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
+                ),
+              )
+            else
+              ...filteredTrips.map((trip) {
+                final bool isPending = trip['trip_status']
+                    .toString()
+                    .toLowerCase()
+                    .contains('pending');
+                final Color statusColor = isPending
+                    ? Colors.orange.shade700
+                    : Colors.green.shade700;
+                final Color statusBg = isPending
+                    ? Colors.orange.shade50
+                    : Colors.green.shade50;
+
+                final departure = _formatTimeString(trip['departure_time']);
+                final arrival = _formatTimeString(trip['estimated_arrival_time']);
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _iconText(Icons.calendar_today, trip['schedule_date']),
-                      const SizedBox(width: 16),
-                      // Departure to Arrival Arrow
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Icon(
-                            Icons.access_time,
-                            size: 16,
-                            color: Colors.blue,
+                          Expanded(
+                            child: Text(
+                              trip['route_name'] ?? 'Unknown Route',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          const SizedBox(width: 4),
-                          // ✅ REPLACED THE DANGEROUS SUBSTRING WITH CLEAN VARIABLES
-                          Text(
-                            "$departure ➔ $arrival",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade800,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              trip['trip_status']?.toString() ?? 'Unknown',
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(width: 16),
-                      // Distance Display
-                      _iconText(Icons.map, "${trip['route_distance']} km"),
-                      const SizedBox(width: 16),
-                      _iconText(Icons.people, "${trip['passenger_count']} Pax"),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 10,
+                        children: [
+                          _iconText(Icons.calendar_today, trip['schedule_date']?.toString() ?? 'TBD'),
+                          _iconText(Icons.access_time, '$departure ➔ $arrival'),
+                          _iconText(Icons.map, '${trip['route_distance'] ?? 0} km'),
+                          _iconText(Icons.people, '${trip['passenger_count'] ?? 0} Pax'),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
-            );
-          }),
-      ],
+                );
+              }),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _iconText(IconData icon, String text) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 18, color: Colors.grey.shade600),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(
-            color: Colors.grey.shade800,
-            fontWeight: FontWeight.w500,
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: Colors.grey.shade800,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -316,10 +294,12 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
   String? _selectedStaffId;
 
   final _destinationController = TextEditingController();
+  final _distanceController = TextEditingController();
   final _passengerController = TextEditingController();
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+  TimeOfDay? _selectedArrivalTime;
 
   String get _backendUrl {
     if (kIsWeb) return 'http://127.0.0.1:5000/api';
@@ -332,6 +312,14 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
   void initState() {
     super.initState();
     _fetchStaff();
+  }
+
+  @override
+  void dispose() {
+    _destinationController.dispose();
+    _distanceController.dispose();
+    _passengerController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchStaff() async {
@@ -415,176 +403,172 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text(
-        "Request New Schedule",
+        'Request New Schedule',
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      content: SizedBox(
-        width: 450,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_loadingStaff)
-                const LinearProgressIndicator()
-              else
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: "Assign to Dispatch Staff",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.support_agent),
-                  ),
-                  value: _selectedStaffId,
-                  items: _staffMembers
-                      .map(
-                        (s) => DropdownMenuItem<String>(
-                          value: s['user_id'],
-                          child: Text(s['full_name'] ?? 'Staff'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (val) => setState(() => _selectedStaffId = val),
-                ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _destinationController,
-                validator: (val) => val!.isEmpty ? "Required" : null,
-                decoration: const InputDecoration(
-                  labelText: "Route / Destination",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.location_on),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _distanceController,
-                keyboardType: TextInputType.number,
-                validator: (val) {
-                  if (val == null || val.isEmpty) return "Required";
-                  if (double.tryParse(val) == null) {
-                    return "Must be a valid number";
-                  }
-                  return null;
-                },
-                decoration: const InputDecoration(
-                  labelText: "Distance (km)",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.map),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _passengerController,
-                keyboardType: TextInputType.number,
-                validator: (val) {
-                  if (val == null || val.isEmpty) return "Required";
-                  if (int.tryParse(val) == null) {
-                    return "Must be a valid number";
-                  }
-                  return null;
-                },
-                decoration: const InputDecoration(
-                  labelText: "Number of Passengers",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.people),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: DateTime.now().add(
-                            const Duration(days: 1),
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: 450,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_loadingStaff)
+                  const LinearProgressIndicator()
+                else
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Assign to Dispatch Staff',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.support_agent),
+                    ),
+                    initialValue: _selectedStaffId,
+                    items: _staffMembers
+                        .map(
+                          (s) => DropdownMenuItem<String>(
+                            value: s['user_id']?.toString(),
+                            child: Text(s['full_name'] ?? 'Staff'),
                           ),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime(2030),
-                        );
-                        if (picked != null) {
-                          setState(() => _selectedDate = picked);
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Date',
-                          border: OutlineInputBorder(),
-                        ),
-                        child: Text(
-                          _selectedDate == null
-                              ? "Select Date"
-                              : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}",
+                        )
+                        .toList(),
+                    onChanged: (val) => setState(() => _selectedStaffId = val),
+                  ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _destinationController,
+                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  decoration: const InputDecoration(
+                    labelText: 'Route / Destination',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.location_on),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _distanceController,
+                  keyboardType: TextInputType.number,
+                  validator: (val) {
+                    if (val == null || val.isEmpty) return 'Required';
+                    if (double.tryParse(val) == null) {
+                      return 'Must be a valid number';
+                    }
+                    return null;
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Distance (km)',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.map),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passengerController,
+                  keyboardType: TextInputType.number,
+                  validator: (val) {
+                    if (val == null || val.isEmpty) return 'Required';
+                    if (int.tryParse(val) == null) {
+                      return 'Must be a valid number';
+                    }
+                    return null;
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Number of Passengers',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.people),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now().add(const Duration(days: 1)),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime(2030),
+                          );
+                          if (picked != null) {
+                            setState(() => _selectedDate = picked);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Date',
+                            border: OutlineInputBorder(),
+                          ),
+                          child: Text(
+                            _selectedDate == null
+                                ? 'Select Date'
+                                : '${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}',
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () async {
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime: const TimeOfDay(hour: 8, minute: 0),
-                        );
-                        if (picked != null) {
-                          setState(() => _selectedTime = picked);
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Time',
-                          border: OutlineInputBorder(),
-                        ),
-                        child: Text(
-                          _selectedTime == null
-                              ? "Select Time"
-                              : _selectedTime!.format(context),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () async {
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime: const TimeOfDay(hour: 17, minute: 0),
-                        );
-                        if (picked != null) {
-                          setState(() => _selectedArrivalTime = picked);
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'ETA',
-                          border: OutlineInputBorder(),
-                        ),
-                        child: Text(
-                          _selectedArrivalTime == null
-                              ? "Arrival"
-                              : _selectedArrivalTime!.format(context),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 8, minute: 0),
+                          );
+                          if (picked != null) {
+                            setState(() => _selectedTime = picked);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Time',
+                            border: OutlineInputBorder(),
+                          ),
+                          child: Text(
+                            _selectedTime == null
+                                ? 'Select Time'
+                                : _selectedTime!.format(context),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 17, minute: 0),
+                          );
+                          if (picked != null) {
+                            setState(() => _selectedArrivalTime = picked);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'ETA',
+                            border: OutlineInputBorder(),
+                          ),
+                          child: Text(
+                            _selectedArrivalTime == null
+                                ? 'Arrival'
+                                : _selectedArrivalTime!.format(context),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel"),
+          child: const Text('Cancel'),
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _submitRequest,
@@ -598,7 +582,7 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                   child: CircularProgressIndicator(color: Colors.white),
                 )
               : const Text(
-                  "Submit Request",
+                  'Submit Request',
                   style: TextStyle(color: Colors.white),
                 ),
         ),

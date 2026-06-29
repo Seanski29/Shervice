@@ -351,7 +351,7 @@ class _OicDashboardState extends State<OicDashboard> {
   }
 
   // ─── TAB 1: PENDING VIEW (Pending Staff Assignment) ───
-  Widget _buildPendingView() {
+  Widget _buildPendingView(bool isMobile) {
     final pendingTrips = _allTrips.where((t) {
       final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
       return status == 'pending staff assignment';
@@ -429,10 +429,10 @@ class _OicDashboardState extends State<OicDashboard> {
       return _buildEmptyState('No upcoming approved scheduled runs found.');
     }
 
-    int totalPages = (approvedTrips.length / _itemsPerPage).ceil();
+    int totalPages = (filtered.length / _itemsPerPage).ceil();
     int startIdx = _approvedPage * _itemsPerPage;
-    int endIdx = min(startIdx + _itemsPerPage, approvedTrips.length);
-    List<dynamic> activePageList = approvedTrips.sublist(startIdx, endIdx);
+    int endIdx = min(startIdx + _itemsPerPage, filtered.length);
+    List<dynamic> activePageList = filtered.sublist(startIdx, endIdx);
 
     return Column(
       children: [
@@ -479,7 +479,7 @@ class _OicDashboardState extends State<OicDashboard> {
             );
           },
         ),
-        _buildPaginationControls(approvedTrips.length, startIdx, endIdx, totalPages, _approvedPage, (newPage) {
+        _buildPaginationControls(filtered.length, startIdx, endIdx, totalPages, _approvedPage, (newPage) {
           setState(() => _approvedPage = newPage);
         }),
       ],
@@ -543,63 +543,68 @@ class _OicDashboardState extends State<OicDashboard> {
         const Text('Select Scheduled Trip to Dispatch',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 16),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 2.2,
+        if (scheduledTrips.isEmpty)
+          _buildEmptyState('No scheduled trips are available to dispatch right now.')
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: isMobile ? 1 : 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: isMobile ? 2.6 : 2.2,
+            ),
+            itemCount: scheduledTrips.length,
+            itemBuilder: (context, index) {
+              final trip = scheduledTrips[index];
+              final driverName = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
+              final vehiclePlate = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
+              final passengerCount = trip['passenger_count'] ?? 0;
+
+              final departure = _formatTimeString(trip['departure_time']);
+              final arrival = _formatTimeString(trip['estimated_arrival_time']);
+
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text("TRIP ID: ${trip['trip_id']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)), overflow: TextOverflow.ellipsis),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(20)),
+                          child: Text("SCHEDULED", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    _iconTextRow(Icons.access_time, "${trip['schedule_date']} | $departure - $arrival"),
+                    const SizedBox(height: 4),
+                    _iconTextRow(Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: _iconTextRow(Icons.airport_shuttle, "Shuttle: $vehiclePlate | Driver: $driverName")),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
+                          child: Text("👥 $passengerCount Passengers", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                        )
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-          itemCount: activePageList.length,
-          itemBuilder: (context, index) {
-            final trip = activePageList[index];
-            final driverName = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
-            final vehiclePlate = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
-            final passengerCount = trip['passenger_count'] ?? 0;
-
-            final departure = _formatTimeString(trip['departure_time']);
-            final arrival = _formatTimeString(trip['estimated_arrival_time']);
-
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("TRIP ID: ${trip['trip_id']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(20)),
-                        child: Text("ONGOING", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  _iconTextRow(Icons.access_time, "${trip['schedule_date']} | $departure - $arrival"),
-                  const SizedBox(height: 4),
-                  _iconTextRow(Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(child: _iconTextRow(Icons.airport_shuttle, "Shuttle: $vehiclePlate | Driver: $driverName")),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
-                        child: Text("👥 $passengerCount Passengers", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
-                      )
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-        _buildPaginationControls(ongoingTrips.length, startIdx, endIdx, totalPages, _dispatchedPage, (newPage) {
-          setState(() => _dispatchedPage = newPage);
-        }),
       ],
     );
 
@@ -828,7 +833,7 @@ class _OicDashboardState extends State<OicDashboard> {
                         letterSpacing: 0.5)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
-                  value: _rating,
+                  initialValue: _rating,
                   decoration: InputDecoration(
                     fillColor: const Color(0xFFF1F5F9),
                     filled: true,
@@ -932,7 +937,7 @@ class _OicDashboardState extends State<OicDashboard> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: pageItems.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            separatorBuilder: (_, _) => const SizedBox(height: 16),
             itemBuilder: (_, i) => itemBuilder(pageItems[i]),
           )
         : GridView.builder(
@@ -966,7 +971,103 @@ class _OicDashboardState extends State<OicDashboard> {
   }
 
   // ─── REUSABLE UI FORMATTING HELPERS ───
-  
+  Widget _buildEmptyState(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Center(
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTripCard(
+    dynamic trip, {
+    String? overrideStatus,
+    Widget? extraRow,
+  }) {
+    final status = (overrideStatus ?? trip['trip_status'] ?? 'Scheduled').toString();
+    final driverName = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
+    final vehiclePlate = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
+    final departure = _formatTimeString(trip['departure_time']);
+    final arrival = _formatTimeString(trip['estimated_arrival_time']);
+
+    Color statusColor = Colors.orange.shade700;
+    if (status.toLowerCase() == 'ongoing') {
+      statusColor = Colors.green.shade700;
+    } else if (status.toLowerCase() == 'scheduled') {
+      statusColor = Colors.blue.shade700;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'TRIP ID: ${trip['trip_id']}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Color(0xFF0F172A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          _iconTextRow(Icons.access_time, "${trip['schedule_date']} | $departure - $arrival"),
+          const SizedBox(height: 4),
+          _iconTextRow(Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: _iconTextRow(
+                  Icons.airport_shuttle,
+                  'Shuttle: $vehiclePlate | Driver: $driverName',
+                ),
+              ),
+              extraRow ?? const SizedBox.shrink(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // Safely formats time strings to prevent crashes on unexpectedly short strings
   String _formatTimeString(dynamic timeVal) {
     if (timeVal == null || timeVal.toString().trim().isEmpty) return 'TBD';
@@ -986,8 +1087,8 @@ class _OicDashboardState extends State<OicDashboard> {
             style: TextStyle(
               color: Colors.grey.shade700,
               fontWeight: FontWeight.w500,
-              overflow: TextOverflow.ellipsis,
             ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -1038,10 +1139,4 @@ class _OicDashboardState extends State<OicDashboard> {
     );
   }
 
-  // ─── REUSABLE: TIME FORMATTER ───
-  String _formatTimeString(dynamic timeVal) {
-    if (timeVal == null || timeVal.toString().trim().isEmpty) return 'TBD';
-    final t = timeVal.toString();
-    return t.length >= 5 ? t.substring(0, 5) : t;
-  }
 }
