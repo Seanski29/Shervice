@@ -448,7 +448,14 @@ class _OicDashboardState extends State<OicDashboard> {
     final uncompletedTrips = _allTrips.where((t) {
       final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
       final currentTripId = int.tryParse(t['trip_id'].toString()) ?? -1;
-      return status == 'completed' && !_evaluatedTripIds.contains(currentTripId);
+      
+      // ✅ ADDED THE COMPANY FILTER LOGIC HERE
+      final dbCompanyName = (t['oic_profile'] ?? {})['company_name']?.toString().toLowerCase().trim() ?? '';
+      final targetCompanyName = widget.companyName.toLowerCase().trim();
+
+      return status == 'completed' && 
+             !_evaluatedTripIds.contains(currentTripId) &&
+             dbCompanyName == targetCompanyName;
     }).toList();
 
     return Row(
