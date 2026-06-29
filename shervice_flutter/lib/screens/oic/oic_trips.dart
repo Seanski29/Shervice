@@ -4,11 +4,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 
-// ─── 1. REQUIRE THE ID IN THE WIDGET ───
 class OicTrips extends StatefulWidget {
-  final String oicId; // 👈 Add this variable
+  final String oicId; 
 
-  const OicTrips({super.key, required this.oicId}); // 👈 Require it here
+  const OicTrips({super.key, required this.oicId}); 
 
   @override
   State<OicTrips> createState() => _OicTripsState();
@@ -34,7 +33,6 @@ class _OicTripsState extends State<OicTrips> {
 
   Future<void> _fetchDeploymentLogs() async {
     try {
-      // ─── 2. USE THE SPECIFIC OIC ROUTE ───
       final res = await http.get(
         Uri.parse('$_backendUrl/schedules/oic/${widget.oicId}'),
       );
@@ -54,9 +52,16 @@ class _OicTripsState extends State<OicTrips> {
     }
   }
 
+  // ✅ SAFELY FORMATS TIME WITHOUT CRASHING
+  String _formatTimeString(dynamic timeVal) {
+    if (timeVal == null || timeVal.toString().trim().isEmpty) return '--:--';
+    String t = timeVal.toString();
+    if (t.length >= 5) return t.substring(0, 5);
+    return t;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Dynamically searches by Route Name or Driver Name
     final filteredTrips = _trips.where((trip) {
       final route = (trip['route_name'] ?? '').toString().toLowerCase();
       final driver = (trip['driver_name'] ?? '').toString().toLowerCase();
@@ -69,7 +74,6 @@ class _OicTripsState extends State<OicTrips> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -120,7 +124,6 @@ class _OicTripsState extends State<OicTrips> {
           ),
           const SizedBox(height: 24),
 
-          // List Container
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -187,6 +190,10 @@ class _OicTripsState extends State<OicTrips> {
                       } else if (status == 'Ongoing') {
                         statusColor = Colors.blue;
                       }
+
+                      // ✅ USING THE SAFE TIME FORMATTER
+                      final departure = _formatTimeString(trip['departure_time']);
+                      final arrival = _formatTimeString(trip['estimated_arrival_time']);
 
                       return Padding(
                         padding: const EdgeInsets.all(16),
@@ -256,8 +263,9 @@ class _OicTripsState extends State<OicTrips> {
                                         color: Colors.grey,
                                       ),
                                       const SizedBox(width: 4),
+                                      // ✅ REPLACED THE DANGEROUS SUBSTRING WITH CLEAN VARIABLES
                                       Text(
-                                        "${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'} ➔ ${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}",
+                                        "$departure ➔ $arrival",
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey.shade600,

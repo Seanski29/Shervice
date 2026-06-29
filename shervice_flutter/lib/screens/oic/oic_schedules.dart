@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class OicSchedules extends StatefulWidget {
-  final String oicId; // ✅ Require the UUID from the layout
+  final String oicId;
 
   const OicSchedules({super.key, required this.oicId});
 
@@ -32,7 +32,6 @@ class _OicSchedulesState extends State<OicSchedules> {
 
   Future<void> _fetchMyTrips() async {
     try {
-      // ✅ Use the dynamic UUID!
       final response = await http.get(
         Uri.parse('$_backendUrl/schedules/oic/${widget.oicId}'),
       );
@@ -60,7 +59,6 @@ class _OicSchedulesState extends State<OicSchedules> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      // ✅ Pass the UUID down into the dialog so they can create trips
       builder: (BuildContext context) =>
           CreateTripRequestDialog(oicId: widget.oicId),
     ).then((_) {
@@ -69,6 +67,14 @@ class _OicSchedulesState extends State<OicSchedules> {
         _fetchMyTrips();
       }
     });
+  }
+
+  // ✅ SAFELY FORMATS TIME WITHOUT CRASHING
+  String _formatTimeString(dynamic timeVal) {
+    if (timeVal == null || timeVal.toString().trim().isEmpty) return '--:--';
+    String t = timeVal.toString();
+    if (t.length >= 5) return t.substring(0, 5);
+    return t;
   }
 
   @override
@@ -148,6 +154,10 @@ class _OicSchedulesState extends State<OicSchedules> {
                 ? Colors.orange.shade50
                 : Colors.green.shade50;
 
+            // ✅ USING THE SAFE TIME FORMATTER
+            final departure = _formatTimeString(trip['departure_time']);
+            final arrival = _formatTimeString(trip['estimated_arrival_time']);
+
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(20),
@@ -203,8 +213,9 @@ class _OicSchedulesState extends State<OicSchedules> {
                             color: Colors.blue,
                           ),
                           const SizedBox(width: 4),
+                          // ✅ REPLACED THE DANGEROUS SUBSTRING WITH CLEAN VARIABLES
                           Text(
-                            "${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'} ➔ ${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}",
+                            "$departure ➔ $arrival",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.grey.shade800,
@@ -246,7 +257,7 @@ class _OicSchedulesState extends State<OicSchedules> {
 
 // ─── NEW TRIP REQUEST FORM DIALOG ───
 class CreateTripRequestDialog extends StatefulWidget {
-  final String oicId; // ✅ Require the UUID here too
+  final String oicId;
 
   const CreateTripRequestDialog({super.key, required this.oicId});
 
@@ -414,14 +425,14 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
               ),
               const SizedBox(height: 16),
 
-              // 👇 NEW DISTANCE FIELD
               TextFormField(
                 controller: _distanceController,
                 keyboardType: TextInputType.number,
                 validator: (val) {
                   if (val == null || val.isEmpty) return "Required";
-                  if (double.tryParse(val) == null)
+                  if (double.tryParse(val) == null) {
                     return "Must be a valid number";
+                  }
                   return null;
                 },
                 decoration: const InputDecoration(
@@ -437,8 +448,9 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                 keyboardType: TextInputType.number,
                 validator: (val) {
                   if (val == null || val.isEmpty) return "Required";
-                  if (int.tryParse(val) == null)
+                  if (int.tryParse(val) == null) {
                     return "Must be a valid number";
+                  }
                   return null;
                 },
                 decoration: const InputDecoration(
@@ -462,8 +474,9 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                           firstDate: DateTime.now(),
                           lastDate: DateTime(2030),
                         );
-                        if (picked != null)
+                        if (picked != null) {
                           setState(() => _selectedDate = picked);
+                        }
                       },
                       child: InputDecorator(
                         decoration: const InputDecoration(
@@ -486,8 +499,9 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                           context: context,
                           initialTime: const TimeOfDay(hour: 8, minute: 0),
                         );
-                        if (picked != null)
+                        if (picked != null) {
                           setState(() => _selectedTime = picked);
+                        }
                       },
                       child: InputDecorator(
                         decoration: const InputDecoration(
@@ -503,7 +517,6 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // 👇 THE NEW ETA PICKER
                   Expanded(
                     child: InkWell(
                       onTap: () async {
@@ -511,8 +524,9 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                           context: context,
                           initialTime: const TimeOfDay(hour: 17, minute: 0),
                         );
-                        if (picked != null)
+                        if (picked != null) {
                           setState(() => _selectedArrivalTime = picked);
+                        }
                       },
                       child: InputDecorator(
                         decoration: const InputDecoration(

@@ -255,6 +255,9 @@ class _OicDashboardState extends State<OicDashboard> {
             final driverName = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
             final vehiclePlate = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
 
+            final departure = _formatTimeString(trip['departure_time']);
+            final arrival = _formatTimeString(trip['estimated_arrival_time']);
+
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
@@ -273,7 +276,7 @@ class _OicDashboardState extends State<OicDashboard> {
                     ],
                   ),
                   const Spacer(),
-                  _iconTextRow(Icons.access_time, "${trip['schedule_date']} @ ${trip['departure_time']}"),
+                  _iconTextRow(Icons.access_time, "${trip['schedule_date']} | $departure - $arrival"),
                   const SizedBox(height: 4),
                   _iconTextRow(Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
                   const SizedBox(height: 4),
@@ -320,6 +323,9 @@ class _OicDashboardState extends State<OicDashboard> {
             final driverName = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
             final vehiclePlate = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
 
+            final departure = _formatTimeString(trip['departure_time']);
+            final arrival = _formatTimeString(trip['estimated_arrival_time']);
+
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
@@ -338,7 +344,7 @@ class _OicDashboardState extends State<OicDashboard> {
                     ],
                   ),
                   const Spacer(),
-                  _iconTextRow(Icons.access_time, "${trip['schedule_date']} @ ${trip['departure_time']}"),
+                  _iconTextRow(Icons.access_time, "${trip['schedule_date']} | $departure - $arrival"),
                   const SizedBox(height: 4),
                   _iconTextRow(Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
                   const SizedBox(height: 4),
@@ -389,6 +395,9 @@ class _OicDashboardState extends State<OicDashboard> {
             final vehiclePlate = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
             final passengerCount = trip['passenger_count'] ?? 0;
 
+            final departure = _formatTimeString(trip['departure_time']);
+            final arrival = _formatTimeString(trip['estimated_arrival_time']);
+
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
@@ -407,7 +416,7 @@ class _OicDashboardState extends State<OicDashboard> {
                     ],
                   ),
                   const Spacer(),
-                  _iconTextRow(Icons.access_time, "${trip['schedule_date']} @ ${trip['departure_time']}"),
+                  _iconTextRow(Icons.access_time, "${trip['schedule_date']} | $departure - $arrival"),
                   const SizedBox(height: 4),
                   _iconTextRow(Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
                   const SizedBox(height: 4),
@@ -554,6 +563,15 @@ class _OicDashboardState extends State<OicDashboard> {
   }
 
   // ─── REUSABLE UI FORMATTING HELPERS ───
+  
+  // Safely formats time strings to prevent crashes on unexpectedly short strings
+  String _formatTimeString(dynamic timeVal) {
+    if (timeVal == null || timeVal.toString().trim().isEmpty) return 'TBD';
+    String t = timeVal.toString();
+    if (t.length >= 5) return t.substring(0, 5);
+    return t;
+  }
+
   Widget _iconTextRow(IconData icon, String text) {
     return Row(
       children: [
