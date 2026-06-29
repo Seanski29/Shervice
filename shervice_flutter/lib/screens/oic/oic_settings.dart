@@ -4,16 +4,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+
 class OicSettings extends StatefulWidget {
   final String oicId;
   final String oicName;
   final String companyName;
+  final String? email; // Optional: Pass the real email if you have it!
 
   const OicSettings({
     super.key,
     required this.oicId,
     required this.oicName,
     required this.companyName,
+    this.email,
   });
 
   @override
@@ -21,153 +24,58 @@ class OicSettings extends StatefulWidget {
 }
 
 class _OicSettingsState extends State<OicSettings> {
-  final _formKey = GlobalKey<FormState>();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  bool _isSaving = false;
-
-  String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
-
-  Future<void> _updateAccountPassword() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isSaving = true);
-
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$_backendUrl/auth/update-password'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'user_id': widget.oicId,
-              'new_password': _passwordController.text,
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        _showSnackBar("Password updated securely!", Colors.green);
-        _passwordController.clear();
-        _confirmPasswordController.clear();
-      } else {
-        _showSnackBar(
-          responseData['message'] ?? "Failed to update password.",
-          Colors.red,
-        );
-      }
-    } catch (e) {
-      _showSnackBar("Network error: Could not reach the server.", Colors.red);
-    } finally {
-      setState(() => _isSaving = false);
-    }
-  }
-
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
+
+    // Generate a fallback email if one wasn't provided
+    final String displayEmail = widget.email ?? 
+        "${widget.oicName.split(' ').first.toLowerCase()}@${widget.companyName.replaceAll(' ', '').toLowerCase()}.com";
+
+    // Get the first initial for the avatar
+    final String initial = widget.oicName.isNotEmpty ? widget.oicName[0].toUpperCase() : 'O';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Card Header
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 36,
-                    backgroundColor: Colors.blue.shade50,
-                    child: Text(
-                      widget.oicName.isNotEmpty
-                          ? widget.oicName[0].toUpperCase()
-                          : 'O',
+            // ─── RESPONSIVE HEADER ───
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Account Settings',
                       style: TextStyle(
-                        color: Colors.blue.shade700,
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.5,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.oicName,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            widget.companyName,
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Manage your profile, security, and portal preferences.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
 
-            // Interactive Password Update Form
+            // ─── PROFILE CARD ───
             const Text(
-              "SECURITY & SETTINGS",
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-                letterSpacing: 1,
-              ),
+              'MY PROFILE',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.0),
             ),
             const SizedBox(height: 12),
             Container(
@@ -176,78 +84,176 @@ class _OicSettingsState extends State<OicSettings> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+                ],
               ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Change Account Password",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+              child: Row(
+                children: [
+                  // Avatar
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade600,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        initial,
+                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: "New Password",
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                      validator: (val) => val == null || val.length < 6
-                          ? "Password must contain at least 6 characters"
-                          : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _confirmPasswordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: "Confirm New Password",
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock_reset),
-                      ),
-                      validator: (val) => val != _passwordController.text
-                          ? "Passwords do not match"
-                          : null,
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _updateAccountPassword,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                  ),
+                  const SizedBox(width: 20),
+                  // Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.oicName,
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                         ),
-                        child: _isSaving
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                            : const Text(
-                                "Update System Password",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.email_outlined, size: 16, color: Colors.grey.shade500),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                displayEmail,
+                                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                      ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.business, size: 16, color: Colors.blue.shade400),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                widget.companyName,
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.blue.shade700),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // ─── PREFERENCES & FEATURES (COMING SOON) ───
+            const Text(
+              'PREFERENCES',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.0),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+                ],
+              ),
+              child: Column(
+                children: [
+                  _buildSettingsTile(
+                    icon: Icons.lock_outline,
+                    title: 'Change Password',
+                    subtitle: 'Update your account security credentials.',
+                    iconColor: Colors.orange,
+                  ),
+                  Divider(height: 1, color: Colors.grey.shade100),
+                  _buildSettingsTile(
+                    icon: Icons.notifications_none,
+                    title: 'Notification Preferences',
+                    subtitle: 'Manage email and push alerts for trips.',
+                    iconColor: Colors.green,
+                  ),
+                  Divider(height: 1, color: Colors.grey.shade100),
+                  _buildSettingsTile(
+                    icon: Icons.dark_mode_outlined,
+                    title: 'App Theme',
+                    subtitle: 'Switch between Light and Dark mode.',
+                    iconColor: Colors.purple,
+                  ),
+                  Divider(height: 1, color: Colors.grey.shade100),
+                  _buildSettingsTile(
+                    icon: Icons.language,
+                    title: 'Language & Region',
+                    subtitle: 'Customize your local portal experience.',
+                    iconColor: Colors.blue,
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // ─── HELPER WIDGET FOR SETTINGS TILES ───
+  Widget _buildSettingsTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color iconColor,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: iconColor, size: 22),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4.0),
+        child: Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+      ),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.hourglass_empty, size: 12, color: Colors.grey.shade600),
+            const SizedBox(width: 4),
+            Text(
+              'Coming Soon',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      ),
+      onTap: () {
+        // Feature coming soon - could show a snackbar here if you wanted!
+      },
     );
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'staff_layout_desktop.dart';
-import 'staff_layout_mobile.dart';
 
 class StaffLayout extends StatelessWidget {
   final String staffId; // 👈 1. Receive the ID
@@ -20,16 +19,13 @@ class StaffLayout extends StatelessWidget {
       builder: (context, constraints) {
         if (constraints.maxWidth > 800) {
           return StaffLayoutDesktop(
-            staffId: staffId, // 👈 3. Pass it down
+            staffId: staffId,
             staffName: staffName,
             companyName: companyName,
           );
         }
-        return StaffLayoutMobile(
-          staffId: staffId, // 👈 3. Pass it down
-          staffName: staffName,
-          companyName: companyName,
-        );
+
+        return const SizedBox.shrink();
       },
     );
   }

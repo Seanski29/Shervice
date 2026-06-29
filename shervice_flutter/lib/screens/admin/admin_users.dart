@@ -220,6 +220,7 @@ class _AdminUsersState extends State<AdminUsers> {
           ),
           const SizedBox(height: 24),
 
+          // Search and Sort Row
           Row(
             children: [
               Expanded(
@@ -230,7 +231,7 @@ class _AdminUsersState extends State<AdminUsers> {
                     _applyFiltersAndSort();
                   },
                   decoration: InputDecoration(
-                    hintText: 'Search system accounts by name, email, or associated groups...',
+                    hintText: 'Search system accounts...',
                     prefixIcon: const Icon(Icons.search),
                     filled: true,
                     fillColor: Colors.white,
@@ -295,10 +296,17 @@ class _AdminUsersState extends State<AdminUsers> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
+                                      // FIX: Expanded added to text so long names wrap instead of breaking the layout
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text(user['name'] ?? 'System User', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                                          Expanded(
+                                            child: Text(
+                                              user['name'] ?? 'System User', 
+                                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                             decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
@@ -329,32 +337,38 @@ class _AdminUsersState extends State<AdminUsers> {
                       ),
           ),
 
+          // FIX: FittedBox gracefully scales the pagination down on mobile
           if (!_isLoading && _filteredUsers.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredUsers.length)} of ${_filteredUsers.length} system users',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                  ),
-                  Row(
-                    children: [
-                      OutlinedButton(
-                        onPressed: _currentPage > 0 ? _prevPage : null,
-                        child: const Text('Previous'),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('Page ${_currentPage + 1} of $_totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: _currentPage < _totalPages - 1 ? _nextPage : null,
-                        child: const Text('Next'),
-                      ),
-                    ],
-                  ),
-                ],
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredUsers.length)} of ${_filteredUsers.length} system users',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                    ),
+                    const SizedBox(width: 16),
+                    Row(
+                      children: [
+                        OutlinedButton(
+                          onPressed: _currentPage > 0 ? _prevPage : null,
+                          child: const Text('Previous'),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('Page ${_currentPage + 1} of $_totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: _currentPage < _totalPages - 1 ? _nextPage : null,
+                          child: const Text('Next'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
@@ -439,7 +453,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
 
   Future<void> _submitUserForm() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
     final bool isEditMode = widget.user != null;
 
@@ -560,15 +573,13 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                            value: _selectedCompany,
-                            decoration: _fieldStyle(label: 'Assign Company Account', icon: Icons.business),
-                            onChanged: !_isWritingUnlocked ? null : (value) => setState(() => _selectedCompany = value),
-                            dropdownColor: const Color(0xFFF8FAFC),
-                            
-                            // UPDATED: Added 'GT Lantin Internal' to match your database defaults safely
-                            items: ['None (Internal)', 'GT Lantin Internal', 'EPSON', 'Bandai', 'NX Logistics']
-                                .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                          ),
+                      value: _selectedCompany,
+                      decoration: _fieldStyle(label: 'Assign Company Account', icon: Icons.business),
+                      onChanged: !_isWritingUnlocked ? null : (value) => setState(() => _selectedCompany = value),
+                      dropdownColor: const Color(0xFFF8FAFC),
+                      items: ['None (Internal)', 'GT Lantin Internal', 'EPSON', 'Bandai', 'NX Logistics']
+                          .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    ),
                   ],
                 ),
               ),
@@ -578,53 +589,58 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
       ),
       actionsPadding: const EdgeInsets.only(bottom: 24, right: 24, left: 24),
       actions: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            isEditMode
-                ? TextButton(
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      if (widget.onDelete != null) widget.onDelete!();
-                    },
-                    child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 15)),
-                  )
-                : const SizedBox.shrink(),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
-                ),
-                const SizedBox(width: 12),
-                if (isEditMode && !_isWritingUnlocked)
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF64748B),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    onPressed: () => setState(() => _isWritingUnlocked = true),
-                    child: const Text('Edit Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  )
-                else
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1D83E4),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    onPressed: _isLoading ? null : _submitUserForm,
-                    child: _isLoading
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : Text(isEditMode ? 'Save Changes' : 'Register User', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        // FIX: Replaced `Row` with `FittedBox` so the bottom buttons gracefully shrink to fit mobile screens
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              isEditMode
+                  ? TextButton(
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        if (widget.onDelete != null) widget.onDelete!();
+                      },
+                      child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 15)),
+                    )
+                  : const SizedBox.shrink(),
+              const SizedBox(width: 24), // Give it some breathing room
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
                   ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 12),
+                  if (isEditMode && !_isWritingUnlocked)
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF64748B),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      onPressed: () => setState(() => _isWritingUnlocked = true),
+                      child: const Text('Edit Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    )
+                  else
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1D83E4),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      onPressed: _isLoading ? null : _submitUserForm,
+                      child: _isLoading
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text(isEditMode ? 'Save Changes' : 'Register User', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );
