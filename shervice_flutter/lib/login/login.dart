@@ -78,11 +78,28 @@ class _LoginScreenState extends State<LoginScreen> {
         final userData = responseData['data'];
         final String role = userData['role'];
 
+        // 1. Safely extract the core data for ALL roles right away
+        final String realUserId = (userData['user_id'] ?? userData['id'] ?? '')
+            .toString();
+        final String userDisplayName =
+            (userData['name'] ?? userData['full_name'] ?? 'User').toString();
+
+        // Note: Admin and Staff might not have a "company" in the DB, so we provide a fallback
+        final String userCompany =
+            (userData['company_name'] ?? userData['company'] ?? 'GT Lantin')
+                .toString();
+
         // Navigates based on the role payload returned by Supabase via Flask
         if (role == 'admin') {
           if (mounted) {
             navigator.pushReplacement(
-              MaterialPageRoute(builder: (context) => const AdminLayout()),
+              MaterialPageRoute(
+                builder: (context) => AdminLayout(
+                  adminId: realUserId, // 👈 Pass the ID!
+                  adminName: userDisplayName, // 👈 Pass the Name!
+                  companyName: userCompany, // 👈 Pass the Company!
+                ),
+              ),
             );
           }
         } else if (role == 'oic') {

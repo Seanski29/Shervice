@@ -151,12 +151,13 @@ class _DriverSchedulesState extends State<DriverSchedules> {
             ],
           ),
           const Divider(height: 32),
+
           Row(
             children: [
               const Icon(Icons.location_on, size: 16, color: Colors.blue),
               const SizedBox(width: 8),
               Text(
-                trip['route_name'],
+                "${trip['route_name']} (${trip['route_distance'] ?? 0} km)", // 👈 Added distance next to location
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
@@ -165,11 +166,19 @@ class _DriverSchedulesState extends State<DriverSchedules> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            "Departure: ${trip['departure_time']}",
-            style: TextStyle(color: Colors.grey.shade600),
+          Row(
+            children: [
+              Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
+              const SizedBox(width: 6),
+              Text(
+                "${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'} ➔ ${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}",
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-
           if (status == 'Scheduled') ...[
             const SizedBox(height: 16),
             SizedBox(
