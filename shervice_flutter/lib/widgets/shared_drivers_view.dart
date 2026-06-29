@@ -44,9 +44,10 @@ class SharedDriversViewState extends State<SharedDriversView> {
     super.initState();
     _fetchDriversFromDatabase();
   }
+  
   void refreshData() {
-  _fetchDriversFromDatabase(); 
-}
+    _fetchDriversFromDatabase(); 
+  }
 
   Future<void> _fetchDriversFromDatabase() async {
     if (!mounted) return;
@@ -224,23 +225,29 @@ class SharedDriversViewState extends State<SharedDriversView> {
                         },
                       ),
           ),
+          // FIX: Responsive, scalable pagination wrapped in FittedBox
           if (!_isLoading && _filteredDrivers.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredDrivers.length)} of ${_filteredDrivers.length} drivers', style: const TextStyle(color: Colors.grey, fontSize: 14)),
-                  Row(
-                    children: [
-                      OutlinedButton(onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null, child: const Text('Previous')),
-                      const SizedBox(width: 8),
-                      Text('Page ${_currentPage + 1} of $_totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 8),
-                      OutlinedButton(onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage++) : null, child: const Text('Next')),
-                    ],
-                  ),
-                ],
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredDrivers.length)} of ${_filteredDrivers.length} drivers', style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                    const SizedBox(width: 16),
+                    Row(
+                      children: [
+                        OutlinedButton(onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null, child: const Text('Previous')),
+                        const SizedBox(width: 8),
+                        Text('Page ${_currentPage + 1} of $_totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 8),
+                        OutlinedButton(onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage++) : null, child: const Text('Next')),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
         ],

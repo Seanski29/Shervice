@@ -15,6 +15,13 @@ class StaffSchedules extends StatefulWidget {
 class _StaffSchedulesState extends State<StaffSchedules> {
   bool _isLoading = true;
   List<dynamic> _assignedTrips = [];
+  DateTime _selectedMonth = DateTime.now();
+  DateTime? _selectedDate;
+  
+  // Search and filtering
+  String _searchQuery = '';
+  String _statusFilter = 'All';
+  final List<String> _statusOptions = ['All', 'Scheduled', 'Unassigned'];
 
   String get _backendUrl {
     if (kIsWeb) return 'http://127.0.0.1:5000/api';
@@ -47,14 +54,51 @@ class _StaffSchedulesState extends State<StaffSchedules> {
     }
   }
 
-  void _showAssignModal(Map<String, dynamic> trip) {
+  List<dynamic> _getTripsForDate(DateTime date) {
+    final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    return _assignedTrips.where((trip) => trip['schedule_date'] == dateStr).toList();
+  }
+
+  List<dynamic> _getFilteredTrips() {
+    List<dynamic> trips = _selectedDate != null 
+        ? _getTripsForDate(_selectedDate!)
+        : _assignedTrips;
+    
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      trips = trips.where((trip) {
+        final routeName = (trip['route_name'] ?? '').toString().toLowerCase();
+        final driverName = (trip['driver_name'] ?? '').toString().toLowerCase();
+        return routeName.contains(_searchQuery.toLowerCase()) || 
+               driverName.contains(_searchQuery.toLowerCase());
+      }).toList();
+    }
+
+    // Apply status filter
+    if (_statusFilter != 'All') {
+      trips = trips.where((trip) {
+        final isScheduled = trip['user_id'] != null && trip['vehicle_id'] != null;
+        if (_statusFilter == 'Scheduled') return isScheduled;
+        if (_statusFilter == 'Unassigned') return !isScheduled;
+        return true;
+      }).toList();
+    }
+
+    return trips;
+  }
+
+  int get _totalTrips => _assignedTrips.length;
+  int get _scheduledTrips => _assignedTrips.where((t) => t['user_id'] != null && t['vehicle_id'] != null).length;
+  int get _unassignedTrips => _assignedTrips.where((t) => t['user_id'] == null || t['vehicle_id'] == null).length;
+
+  void _showTripDetailsModal(DateTime date, List<dynamic> trips) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AssignTripDialog(
-        trip: trip,
+      builder: (context) => TripDetailsDialog(
+        date: date,
+        trips: trips.isEmpty ? _getFilteredTrips() : trips,
         backendUrl: _backendUrl,
-        onSuccess: () {
+        onAssign: () {
           setState(() => _isLoading = true);
           _fetchStaffDashboardData();
         },
@@ -64,248 +108,581 @@ class _StaffSchedulesState extends State<StaffSchedules> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        bool isMobile = constraints.maxWidth < 768;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(isMobile ? 12 : 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Dispatch & Scheduling',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: () {
+                      setState(() => _isLoading = true);
+                      _fetchStaffDashboardData();
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Search and Filter Controls
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      onChanged: (value) => setState(() => _searchQuery = value),
+                      decoration: InputDecoration(
+                        hintText: 'Search routes or drivers...',
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _statusFilter,
+                        icon: const Icon(Icons.filter_alt_outlined),
+                        items: _statusOptions.map((String value) {
+                          return DropdownMenuItem<String>(value: value, child: Text(value));
+                        }).toList(),
+                        onChanged: (newValue) {
+                          if (newValue != null) {
+                            setState(() => _statusFilter = newValue);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              if (_isLoading)
+                const Center(child: CircularProgressIndicator())
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Compact Calendar
+                    Expanded(
+                      flex: 1,
+                      child: _buildCompactCalendarGrid(),
+                    ),
+                    const SizedBox(width: 24),
+                    // Trip List
+                    Expanded(
+                      flex: 2,
+                      child: _buildTripListView(),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 24),
+
+              // Summary Footer
+              if (!_isLoading && _assignedTrips.isNotEmpty)
+                _buildSummaryFooter(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCompactCalendarGrid() {
+    final firstDay = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+    final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+    final daysInMonth = lastDay.day;
+    final firstWeekday = firstDay.weekday % 7;
+    final List<String> weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _monthYearFormat(_selectedMonth),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          GridView.count(
+            crossAxisCount: 7,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 1.1,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+            children: weekdays.map((day) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Center(
+                  child: Text(day, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 4),
+          GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: 1.0,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+            ),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: (daysInMonth + firstWeekday),
+            itemBuilder: (context, index) {
+              if (index < firstWeekday) {
+                return Container();
+              }
+
+              final day = index - firstWeekday + 1;
+              final date = DateTime(_selectedMonth.year, _selectedMonth.month, day);
+              final trips = _getTripsForDate(date);
+              final hasTrips = trips.isNotEmpty;
+              final isSelected = _selectedDate?.year == date.year && 
+                                 _selectedDate?.month == date.month && 
+                                 _selectedDate?.day == date.day;
+              final isToday = DateTime.now().year == date.year && 
+                              DateTime.now().month == date.month && 
+                              DateTime.now().day == date.day;
+
+              return GestureDetector(
+                onTap: () => setState(() => _selectedDate = date),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.blue.shade600 : (hasTrips ? Colors.blue.shade50 : Colors.white),
+                    border: Border.all(
+                      color: isToday ? Colors.orange.shade400 : Colors.grey.shade200,
+                      width: isToday ? 1.5 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Center(
+                    child: Text(
+                      day.toString(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? Colors.white : (hasTrips ? Colors.blue.shade700 : Colors.black),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTripListView() {
+    final filteredTrips = _getFilteredTrips();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: filteredTrips.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(40),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey.shade400),
+                    const SizedBox(height: 12),
+                    Text('No trips scheduled.', style: TextStyle(color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+            )
+          : ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredTrips.length,
+              separatorBuilder: (c, i) => const Divider(height: 1),
+              itemBuilder: (context, i) {
+                final trip = filteredTrips[i];
+                final bool needsAssignment = trip['user_id'] == null || trip['vehicle_id'] == null;
+                final time = trip['departure_time'].toString().substring(0, 5);
+                final statusColor = needsAssignment ? Colors.orange : Colors.green;
+
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              trip['route_name'] ?? 'Unspecified Route',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              needsAssignment ? 'Unassigned' : 'Scheduled',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 4,
+                        children: [
+                          _tripInfoChip('Departure', time),
+                          if (trip['driver_name'] != null)
+                            _tripInfoChip('Driver', trip['driver_name']),
+                          if (trip['vehicle_plate'] != null)
+                            _tripInfoChip('Vehicle', trip['vehicle_plate']),
+                        ],
+                      ),
+                      if (needsAssignment) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showTripDetailsModal(DateTime.now(), [trip]),
+                            icon: const Icon(Icons.assignment_ind, size: 16, color: Colors.white),
+                            label: const Text('Assign Assets', style: TextStyle(color: Colors.white, fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange.shade700,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _tripInfoChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+          const SizedBox(width: 4),
+          Text(value, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryFooter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _summaryStatCard('Total Trips', _totalTrips.toString(), Colors.blue),
+          _summaryStatCard('Scheduled', _scheduledTrips.toString(), Colors.green),
+          _summaryStatCard('Unassigned', _unassignedTrips.toString(), Colors.orange),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryStatCard(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+      ],
+    );
+  }
+
+  String _monthYearFormat(DateTime date) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.year}';
+  }
+}
+
+// ─── TRIP DETAILS MODAL ───
+class TripDetailsDialog extends StatefulWidget {
+  final DateTime date;
+  final List<dynamic> trips;
+  final String backendUrl;
+  final VoidCallback onAssign;
+
+  const TripDetailsDialog({
+    super.key,
+    required this.date,
+    required this.trips,
+    required this.backendUrl,
+    required this.onAssign,
+  });
+
+  @override
+  State<TripDetailsDialog> createState() => _TripDetailsDialogState();
+}
+
+class _TripDetailsDialogState extends State<TripDetailsDialog> {
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          bool isMobile = constraints.maxWidth < 500;
+
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Scheduled Trips - ${_formatDate(widget.date)}',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  if (widget.trips.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: Text('No trips for this date')),
+                    )
+                  else
+                    Column(
+                      children: widget.trips.map((trip) {
+                        final bool needsAssignment = trip['user_id'] == null || trip['vehicle_id'] == null;
+                        return TripCard(
+                          trip: trip,
+                          backendUrl: widget.backendUrl,
+                          needsAssignment: needsAssignment,
+                          onAssign: widget.onAssign,
+                        );
+                      }).toList(),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+}
+
+// ─── TRIP CARD WIDGET ───
+class TripCard extends StatelessWidget {
+  final Map<String, dynamic> trip;
+  final String backendUrl;
+  final bool needsAssignment;
+  final VoidCallback onAssign;
+
+  const TripCard({
+    super.key,
+    required this.trip,
+    required this.backendUrl,
+    required this.needsAssignment,
+    required this.onAssign,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: needsAssignment ? Colors.orange.shade50 : Colors.green.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: needsAssignment ? Colors.orange.shade200 : Colors.green.shade200,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Dispatch & Scheduling',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  trip['route_name'] ?? 'Unspecified Route',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: () {
-                  setState(() => _isLoading = true);
-                  _fetchStaffDashboardData();
-                },
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: needsAssignment ? Colors.orange : Colors.green,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  needsAssignment ? 'Unassigned' : 'Scheduled',
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          if (_isLoading)
-            const Center(child: CircularProgressIndicator())
-          else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // MAIN TRIP LIST
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: _assignedTrips.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.all(40),
-                            child: Center(
-                              child: Text("No trips routed to your queue."),
-                            ),
-                          )
-                        : ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _assignedTrips.length,
-                            separatorBuilder: (c, i) =>
-                                const Divider(height: 1),
-                            itemBuilder: (context, i) {
-                              final trip = _assignedTrips[i];
-                              final bool needsAssignment =
-                                  trip['user_id'] == null ||
-                                  trip['vehicle_id'] == null;
-
-                              return Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          trip['route_name'] ??
-                                              'Unspecified Route',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            // Departure ➔ Arrival Container
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue.shade50,
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                "${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'} ➔ ${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}",
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.blue.shade700,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            // Date Container
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey.shade100,
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                trip['schedule_date'] ?? '',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey.shade700,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            // Distance Container
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.orange.shade50,
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                "${trip['route_distance'] ?? 0} km",
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.orange.shade700,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    if (needsAssignment)
-                                      ElevatedButton.icon(
-                                        onPressed: () => _showAssignModal(trip),
-                                        icon: const Icon(
-                                          Icons.assignment_ind,
-                                          size: 16,
-                                          color: Colors.white,
-                                        ),
-                                        label: const Text(
-                                          "Assign Assets",
-                                          style: TextStyle(color: Colors.white),
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              Colors.orange.shade700,
-                                        ),
-                                      )
-                                    else
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.check_circle,
-                                            color: Colors.green,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            "Scheduled",
-                                            style: TextStyle(
-                                              color: Colors.green.shade800,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 24),
-
-                // INSTRUCTIONS PANEL
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.shade100),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Colors.blue.shade700,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Smart Dispatch',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.blue.shade900,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'When you click "Assign Assets", the system automatically checks the date and removes any drivers or vehicles that are already scheduled to drive that day.',
-                          style: TextStyle(
-                            color: Colors.blue.shade800,
-                            fontSize: 13,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 12),
+          _buildInfoRow('Departure Time', trip['departure_time'].toString().substring(0, 5)),
+          const SizedBox(height: 8),
+          _buildInfoRow('Route', trip['route_name'] ?? 'N/A'),
+          if (trip['driver_name'] != null) ...[
+            const SizedBox(height: 8),
+            _buildInfoRow('Driver', trip['driver_name']),
+          ],
+          if (trip['vehicle_plate'] != null) ...[
+            const SizedBox(height: 8),
+            _buildInfoRow('Vehicle', trip['vehicle_plate']),
+          ],
+          if (needsAssignment) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showAssignModal(context);
+                },
+                icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 18),
+                label: const Text('Assign Assets', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700),
+              ),
             ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  void _showAssignModal(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AssignTripDialog(
+        trip: trip,
+        backendUrl: backendUrl,
+        onSuccess: onAssign,
       ),
     );
   }
 }
 
-// ─── DEDICATED ASSIGNMENT MODAL WIDGET ───
-// Extracts the logic so it fetches live availability the moment you open it
+// ─── ASSIGNMENT MODAL ───
 class AssignTripDialog extends StatefulWidget {
   final Map<String, dynamic> trip;
   final String backendUrl;
@@ -340,7 +717,6 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
 
   Future<void> _fetchAvailability() async {
     try {
-      // Passes the specific date of THIS trip to Python
       final String tripDate = widget.trip['schedule_date'];
       final res = await http.get(
         Uri.parse(
@@ -376,8 +752,8 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
         }),
       );
       if (res.statusCode == 200 && mounted) {
-        Navigator.pop(context); // Close modal
-        widget.onSuccess(); // Trigger parent refresh
+        Navigator.pop(context);
+        widget.onSuccess();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("Trip assigned successfully!"),
@@ -399,78 +775,77 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
               height: 120,
               child: Center(child: CircularProgressIndicator()),
             )
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "Date: ${widget.trip['schedule_date']}",
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.bold,
+          : SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "Date: ${widget.trip['schedule_date']}",
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                if (_drivers.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    color: Colors.red.shade50,
-                    child: const Text(
-                      "⚠️ No drivers available for this date.",
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  )
-                else
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: "Assign Available Driver",
-                      border: OutlineInputBorder(),
-                    ),
-                    value: _selectedDriverUuid,
-                    items: _drivers
-                        .map(
-                          (d) => DropdownMenuItem<String>(
-                            value: d['user_id'],
-                            child: Text(d['full_name']),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (val) =>
-                        setState(() => _selectedDriverUuid = val),
-                  ),
-
-                const SizedBox(height: 16),
-
-                if (_vehicles.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    color: Colors.red.shade50,
-                    child: const Text(
-                      "⚠️ No vehicles available for this date.",
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  )
-                else
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: "Assign Available Vehicle",
-                      border: OutlineInputBorder(),
-                    ),
-                    value: _selectedVehicleId,
-                    items: _vehicles
-                        .map(
-                          (v) => DropdownMenuItem<String>(
-                            value: v['vehicle_id'].toString(),
-                            child: Text(
-                              "${v['plate_number']} (${v['bus_type']})",
+                  const SizedBox(height: 16),
+                  if (_drivers.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      color: Colors.red.shade50,
+                      child: const Text(
+                        "⚠️ No drivers available for this date.",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: "Assign Available Driver",
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _selectedDriverUuid,
+                      items: _drivers
+                          .map(
+                            (d) => DropdownMenuItem<String>(
+                              value: d['user_id'],
+                              child: Text(d['full_name']),
                             ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (val) =>
-                        setState(() => _selectedVehicleId = val),
-                  ),
-              ],
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => _selectedDriverUuid = val),
+                    ),
+                  const SizedBox(height: 16),
+                  if (_vehicles.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      color: Colors.red.shade50,
+                      child: const Text(
+                        "⚠️ No vehicles available for this date.",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: "Assign Available Vehicle",
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _selectedVehicleId,
+                      items: _vehicles
+                          .map(
+                            (v) => DropdownMenuItem<String>(
+                              value: v['vehicle_id'].toString(),
+                              child: Text(
+                                "${v['plate_number']} (${v['bus_type']})",
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => _selectedVehicleId = val),
+                    ),
+                ],
+              ),
             ),
       actions: [
         TextButton(

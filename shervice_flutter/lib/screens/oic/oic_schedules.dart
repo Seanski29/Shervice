@@ -16,6 +16,15 @@ class OicSchedules extends StatefulWidget {
 class _OicSchedulesState extends State<OicSchedules> {
   bool _isLoading = true;
   List<dynamic> _myTrips = [];
+  String _searchTerm = ''; // 👈 Added state variable for search
+
+  // Calendar State
+  late DateTime _focusedMonth;
+  final List<String> _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  final List<String> _weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   String get _backendUrl {
     if (kIsWeb) return 'http://127.0.0.1:5000/api';
@@ -27,6 +36,8 @@ class _OicSchedulesState extends State<OicSchedules> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _focusedMonth = DateTime(now.year, now.month);
     _fetchMyTrips();
   }
 
@@ -79,51 +90,82 @@ class _OicSchedulesState extends State<OicSchedules> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Responsive Header
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 16,
+              runSpacing: 12,
               children: [
-                const Text(
-                  'My Trip Requests',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Fleet Schedule Calendar',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Visualize and track your trip requests by date.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Track the status of your fleet requests.',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                ElevatedButton.icon(
+                  onPressed: () => _showNewScheduleModal(context),
+                  icon: const Icon(Icons.add, size: 18, color: Colors.white),
+                  label: const Text(
+                    'New Request',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
                 ),
               ],
             ),
-            ElevatedButton.icon(
-              onPressed: () => _showNewScheduleModal(context),
-              icon: const Icon(Icons.add, size: 18, color: Colors.white),
-              label: const Text(
-                'New Request',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+            const SizedBox(height: 16), // Tightened spacing
+
+            // 👈 NEW: Search Bar directly above the calendar
+            TextField(
+              onChanged: (val) => setState(() => _searchTerm = val),
+              decoration: InputDecoration(
+                hintText: 'Search by route',
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade600,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
                 ),
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
         if (_isLoading)
           const Center(
@@ -262,8 +304,7 @@ class CreateTripRequestDialog extends StatefulWidget {
   const CreateTripRequestDialog({super.key, required this.oicId});
 
   @override
-  State<CreateTripRequestDialog> createState() =>
-      _CreateTripRequestDialogState();
+  State<CreateTripRequestDialog> createState() => _CreateTripRequestDialogState();
 }
 
 class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
@@ -276,11 +317,9 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
 
   final _destinationController = TextEditingController();
   final _passengerController = TextEditingController();
-  final _distanceController = TextEditingController();
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  TimeOfDay? _selectedArrivalTime;
 
   String get _backendUrl {
     if (kIsWeb) return 'http://127.0.0.1:5000/api';
@@ -317,7 +356,6 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
 
     if (_selectedDate == null ||
         _selectedTime == null ||
-        _selectedArrivalTime == null ||
         _selectedStaffId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -334,8 +372,6 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
         "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
     final formattedTime =
         "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
-    final formattedETA =
-        "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
 
     try {
       final response = await http.post(
@@ -346,10 +382,8 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
           "staff_id": _selectedStaffId,
           "destination": _destinationController.text.trim(),
           "passenger_count": _passengerController.text.trim(),
-          "route_distance": _distanceController.text.trim(),
           "departure_date": formattedDate,
           "departure_time": formattedTime,
-          "estimated_arrival_time": formattedETA,
         }),
       );
 
@@ -491,7 +525,7 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: InkWell(
                       onTap: () async {
@@ -505,12 +539,12 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                       },
                       child: InputDecorator(
                         decoration: const InputDecoration(
-                          labelText: 'Departure',
+                          labelText: 'Time',
                           border: OutlineInputBorder(),
                         ),
                         child: Text(
                           _selectedTime == null
-                              ? "Time"
+                              ? "Select Time"
                               : _selectedTime!.format(context),
                         ),
                       ),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
-import 'layouts/admin_layout.dart';
-import 'layouts/driver_layout.dart';
+import 'layouts/admin/admin_layout.dart';
+import 'layouts/driver/driver_layout.dart';
 import 'login/login.dart';
 
 void main() {
@@ -20,12 +20,7 @@ class SherviceApp extends StatelessWidget {
 
     Widget getInitialScreen() {
       if (role == 'admin') {
-        // FIXED: Provided required parameters for Admin URL testing
-        return const AdminLayout(
-          adminId: '00000000-0000-0000-0000-000000000000', // Dummy UUID
-          adminName: 'System Admin',
-          companyName: 'Internal',
-        );
+        return const AdminLayout();
       } else if (role == 'driver') {
         // FIXED: Provided all three required parameters for URL testing
         return const DriverLayout(

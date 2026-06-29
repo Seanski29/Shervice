@@ -6,11 +6,11 @@ import 'package:flutter/gestures.dart';
 import 'package:http/http.dart' as http;
 
 // Imports for your layouts and the forgot password screen
-import '../layouts/admin_layout.dart';
-import '../layouts/driver_layout.dart';
+import '../layouts/admin/admin_layout.dart';
+import '../layouts/driver/driver_layout.dart';
 // TODO: Adjust these two import paths to match exactly what you named your responsive wrapper files
-import '../layouts/oic_layout.dart';
-import '../layouts/staff_layout.dart';
+import '../layouts/oic/oic_layout.dart';
+import '../layouts/staff/staff_layout.dart';
 import 'forgot_password.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -78,28 +78,11 @@ class _LoginScreenState extends State<LoginScreen> {
         final userData = responseData['data'];
         final String role = userData['role'];
 
-        // 1. Safely extract the core data for ALL roles right away
-        final String realUserId = (userData['user_id'] ?? userData['id'] ?? '')
-            .toString();
-        final String userDisplayName =
-            (userData['name'] ?? userData['full_name'] ?? 'User').toString();
-
-        // Note: Admin and Staff might not have a "company" in the DB, so we provide a fallback
-        final String userCompany =
-            (userData['company_name'] ?? userData['company'] ?? 'GT Lantin')
-                .toString();
-
         // Navigates based on the role payload returned by Supabase via Flask
         if (role == 'admin') {
           if (mounted) {
             navigator.pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => AdminLayout(
-                  adminId: realUserId, // 👈 Pass the ID!
-                  adminName: userDisplayName, // 👈 Pass the Name!
-                  companyName: userCompany, // 👈 Pass the Company!
-                ),
-              ),
+              MaterialPageRoute(builder: (context) => const AdminLayout()),
             );
           }
         } else if (role == 'oic') {

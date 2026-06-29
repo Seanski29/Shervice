@@ -80,8 +80,14 @@ class _AdminDriverState extends State<AdminDriver> {
         key: ValueKey('admin_drivers_list_$_refreshSeed'),
         canManage: true,
         onDriverTapped: (ctx, model) => _showDriverModal(ctx, model),
-        customHeader: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        
+        // FIX: Wrapped the header in a Wrap so the Title and "Add Driver" button
+        // drop to the next line on narrow mobile screens instead of throwing an overflow error!
+        customHeader: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 16,
+          runSpacing: 16,
           children: [
             const Text(
               'Driver Management',
