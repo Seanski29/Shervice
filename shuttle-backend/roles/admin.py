@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import Any, Dict, List, cast
 from flask import Blueprint, jsonify, request
 from supabase import create_client
@@ -13,6 +14,8 @@ def get_admin_client():
     """Helper to create a dedicated Admin Client for secure Auth modifications"""
     return create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
+
+# ─────────── DIAGNOSTIC DATABASE CHECKS ───────────
 
 @admin_bp.route('/api/test-db', methods=['GET'])
 def diagnostic_database_check():
@@ -43,7 +46,7 @@ def diagnostic_database_check():
         return jsonify({"connection_status": "FAILED", "error_details": str(e)}), 500
 
 
-# ─────────── TRIP SCHEDULES (UPGRADED RELATIONAL JOIN) ───────────
+# ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
 
 @admin_bp.route('/api/trips', methods=['GET'])
 def get_admin_schedules():
@@ -69,21 +72,17 @@ def get_admin_schedules():
         # 3. Manually map the company names back into the trips structure
         for trip in raw_trips:
             current_oic_id = trip.get('oic_id')
-            
-            # Synthesize the oic_profile inner dictionary structure expected by your Flutter layout
             trip['oic_profile'] = {
                 "company_name": company_map.get(current_oic_id, "GT LANTIN")
             }
 
-        return jsonify({
-            "success": True, 
-            "trips": raw_trips
-        }), 200
-        
+        return jsonify({"success": True, "trips": raw_trips}), 200
     except Exception as e:
         print(f"❌ Admin Schedule Fetch Exception: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+
+# ─────────── GLOBAL DASHBOARD ANALYTICS MONITOR ───────────
 
 @admin_bp.route('/api/dashboard/metrics', methods=['GET'])
 def get_dashboard_metrics():
@@ -93,11 +92,11 @@ def get_dashboard_metrics():
         drivers_query = supabase.table('user_account').select('user_id').eq('role', 'driver').execute()
         total_drivers = len(drivers_query.data) if drivers_query.data else 0
 
-        # 2. Count Active Vehicles (Units ready for rotation dispatch)
+        # 2. Count Active Vehicles
         vehicles_query = supabase.table('vehicle').select('vehicle_id').eq('is_available', True).execute()
         active_vehicles = len(vehicles_query.data) if vehicles_query.data else 0
 
-        # 3. Count Active Maintenance Alerts (Units out of service commission)
+        # 3. Count Active Maintenance Alerts
         alerts_count_query = supabase.table('vehicle').select('vehicle_id').eq('is_available', False).execute()
         maintenance_alerts_count = len(alerts_count_query.data) if alerts_count_query.data else 0
 
@@ -105,7 +104,6 @@ def get_dashboard_metrics():
         alerts_log_query = supabase.table('maintenance_log')\
             .select('maintenance_id, description, vehicle_id')\
             .order('repair_date', desc=True)\
-            .limit(5)\
             .execute()
 
         all_vehicles = supabase.table('vehicle').select('vehicle_id, plate_number').execute()
@@ -113,53 +111,37 @@ def get_dashboard_metrics():
         if all_vehicles.data:
             for v in all_vehicles.data:
                 v_id = v.get('vehicle_id')
-                plate = v.get('plate_number', 'Unknown Plate')
                 if v_id is not None:
-                    vehicle_map[str(v_id)] = plate
-                    vehicle_map[int(v_id)] = plate
+                    vehicle_map[str(v_id)] = v.get('plate_number', 'Unknown Plate')
+                    vehicle_map[int(v_id)] = v.get('plate_number', 'Unknown Plate')
 
         formatted_alerts = []
         if alerts_log_query.data:
             for log in alerts_log_query.data:
                 raw_v_id = log.get('vehicle_id')
-                resolved_plate = 'Unknown Unit'
-                
-                if raw_v_id in vehicle_map:
-                    resolved_plate = vehicle_map[raw_v_id]
-                elif str(raw_v_id) in vehicle_map:
-                    resolved_plate = vehicle_map[str(raw_v_id)]
-                elif str(raw_v_id).isdigit() and int(raw_v_id) in vehicle_map:
-                    resolved_plate = vehicle_map[int(raw_v_id)]
-                else:
-                    resolved_plate = f"Asset {raw_v_id}"
-
+                resolved_plate = vehicle_map.get(raw_v_id, vehicle_map.get(str(raw_v_id), f"Asset {raw_v_id}"))
                 formatted_alerts.append({
                     "id": str(log.get('maintenance_id')),
-                    "maintenance_id": str(log.get('maintenance_id')),
-                    "maintenanceId": str(log.get('maintenance_id')),
                     "vehicle_id": resolved_plate,
-                    "vehicleId": resolved_plate,
                     "plate_number": resolved_plate,
-                    "plateNumber": resolved_plate,
-                    "vehicle": resolved_plate,
-                    "plateNumber": resolved_plate,
-                    "vehicle": resolved_plate,
                     "description": log.get('description', 'No details provided.')
                 })
 
-        avg_punctuality = 4.8 
+        # 5. Calculate Dynamic Satisfaction Scores directly from OIC Evaluation values
+        oic_evals = supabase.table('oic_evaluation').select('overall_rating').execute()
+        oic_ratings = [r['overall_rating'] for r in oic_evals.data if r.get('overall_rating')] if oic_evals.data else []
+        avg_satisfaction = sum(oic_ratings) / len(oic_ratings) if oic_ratings else 5.0
 
-        # 5. Fetch Company Weekly Utilization Metrics Live
+        # 6. Fetch Company Weekly Utilization Metrics Live
         company_weekly_metrics = []
         try:
             companies_fetch = supabase.table('oic_profile').select('company_name').execute()
             company_list = [c['company_name'] for c in companies_fetch.data if c.get('company_name')] if companies_fetch.data else []
 
             if not company_list:
-                company_list = ["Bandai", "NX Logistics", "EPSON"]
+                company_list = ["Bandai", "NX Logistics", "EPSON", "GT LANTIN"]
 
             trips_fetch = supabase.table('trip_schedule').select('*').eq('trip_status', 'Completed').execute()
-            
             counts = {name: 0 for name in company_list}
             if trips_fetch.data:
                 for idx, t in enumerate(trips_fetch.data):
@@ -171,9 +153,7 @@ def get_dashboard_metrics():
                 company_weekly_metrics.append({
                     "id": idx,
                     "company_name": comp,
-                    "companyName": comp,
                     "trip_count": count,
-                    "tripCount": count,
                     "utilization": float(count / max_trips)
                 })
         except Exception as table_err:
@@ -184,19 +164,60 @@ def get_dashboard_metrics():
             "metrics": {
                 "totalDrivers": total_drivers,
                 "activeVehicles": active_vehicles,
-                "averagePunctuality": avg_punctuality,
+                "averagePunctuality": avg_satisfaction,
                 "maintenanceAlerts": maintenance_alerts_count
             },
             "alerts": formatted_alerts,
             "company_weekly_metrics": company_weekly_metrics
         }), 200
-
     except Exception as e:
         print(f"❌ Dashboard Metrics Engine Failure: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-# ─────────── VEHICLE ENDPOINTS (PUT & DELETE) ───────────
+# ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
+
+@admin_bp.route('/api/evaluations/mutual', methods=['GET', 'POST'])
+def handle_mutual_evaluations():
+    """Handles bidirectional reviews under one table: OICs rating Shervice, and Staff rating Client companies"""
+    try:
+        if request.method == 'POST':
+            data = request.get_json() or {}
+            
+            new_eval = {
+                "trip_id": int(data.get("trip_id")),
+                "oic_id": int(data.get("oic_id")),
+                "overall_rating": int(data.get("overall_rating", 5)),
+                "comments": data.get("comments", "").strip(),
+                "evaluator_type": data.get("evaluator_type", "OIC"), # Expected values: 'OIC' or 'Staff'
+                "submit_date": data.get("submit_date", datetime.utcnow().strftime('%Y-%m-%d'))
+            }
+            
+            if not new_eval["comments"]:
+                return jsonify({"success": False, "message": "Comments cannot be empty."}), 400
+                
+            supabase.table('oic_evaluation').insert(new_eval).execute()
+            return jsonify({"success": True, "message": "Evaluation scorecard saved successfully!"}), 201
+
+        # GET Method: Pull all records and stitch company names together manually in memory
+        evals_res = supabase.table('oic_evaluation').select('*').order('submit_date', desc=True).execute()
+        raw_evals = evals_res.data or []
+        
+        oic_res = supabase.table('oic_profile').select('oic_id, company_name').execute()
+        oic_map = {item['oic_id']: item['company_name'] for item in oic_res.data if 'oic_id' in item} if oic_res.data else {}
+
+        for eval_row in raw_evals:
+            current_oic_id = eval_row.get('oic_id')
+            eval_row['company_name'] = oic_map.get(current_oic_id, "GT LANTIN")
+
+        return jsonify({"success": True, "evaluations": raw_evals}), 200
+        
+    except Exception as e:
+        print(f"❌ Mutual Evaluations Transaction Crash: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ─────────── VEHICLE SPECIFICATIONS MANAGEMENT ───────────
 
 @admin_bp.route('/api/vehicles/update/<vehicle_id>', methods=['PUT'])
 def update_vehicle_details(vehicle_id):
@@ -235,7 +256,7 @@ def delete_vehicle_record(vehicle_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-# ─────────── DEDICATED DRIVER ENDPOINTS ───────────
+# ─────────── DRIVER PROFILE LEDGER SYSTEM ───────────
 
 @admin_bp.route('/api/auth/update-driver/<user_id>', methods=['PUT'])
 def update_driver_profile(user_id):
@@ -276,7 +297,7 @@ def update_driver_profile(user_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-# ─────────── USER MANAGEMENT ENDPOINTS (PUT & DELETE) ───────────
+# ─────────── USER INTERFACE ACCOUNT MASTER KEYS ───────────
 
 @admin_bp.route('/api/auth/update-user/<user_id>', methods=['PUT'])
 def update_system_user(user_id):
