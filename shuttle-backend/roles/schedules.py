@@ -16,21 +16,26 @@ def create_trip_request():
             p_count = 0 
             
         try:
-            r_distance = float(data.get('route_distance', 0.0)) # 👈 Safe conversion for distance
+            r_distance = float(data.get('route_distance', 0.0)) 
         except (ValueError, TypeError):
             r_distance = 0.0
 
         oic_uuid = data.get('oic_id')
         
         # 1. Lookup the integer ID from the oic_profile table
+        # 🛡️ THE PGRST116 FIX: Removed .single() to handle duplicate user_ids safely
         oic_lookup = (
             supabase.table('oic_profile')
             .select('oic_id')
             .eq('user_id', oic_uuid)
-            .single()
             .execute()
         )
-        oic_int_id = oic_lookup.data['oic_id']
+        
+        if not oic_lookup.data:
+            return jsonify({"success": False, "message": "OIC Profile not found."}), 404
+            
+        # Safely grab the first integer ID from the list
+        oic_int_id = oic_lookup.data[0].get('oic_id')
         
         # 2. Insert using the correct integer ID
         response = (
@@ -39,7 +44,7 @@ def create_trip_request():
                 "oic_id": oic_int_id, 
                 "staff_id": data.get('staff_id'),
                 "route_name": data.get('destination', 'Unspecified Route'),
-                "route_distance": r_distance, # 👈 Save the distance to the database
+                "route_distance": r_distance, 
                 "passenger_count": p_count, 
                 "schedule_date": data.get('departure_date'), 
                 "departure_time": data.get('departure_time'),
@@ -69,14 +74,18 @@ def get_oic_trips(oic_uuid):
     """Fetches all trips requested by ANY OIC within the same company"""
     try:
         # 1. Find out which company this specific OIC belongs to
+        # 🛡️ THE PGRST116 FIX: Removed .single() here as well
         user_profile = (
             supabase.table('oic_profile')
             .select('company_name')
             .eq('user_id', oic_uuid)
-            .single()
             .execute()
         )
-        company_name = user_profile.data['company_name']
+        
+        if not user_profile.data:
+            return jsonify({"success": True, "data": []}), 200
+            
+        company_name = user_profile.data[0].get('company_name')
 
         # 2. Find ALL OIC integer IDs that belong to this same company
         company_colleagues = (
@@ -93,12 +102,12 @@ def get_oic_trips(oic_uuid):
         trips = (
             supabase.table('trip_schedule')
             .select('*')
-            .in_('oic_id', allowed_oic_ids) # 👈 The magic filter!
+            .in_('oic_id', allowed_oic_ids)
             .order('schedule_date', desc=True)
             .execute()
         )
         
-        # 4. Fetch reference data to match IDs to names (Vehicle Plates & Driver Names)
+        # 4. Fetch reference data to match IDs to names
         vehicles = supabase.table('vehicle').select('vehicle_id, plate_number').execute()
         drivers = supabase.table('driver_profile').select('user_id, full_name').execute()
 
@@ -125,7 +134,7 @@ def get_pending_schedules():
         query = (
             supabase.table('trip_schedule')
             .select('*')
-            .eq('trip_status', 'Pending Assignment')
+            .eq('trip_status', 'Pending Staff Assignment') # Cleaned up to match your DB schema strictly
             .execute()
         )
         return jsonify({"success": True, "data": query.data}), 200
@@ -144,7 +153,6 @@ def get_dispatch_options():
         # 2. Grab the date we are checking from the request URL
         target_date = request.args.get('date')
         
-        # If no date is provided, just return the full lists (Fixes the 400 error!)
         if not target_date:
             return jsonify({
                 "success": True,
@@ -295,7 +303,7 @@ def get_staff_assigned_trips(staff_uuid):
         trips = (
             supabase.table('trip_schedule')
             .select('*')
-            .eq('staff_id', staff_uuid) # 👈 Strict individual privacy filter
+            .eq('staff_id', staff_uuid)
             .order('schedule_date', desc=True)
             .execute()
         )
