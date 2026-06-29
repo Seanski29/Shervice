@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../screens/oic/oic_dashboard.dart';
 import '../../../screens/oic/oic_schedules.dart';
 import '../../../screens/oic/oic_trips.dart';
+import '../../../screens/oic/oic_settings.dart';
 import '../../../login/login.dart';
 
 class OicLayoutMobile extends StatefulWidget {
@@ -24,18 +25,19 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
   int _selectedIndex = 0;
   
   // Navigation Titles
-  final List<String> _titles = ['Manage', 'Schedules', 'Logs'];
+  final List<String> _titles = ['Manage', 'Schedules', 'Logs', 'Settings'];
   
   // Navigation Icons
   final List<IconData> _icons = [
     Icons.dashboard,
     Icons.calendar_month_outlined,
     Icons.list_alt,
+    Icons.settings,
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Define screens here so we can access widget.oicName and widget.oicId
+    // Define screens here so we can access widget variables
     final List<Widget> screens = [
       OicDashboard(
         oicName: widget.oicName, 
@@ -44,6 +46,11 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
       ),
       OicSchedules(oicId: widget.oicId),
       OicTrips(oicId: widget.oicId),
+      OicSettings(
+        oicId: widget.oicId, 
+        oicName: widget.oicName, 
+        companyName: widget.companyName
+      ),
     ];
 
     return Scaffold(
@@ -98,7 +105,6 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
         ],
       ),
       
-      // Removed the Drawer, everything is now handled by the bottom navigation bar
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
@@ -133,7 +139,6 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
           child: SizedBox(
             height: 64,
             child: Row(
-              // Using Expanded here since we only have 3 items, they will space perfectly
               children: List.generate(_titles.length, (index) {
                 final isSelected = _selectedIndex == index;
                 return Expanded(
