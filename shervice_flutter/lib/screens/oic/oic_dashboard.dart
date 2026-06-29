@@ -603,77 +603,20 @@ class _OicDashboardState extends State<OicDashboard> {
       ],
     );
 
-    Widget actionPanel = _selectedTrip == null
-        ? Container(
-            padding: const EdgeInsets.all(32),
-            alignment: Alignment.center,
-            child: Text(
-              'Select a trip from the list to configure headcount.',
-              style: TextStyle(color: Colors.grey.shade500),
-              textAlign: TextAlign.center,
-            ),
-          )
-        : Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Confirm Dispatch — Trip #${_selectedTrip!['trip_id']}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                Text(
-                  _selectedTrip!['route_name'] ?? '',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 24),
-                Text('PASSENGER HEADCOUNT',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade500,
-                        letterSpacing: 0.5)),
-                const SizedBox(height: 8),
-                TextField(
-                  keyboardType: TextInputType.number,
-                  onChanged: (val) => _passengerCount = val,
-                  decoration: InputDecoration(
-                    hintText: 'Enter total passengers onboard',
-                    fillColor: const Color(0xFFF1F5F9),
-                    filled: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.shade600,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      elevation: 0,
-                    ),
-                    onPressed: _dispatchTripWithHeadcount,
-                    child: const Text('Dispatch Trip',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          );
+  // ─── TAB 4: COMPLETED TRIP EVALUATIONS VIEW (Excludes evaluated IDs) ───
+  Widget _buildFeedbackView() {
+    final uncompletedTrips = _allTrips.where((t) {
+      final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
+      final currentTripId = int.tryParse(t['trip_id'].toString()) ?? -1;
+      
+      // ✅ ADDED THE COMPANY FILTER LOGIC HERE
+      final dbCompanyName = (t['oic_profile'] ?? {})['company_name']?.toString().toLowerCase().trim() ?? '';
+      final targetCompanyName = widget.companyName.toLowerCase().trim();
+
+      return status == 'completed' && 
+             !_evaluatedTripIds.contains(currentTripId) &&
+             dbCompanyName == targetCompanyName;
+    }).toList();
 
     if (isMobile) {
       return Column(
