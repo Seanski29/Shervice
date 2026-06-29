@@ -1,189 +1,89 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
-class AdminFeedbacks extends StatefulWidget {
+class AdminFeedbacks extends StatelessWidget {
   const AdminFeedbacks({super.key});
 
   @override
-  State<AdminFeedbacks> createState() => _AdminFeedbacksState();
-}
-
-class _AdminFeedbacksState extends State<AdminFeedbacks> {
-  // --- State Variables ---
-  bool _isLoading = true;
-  List<dynamic> _companyRatings = [];
-  List<dynamic> _driverFeedbacks = [];
-
-  // Pagination Parameters
-  int _currentPage = 0;
-  final int _itemsPerPage = 5;
-
-  String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchFeedbacks();
-  }
-
-  // --- Data Fetching & Processing ---
-  Future<void> _fetchFeedbacks() async {
-    setState(() => _isLoading = true);
-    try {
-      final response = await http
-          .get(Uri.parse('$_backendUrl/evaluations/all'))
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          _companyRatings = data['company_ratings'] ?? [];
-          _driverFeedbacks = data['driver_feedbacks'] ?? [];
-        } else {
-          _loadDummyData();
-        }
-      } else {
-        _loadDummyData();
-      }
-    } catch (e) {
-      debugPrint("❌ Error fetching feedbacks: $e");
-      // Fallback to dummy data if endpoint is unavailable to keep UI operational
-      _loadDummyData();
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  void _loadDummyData() {
-    _companyRatings = [
-      {'company': 'EPSON', 'rating': '4.8', 'reviews': 124},
-      {'company': 'Bandai', 'rating': '4.6', 'reviews': 89},
-      {'company': 'NX Logistics', 'rating': '4.9', 'reviews': 56},
-    ];
-    _driverFeedbacks = [
-      {'driver_name': 'Ricardo Ramos', 'company': 'EPSON', 'rating': '4.9', 'comment': '"Very punctual and drives safely. The employees appreciate the smooth ride every morning."', 'date': 'Jun 20, 2026'},
-      {'driver_name': 'Miguel Santos', 'company': 'Bandai', 'rating': '4.2', 'comment': '"Driver was a bit late due to traffic, but communication was good. AC in the van could be colder."', 'date': 'Jun 19, 2026'},
-      {'driver_name': 'Juan Dela Cruz', 'company': 'NX Logistics', 'rating': '4.8', 'comment': '"Excellent service. Always on standby exactly when the shift ends."', 'date': 'Jun 18, 2026'},
-      {'driver_name': 'Arthur Reyes', 'company': 'EPSON', 'rating': '5.0', 'comment': '"Perfect driving record. Highly recommended!"', 'date': 'Jun 17, 2026'},
-      {'driver_name': 'Lando Garcia', 'company': 'NX Logistics', 'rating': '3.9', 'comment': '"Good driver but missed a turn today. Could improve routing."', 'date': 'Jun 16, 2026'},
-    ];
-  }
-
-  // --- Pagination Logic ---
-  int get _totalPages => (_driverFeedbacks.length / _itemsPerPage).ceil();
-
-  List<dynamic> get _paginatedFeedbacks {
-    if (_driverFeedbacks.isEmpty) return [];
-    int start = _currentPage * _itemsPerPage;
-    int end = min(start + _itemsPerPage, _driverFeedbacks.length);
-    return _driverFeedbacks.sublist(start, end);
-  }
-
-  void _nextPage() => _currentPage < _totalPages - 1 ? setState(() => _currentPage++) : null;
-  void _prevPage() => _currentPage > 0 ? setState(() => _currentPage--) : null;
-
-  Color _getCompanyColor(int index) {
-    final colors = [
-      Colors.blue.shade700,
-      Colors.orange.shade700,
-      Colors.green.shade700,
-      Colors.purple.shade700,
-      Colors.teal.shade700,
-    ];
-    return colors[index % colors.length];
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // FIXED: Added a Scaffold to provide the Material theme canvas. 
+    // This stops Flutter from using the giant yellow fallback text.
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // Matches dashboard background
+      backgroundColor: const Color(0xFFF8FAFC), // Matches your dashboard background
       body: SafeArea(
-        child: _isLoading 
-            ? const Center(child: CircularProgressIndicator()) 
-            : ListView(
-                padding: const EdgeInsets.all(24.0),
-                children: [
-                  // Back Button to return to User Management
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      label: const Text('Back to Users', style: TextStyle(fontWeight: FontWeight.bold)),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.grey.shade700,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  const Text(
-                    'Company & Driver Feedbacks',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Monitor client satisfaction and driver performance metrics.', style: TextStyle(color: Colors.grey.shade600)),
-                  const SizedBox(height: 32),
-
-                  // SECTION 1: Client Company Ratings
-                  const Text('CLIENT COMPANY RATINGS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                  const SizedBox(height: 16),
-                  
-                  if (_companyRatings.isEmpty)
-                    const Padding(padding: EdgeInsets.all(16), child: Text("No company ratings available."))
-                  else
-                    Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: _companyRatings.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final item = entry.value;
-                        return _buildCompanyRatingCard(
-                          item['company'] ?? 'Unknown',
-                          item['rating']?.toString() ?? '0.0',
-                          item['reviews'] ?? 0,
-                          _getCompanyColor(index),
-                        );
-                      }).toList(),
-                    ),
-
-                  const SizedBox(height: 32),
-                  const Divider(),
-                  const SizedBox(height: 24),
-
-                  // SECTION 2: Individual Driver Ratings
-                  const Text('DRIVER PERFORMANCE FEEDBACKS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                  const SizedBox(height: 16),
-                  
-                  if (_driverFeedbacks.isEmpty)
-                    const Padding(padding: EdgeInsets.all(16), child: Text("No driver feedback logs available."))
-                  else ...[
-                    ..._paginatedFeedbacks.map((feedback) => _buildDriverFeedbackCard(
-                      driverName: feedback['driver_name'] ?? 'Unknown Driver',
-                      assignedCompany: feedback['company'] ?? 'Unknown Company',
-                      rating: feedback['rating']?.toString() ?? '0.0',
-                      recentComment: feedback['comment'] ?? 'No comment provided.',
-                      date: feedback['date'] ?? 'N/A',
-                    )),
-                    
-                    const SizedBox(height: 16),
-                    _buildResponsivePagination(),
-                  ],
-                ],
+        child: ListView(
+          padding: const EdgeInsets.all(24.0),
+          children: [
+            // Back Button to return to User Management
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back, size: 20),
+                label: const Text('Back to Users', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
               ),
+            ),
+            const SizedBox(height: 16),
+
+            const Text(
+              'Company & Driver Feedbacks',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
+            ),
+            const SizedBox(height: 8),
+            Text('Monitor client satisfaction and driver performance metrics.', style: TextStyle(color: Colors.grey.shade600)),
+            const SizedBox(height: 32),
+
+            // SECTION 1: Client Company Ratings (How companies rate the assigned drivers)
+            const Text('CLIENT COMPANY RATINGS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                _buildCompanyRatingCard('EPSON', '4.8', 124, Colors.blue.shade700),
+                _buildCompanyRatingCard('Bandai', '4.6', 89, Colors.orange.shade700),
+                _buildCompanyRatingCard('NX Logistics', '4.9', 56, Colors.green.shade700),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 24),
+
+            // SECTION 2: Individual Driver Ratings
+            const Text('DRIVER PERFORMANCE FEEDBACKS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+            const SizedBox(height: 16),
+            
+            _buildDriverFeedbackCard(
+              driverName: 'Ricardo Ramos',
+              assignedCompany: 'EPSON',
+              rating: '4.9',
+              recentComment: '"Very punctual and drives safely. The employees appreciate the smooth ride every morning."',
+              date: 'Jun 20, 2026',
+            ),
+            _buildDriverFeedbackCard(
+              driverName: 'Miguel Santos',
+              assignedCompany: 'Bandai',
+              rating: '4.2',
+              recentComment: '"Driver was a bit late due to traffic, but communication was good. AC in the van could be colder."',
+              date: 'Jun 19, 2026',
+            ),
+            _buildDriverFeedbackCard(
+              driverName: 'Juan Dela Cruz',
+              assignedCompany: 'NX Logistics',
+              rating: '4.8',
+              recentComment: '"Excellent service. Always on standby exactly when the shift ends."',
+              date: 'Jun 18, 2026',
+            ),
+
+            const SizedBox(height: 16),
+            _buildResponsivePagination('1 to 3 of 42 drivers'),
+          ],
+        ),
       ),
     );
   }
@@ -298,42 +198,22 @@ class _AdminFeedbacksState extends State<AdminFeedbacks> {
     );
   }
 
-  Widget _buildResponsivePagination() {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerRight, 
-      child: Wrap(
-        alignment: WrapAlignment.end,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 16, 
-        runSpacing: 16,
-        children: [
-          Text(
-            'Showing ${(_currentPage * _itemsPerPage) + 1} to ${min((_currentPage + 1) * _itemsPerPage, _driverFeedbacks.length)} of ${_driverFeedbacks.length} reviews', 
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 13)
-          ),
-          Wrap(
-            spacing: 8,
-            children: [
-              OutlinedButton(
-                onPressed: _currentPage > 0 ? _prevPage : null, 
-                style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), 
-                child: const Text('Prev', style: TextStyle(color: Colors.black87))
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), 
-                decoration: BoxDecoration(color: Colors.blue.shade600, borderRadius: BorderRadius.circular(8)), 
-                child: Text('${_currentPage + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-              ),
-              OutlinedButton(
-                onPressed: _currentPage < _totalPages - 1 ? _nextPage : null, 
-                style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), 
-                child: const Text('Next', style: TextStyle(color: Colors.black87))
-              ),
-            ],
-          )
-        ],
-      ),
+  Widget _buildResponsivePagination(String text) {
+    return Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 16, runSpacing: 16,
+      children: [
+        Text('Showing $text', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+        Wrap(
+          spacing: 8,
+          children: [
+            OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: const Text('Prev', style: TextStyle(color: Colors.black87))),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: Colors.blue.shade600, borderRadius: BorderRadius.circular(8)), child: const Text('1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+            OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: const Text('Next', style: TextStyle(color: Colors.black87))),
+          ],
+        )
+      ],
     );
   }
 }

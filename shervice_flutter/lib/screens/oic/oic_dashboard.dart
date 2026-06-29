@@ -350,113 +350,71 @@ class _OicDashboardState extends State<OicDashboard> {
     );
   }
 
-  // ─── REUSABLE TRIP CARD (Code 2 design) ───
-  Widget _buildTripCard(dynamic trip,
-      {Color statusColor = Colors.blue,
-      String? overrideStatus,
-      Widget? extraRow}) {
-    final String status =
-        overrideStatus ?? (trip['trip_status'] ?? 'Scheduled').toString();
-
-    Color chipColor;
-    Color chipTextColor;
-    if (status.toLowerCase().contains('pending')) {
-      chipColor = Colors.orange.shade50;
-      chipTextColor = Colors.orange.shade800;
-    } else if (status.toLowerCase() == 'scheduled') {
-      chipColor = Colors.blue.shade50;
-      chipTextColor = Colors.blue.shade700;
-    } else if (status.toLowerCase() == 'ongoing') {
-      chipColor = Colors.green.shade50;
-      chipTextColor = Colors.green.shade700;
-    } else {
-      chipColor = Colors.grey.shade100;
-      chipTextColor = Colors.grey.shade700;
-    }
-
-    final departure = _formatTimeString(trip['departure_time']);
-    final arrival = _formatTimeString(trip['estimated_arrival_time']);
-    final driverName =
-        (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
-    final vehiclePlate =
-        (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'TRIP ID: ${trip['trip_id']}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: chipColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: chipTextColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _iconTextRow(Icons.access_time,
-              '${trip['schedule_date']} | $departure - $arrival'),
-          const SizedBox(height: 4),
-          _iconTextRow(
-              Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
-          const SizedBox(height: 4),
-          _iconTextRow(Icons.airport_shuttle,
-              'Shuttle: $vehiclePlate | Driver: $driverName'),
-          if (extraRow != null) ...[
-            const SizedBox(height: 4),
-            extraRow,
-          ],
-        ],
-      ),
-    );
-  }
-
-  // ─── TAB 1: PENDING ───
-  Widget _buildPendingView(bool isMobile) {
-    final filtered = _allTrips.where((t) {
+  // ─── TAB 1: PENDING VIEW (Pending Staff Assignment) ───
+  Widget _buildPendingView() {
+    final pendingTrips = _allTrips.where((t) {
       final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
       return status == 'pending staff assignment';
     }).toList();
 
-    if (filtered.isEmpty) {
-      return _buildEmptyState('No trips currently pending staff assignment.');
+    if (pendingTrips.isEmpty) {
+      return Center(child: Padding(padding: const EdgeInsets.all(32.0), child: Text("No trips currently pending staff assignment layouts.", style: TextStyle(color: Colors.grey.shade600, fontSize: 14, fontWeight: FontWeight.w500))));
     }
 
-    return _buildPaginatedGrid(
-      items: filtered,
-      isMobile: isMobile,
-      currentPage: _pendingPage,
-      onPageChanged: (p) => setState(() => _pendingPage = p),
-      itemBuilder: (trip) => _buildTripCard(trip,
-          overrideStatus: 'Pending Staff Assignment'),
+    int totalPages = (pendingTrips.length / _itemsPerPage).ceil();
+    int startIdx = _pendingPage * _itemsPerPage;
+    int endIdx = min(startIdx + _itemsPerPage, pendingTrips.length);
+    List<dynamic> activePageList = pendingTrips.sublist(startIdx, endIdx);
+
+    return Column(
+      children: [
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 2.2,
+          ),
+          itemCount: activePageList.length,
+          itemBuilder: (context, index) {
+            final trip = activePageList[index];
+            final driverName = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
+            final vehiclePlate = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
+
+            final departure = _formatTimeString(trip['departure_time']);
+            final arrival = _formatTimeString(trip['estimated_arrival_time']);
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("TRIP ID: ${trip['trip_id']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(20)),
+                        child: Text("PENDING ASSIGNMENT", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.orange.shade800)),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  _iconTextRow(Icons.access_time, "${trip['schedule_date']} | $departure - $arrival"),
+                  const SizedBox(height: 4),
+                  _iconTextRow(Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
+                  const SizedBox(height: 4),
+                  _iconTextRow(Icons.airport_shuttle, "Shuttle: $vehiclePlate | Driver: $driverName"),
+                ],
+              ),
+            );
+          },
+        ),
+        _buildPaginationControls(pendingTrips.length, startIdx, endIdx, totalPages, _pendingPage, (newPage) {
+          setState(() => _pendingPage = newPage);
+        }),
+      ],
     );
   }
 
@@ -471,12 +429,60 @@ class _OicDashboardState extends State<OicDashboard> {
       return _buildEmptyState('No upcoming approved scheduled runs found.');
     }
 
-    return _buildPaginatedGrid(
-      items: filtered,
-      isMobile: isMobile,
-      currentPage: _approvedPage,
-      onPageChanged: (p) => setState(() => _approvedPage = p),
-      itemBuilder: (trip) => _buildTripCard(trip, overrideStatus: 'Scheduled'),
+    int totalPages = (approvedTrips.length / _itemsPerPage).ceil();
+    int startIdx = _approvedPage * _itemsPerPage;
+    int endIdx = min(startIdx + _itemsPerPage, approvedTrips.length);
+    List<dynamic> activePageList = approvedTrips.sublist(startIdx, endIdx);
+
+    return Column(
+      children: [
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 2.2,
+          ),
+          itemCount: activePageList.length,
+          itemBuilder: (context, index) {
+            final trip = activePageList[index];
+            final driverName = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
+            final vehiclePlate = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
+
+            final departure = _formatTimeString(trip['departure_time']);
+            final arrival = _formatTimeString(trip['estimated_arrival_time']);
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("TRIP ID: ${trip['trip_id']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(20)),
+                        child: Text("SCHEDULED", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  _iconTextRow(Icons.access_time, "${trip['schedule_date']} | $departure - $arrival"),
+                  const SizedBox(height: 4),
+                  _iconTextRow(Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
+                  const SizedBox(height: 4),
+                  _iconTextRow(Icons.airport_shuttle, "Shuttle: $vehiclePlate | Driver: $driverName"),
+                ],
+              ),
+            );
+          },
+        ),
+        _buildPaginationControls(approvedTrips.length, startIdx, endIdx, totalPages, _approvedPage, (newPage) {
+          setState(() => _approvedPage = newPage);
+        }),
+      ],
     );
   }
 
@@ -537,47 +543,63 @@ class _OicDashboardState extends State<OicDashboard> {
         const Text('Select Scheduled Trip to Dispatch',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 16),
-        if (scheduledTrips.isEmpty)
-          Text('No scheduled trips available to dispatch.',
-              style: TextStyle(color: Colors.grey.shade500))
-        else
-          ...scheduledTrips.map((trip) {
-            final tripId = trip['trip_id'];
-            final isSelected = _selectedTrip?['trip_id'] == tripId;
-            final driverName =
-                (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
-            final departure = _formatTimeString(trip['departure_time']);
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 2.2,
+          ),
+          itemCount: activePageList.length,
+          itemBuilder: (context, index) {
+            final trip = activePageList[index];
+            final driverName = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
+            final vehiclePlate = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
+            final passengerCount = trip['passenger_count'] ?? 0;
 
-            return GestureDetector(
-              onTap: () => setState(() => _selectedTrip = trip),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.teal.shade50 : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected
-                        ? Colors.teal.shade500
-                        : Colors.grey.shade300,
-                    width: 2,
+            final departure = _formatTimeString(trip['departure_time']);
+            final arrival = _formatTimeString(trip['estimated_arrival_time']);
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("TRIP ID: ${trip['trip_id']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(20)),
+                        child: Text("ONGOING", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+                      ),
+                    ],
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('TRIP ID: $tripId | $departure',
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(
-                      '${trip['route_name'] ?? 'No Route'} | Driver: $driverName',
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600),
-                    ),
-                  ],
-                ),
+                  const Spacer(),
+                  _iconTextRow(Icons.access_time, "${trip['schedule_date']} | $departure - $arrival"),
+                  const SizedBox(height: 4),
+                  _iconTextRow(Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(child: _iconTextRow(Icons.airport_shuttle, "Shuttle: $vehiclePlate | Driver: $driverName")),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
+                        child: Text("👥 $passengerCount Passengers", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                      )
+                    ],
+                  ),
+                ],
               ),
             );
-          }),
+          },
+        ),
+        _buildPaginationControls(ongoingTrips.length, startIdx, endIdx, totalPages, _dispatchedPage, (newPage) {
+          setState(() => _dispatchedPage = newPage);
+        }),
       ],
     );
 
@@ -943,24 +965,16 @@ class _OicDashboardState extends State<OicDashboard> {
     );
   }
 
-  // ─── REUSABLE: EMPTY STATE ───
-  Widget _buildEmptyState(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40.0),
-        child: Text(
-          message,
-          style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 14,
-              fontWeight: FontWeight.w500),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
+  // ─── REUSABLE UI FORMATTING HELPERS ───
+  
+  // Safely formats time strings to prevent crashes on unexpectedly short strings
+  String _formatTimeString(dynamic timeVal) {
+    if (timeVal == null || timeVal.toString().trim().isEmpty) return 'TBD';
+    String t = timeVal.toString();
+    if (t.length >= 5) return t.substring(0, 5);
+    return t;
   }
 
-  // ─── REUSABLE: ICON + TEXT ROW ───
   Widget _iconTextRow(IconData icon, String text) {
     return Row(
       children: [
