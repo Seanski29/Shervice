@@ -25,14 +25,14 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   List<dynamic> _allSchedules = [];
   List<dynamic> _filteredSchedules = [];
   
+  // Calendar State
   DateTime _selectedMonth = DateTime.now();
   DateTime? _selectedDate;
 
-  // Filtering & Sorting
+  // Filtering & Searching Metrics Configuration
   String _searchQuery = '';
   String _statusFilter = 'All';
-  // Expanded options to catch all possible backend states
-  final List<String> _statusOptions = ['All', 'Scheduled', 'Pending', 'In Progress', 'Ongoing', 'Completed', 'Cancelled'];
+  final List<String> _statusOptions = ['All', 'Scheduled', 'In Progress', 'Completed', 'Cancelled'];
 
   @override
   void initState() {
@@ -40,32 +40,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     _fetchSchedulesFromDatabase();
   }
 
-  // ─── ROBUST DATA EXTRACTORS ───
-  // These safely grab data regardless of exactly what the backend named the keys
-  String _getTripDate(dynamic trip) {
-    final val = trip['schedule_date'] ?? trip['departure_date'] ?? trip['scheduled_time'] ?? trip['schedule_time'] ?? trip['date'];
-    return val?.toString() ?? '';
-  }
-
-  String _getTripTime(dynamic trip) {
-    final val = trip['departure_time'] ?? trip['time'] ?? trip['scheduled_time'] ?? trip['schedule_time'];
-    if (val == null || val.toString().isEmpty) return 'TBD';
-    
-    // Clean up long datetime strings into just the time
-    final str = val.toString();
-    if (str.length > 10 && str.contains('T')) {
-      return str.split('T')[1].substring(0, 5); // Extracts HH:MM from ISO8601
-    } else if (str.length > 5 && str.contains(':')) {
-      return str.substring(0, 5); // Extracts HH:MM from standard time formats
-    }
-    return str;
-  }
-
-  String _getTripStatus(dynamic trip) {
-    return (trip['status'] ?? trip['trip_status'] ?? 'Scheduled').toString();
-  }
-
-  // --- Data Fetching & Processing ---
+  // --- Data Fetching & Processing (From Backend Code) ---
   Future<void> _fetchSchedulesFromDatabase() async {
     setState(() => _isLoading = true);
     try {
@@ -80,8 +55,6 @@ class _AdminSchedulesState extends State<AdminSchedules> {
           _allSchedules = data;
         } else if (data is Map && data.containsKey('trips')) {
           _allSchedules = data['trips'] ?? [];
-        } else if (data is Map && data.containsKey('data')) {
-          _allSchedules = data['data'] ?? [];
         } else if (data is Map && data.containsKey('sample_data_payload')) {
           _allSchedules = data['sample_data_payload'] ?? [];
         } else {
@@ -103,23 +76,31 @@ class _AdminSchedulesState extends State<AdminSchedules> {
 
   void _applyFiltersAndSort() {
     List<dynamic> temp = _allSchedules.where((trip) {
-      final routeName = (trip['route_name'] ?? trip['route'] ?? trip['destination'] ?? '').toString().toLowerCase();
-      final driverName = (trip['driver_name'] ?? trip['driver'] ?? '').toString().toLowerCase();
-      final tripStatus = _getTripStatus(trip).toLowerCase();
+      final routeName = (trip['route_name'] ?? '').toString().toLowerCase();
+      
+      // Safe processing extracting variables out from relational nested join models
+      final userAccount = trip['user_account'] as Map<String, dynamic>?;
+      final driverName = (userAccount != null ? userAccount['full_name'] ?? '' : '').toString().toLowerCase();
+      
+      final tripStatus = (trip['trip_status'] ?? 'Scheduled').toString();
 
       final matchesSearch = routeName.contains(_searchQuery.toLowerCase()) || 
                             driverName.contains(_searchQuery.toLowerCase());
       
-      final matchesStatus = _statusFilter == 'All' || tripStatus == _statusFilter.toLowerCase();
+      final matchesStatus = _statusFilter == 'All' || 
+                            tripStatus.toLowerCase() == _statusFilter.toLowerCase();
 
       return matchesSearch && matchesStatus;
     }).toList();
 
-    // Sort chronologically safely
+    // Sort chronologically using date and departure parameters combined context
     temp.sort((a, b) {
-      final timeA = DateTime.tryParse(_getTripDate(a)) ?? DateTime(2000);
-      final timeB = DateTime.tryParse(_getTripDate(b)) ?? DateTime(2000);
-      return timeA.compareTo(timeB);
+      final dateA = (a['schedule_date'] ?? '').toString();
+      final timeA = (a['departure_time'] ?? '').toString();
+      final dateB = (b['schedule_date'] ?? '').toString();
+      final timeB = (b['departure_time'] ?? '').toString();
+      
+      return "$dateA $timeA".compareTo("$dateB $timeB");
     });
 
     setState(() {
@@ -128,15 +109,15 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     });
   }
 
+  // --- Safely Extract Data for Calendar (Prevents RangeError) ---
   List<dynamic> _getTripsForDate(DateTime date) {
     final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     return _filteredSchedules.where((trip) {
-      final tripDateRaw = _getTripDate(trip);
-      
-      // FIX: The ultimate RangeError prevention.
-      // If the backend date format is empty or too short, it skips it instead of crashing.
+      final tripDateRaw = (trip['schedule_date'] ?? '').toString();
+      // Length safety check to prevent RangeError when substring(0,10) evaluates empty/short DB values
       if (tripDateRaw.length >= 10) {
-        return tripDateRaw.substring(0, 10) == dateStr;
+        final tripDate = tripDateRaw.substring(0, 10);
+        return tripDate == dateStr;
       }
       return false;
     }).toList();
@@ -148,33 +129,30 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   }
 
   int get _totalTrips => _filteredSchedules.length;
-  int get _scheduledTrips => _filteredSchedules.where((t) {
-    final stat = _getTripStatus(t).toLowerCase();
-    return stat == 'scheduled' || stat == 'pending';
-  }).length;
-  int get _inProgressTrips => _filteredSchedules.where((t) {
-    final stat = _getTripStatus(t).toLowerCase();
-    return stat == 'in progress' || stat == 'ongoing' || stat == 'active';
-  }).length;
+  int get _scheduledTrips => _filteredSchedules.where((t) => (t['trip_status'] ?? 'Scheduled').toString().toLowerCase() == 'scheduled').length;
+  int get _inProgressTrips => _filteredSchedules.where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'in progress').length;
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'in progress':
-      case 'ongoing':
       case 'active':
         return Colors.blue;
       case 'completed':
         return Colors.green;
       case 'cancelled':
         return Colors.red;
-      case 'pending':
       case 'scheduled':
       default:
         return Colors.orange;
     }
   }
 
-  // --- UI Layout Engine ---
+  String _monthYearFormat(DateTime date) {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return '${months[date.month - 1]} ${date.year}';
+  }
+
+  // --- UI Layout Engine (From Design Code) ---
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
@@ -451,12 +429,29 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               itemCount: displayedTrips.length,
               itemBuilder: (context, index) {
                 final trip = displayedTrips[index];
+
+                // 🔒 Extract nested structural values mapping variables dynamically to your Postgres Schema rules
+                final userAccount = trip['user_account'] as Map<String, dynamic>?;
+                final vehicle = trip['vehicle'] as Map<String, dynamic>?;
+                final oicProfile = trip['oic_profile'] as Map<String, dynamic>?;
+
+                final String driver = userAccount != null ? (userAccount['full_name'] ?? 'No Assigned Driver') : 'No Assigned Driver';
+                final String plate = vehicle != null ? (vehicle['plate_number'] ?? 'No Shuttle Linked') : 'No Shuttle Linked';
+                final String type = vehicle != null ? (vehicle['bus_type'] ?? 'Standard Shuttle') : 'Standard Shuttle';
+                final String company = oicProfile != null ? (oicProfile['company_name'] ?? 'GT LANTIN') : 'GT LANTIN';
+                
+                final String dateStr = trip['schedule_date'] ?? '';
+                final String timeStr = trip['departure_time'] ?? 'TBD';
+                final String deploymentTime = dateStr.isNotEmpty ? "$dateStr @ $timeStr" : timeStr;
+
                 return _buildTripCard(
-                  routeName: trip['route_name'] ?? trip['route'] ?? trip['destination'] ?? 'Unassigned Route',
-                  driverName: trip['driver_name'] ?? trip['driver'] ?? 'No Assigned Driver',
-                  vehiclePlate: trip['plate_number'] ?? trip['vehicle'] ?? 'No Shuttle Linked',
-                  timeString: _getTripTime(trip),
-                  status: _getTripStatus(trip),
+                  routeName: trip['route_name'] ?? 'Unassigned Route',
+                  driverName: driver,
+                  vehiclePlate: plate,
+                  vehicleType: type,
+                  timeString: deploymentTime,
+                  status: trip['trip_status'] ?? 'Scheduled',
+                  companyName: company,
                 );
               },
             ),
@@ -505,17 +500,15 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     );
   }
 
-  String _monthYearFormat(DateTime date) {
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    return '${months[date.month - 1]} ${date.year}';
-  }
-
+  // --- Updated Card to support Vehicle Type and Company Name (From Backend Code) ---
   Widget _buildTripCard({
     required String routeName,
     required String driverName,
     required String vehiclePlate,
+    required String vehicleType,
     required String timeString,
     required String status,
+    required String companyName,
   }) {
     final statusColor = _getStatusColor(status);
     return Container(
@@ -533,13 +526,13 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               Expanded(
                 child: Text(
                   routeName, 
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                 ),
               ),
               const SizedBox(width: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: statusColor.withAlpha(25), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
                 child: Text(
                   status.toUpperCase(), 
                   style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)
@@ -549,12 +542,13 @@ class _AdminSchedulesState extends State<AdminSchedules> {
           ),
           const SizedBox(height: 12),
           Wrap(
-            spacing: 20,
+            spacing: 24,
             runSpacing: 12,
             children: [
               _cardIconText(Icons.person_outline, 'Driver: $driverName'),
-              _cardIconText(Icons.airport_shuttle_outlined, 'Shuttle: $vehiclePlate'),
+              _cardIconText(Icons.airport_shuttle_outlined, 'Shuttle: $vehiclePlate ($vehicleType)'),
               _cardIconText(Icons.access_time, 'Departure: $timeString'),
+              _cardIconText(Icons.business_outlined, 'Company: $companyName'),
             ],
           ),
         ],

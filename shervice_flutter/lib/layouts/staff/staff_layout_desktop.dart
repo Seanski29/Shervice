@@ -194,7 +194,6 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
             onPressed: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded),
           ),
           const Spacer(),
-          const Icon(Icons.notifications_none, color: Colors.grey),
           const SizedBox(width: 24),
           SlideInWelcomeWidget(role: widget.staffName),
           const SizedBox(width: 16),
