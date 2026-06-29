@@ -37,7 +37,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     const AdminDashboard(), // Index 0
     const AdminSchedules(), // Index 1
     const AdminDriver(),    // Index 2
-    const AdminFleet(),     // Index 3
+    AdminVehicles(),     // Index 3
     const AdminUsers(),     // Index 4
     AdminSettings(adminId: widget.adminId), // 👈 3. Now widget.adminId is accessible!
   ];

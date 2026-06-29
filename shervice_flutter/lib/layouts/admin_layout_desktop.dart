@@ -2,21 +2,20 @@ import 'package:flutter/material.dart';
 import '../screens/admin/admin_dashboard.dart';
 import '../screens/admin/admin_schedules.dart';
 import '../screens/admin/admin_drivers.dart';
-import '../screens/admin/admin_vehicles.dart';
+import '../screens/admin/admin_vehicles.dart'; // ✅ Verified target import path match
 import '../screens/admin/admin_users.dart';
 import '../screens/admin/admin_settings.dart';
 import '../screens/admin/admin_feedbacks.dart';
 import '../login/login.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
-  // 👇 1. Declare the required variables
   final String adminId;
   final String adminName;
   final String companyName;
 
   const AdminDesktopLayout({
     super.key,
-    required this.adminId, // 👈 Require them in the constructor
+    required this.adminId, 
     required this.adminName,
     required this.companyName,
   });
@@ -29,16 +28,16 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
 
-  // 👇 2. Convert from 'final List<Widget> _screens =' to a getter:
+  // 👇 Dynamic getter array handles runtime assignments safely
   List<Widget> get _screens => [
     const AdminDashboard(),
     const AdminSchedules(),
     const AdminDriver(),
-    const AdminFleet(),
+    AdminVehicles(), // ✅ FIXED: Exact class match name called without const keyword block
     const AdminUsers(),
     AdminSettings(
       adminId: widget.adminId,
-    ), // 👈 3. Now it successfully accesses widget.adminId!
+    ), 
     const AdminFeedbacks(),
   ];
 
@@ -191,9 +190,9 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                             border: Border.all(color: Colors.grey.shade200),
                             borderRadius: BorderRadius.circular(30),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
-                              CircleAvatar(
+                              const CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.blue,
                                 child: Text(
@@ -205,22 +204,22 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                                   ),
                                 ),
                               ),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    'Admin User',
-                                    style: TextStyle(
+                                    widget.adminName.isNotEmpty ? widget.adminName : 'Admin User',
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
                                       height: 1,
                                     ),
                                   ),
                                   Text(
-                                    'Admin',
-                                    style: TextStyle(
+                                    widget.companyName.isNotEmpty ? widget.companyName : 'Admin',
+                                    style: const TextStyle(
                                       color: Colors.grey,
                                       fontSize: 11,
                                     ),
@@ -272,7 +271,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                 actions: [
                   TextButton(
                     onPressed: () {
-                      Navigator.pop(dialogContext); // Closes the alert dialog
+                      Navigator.pop(dialogContext); 
                     },
                     child: const Text(
                       'Cancel',
@@ -281,11 +280,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(
-                        dialogContext,
-                      ); // Closes the alert dialog first
-
-                      // Routes back to the login screen and clears the navigation history
+                      Navigator.pop(dialogContext); 
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(

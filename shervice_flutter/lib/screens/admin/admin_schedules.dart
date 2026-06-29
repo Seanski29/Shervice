@@ -26,12 +26,12 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   List<dynamic> _allSchedules = [];
   List<dynamic> _filteredSchedules = [];
 
-  // Filtering & Sorting
+  // Filtering & Searching Metrics Configuration
   String _searchQuery = '';
   String _statusFilter = 'All';
   final List<String> _statusOptions = ['All', 'Scheduled', 'In Progress', 'Completed', 'Cancelled'];
 
-  // Pagination
+  // Pagination Window Parameters
   int _currentPage = 0;
   final int _itemsPerPage = 5;
 
@@ -52,7 +52,6 @@ class _AdminSchedulesState extends State<AdminSchedules> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // Handling both raw arrays or enveloped JSON responses
         if (data is List) {
           _allSchedules = data;
         } else if (data is Map && data.containsKey('trips')) {
@@ -77,11 +76,14 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   }
 
   void _applyFiltersAndSort() {
-    // 1. Filter by Route Name/Driver Name and Status Dropdown
     List<dynamic> temp = _allSchedules.where((trip) {
       final routeName = (trip['route_name'] ?? '').toString().toLowerCase();
-      final driverName = (trip['driver_name'] ?? '').toString().toLowerCase();
-      final tripStatus = (trip['status'] ?? 'Scheduled').toString();
+      
+      // Safe processing extracting variables out from relational nested join models
+      final userAccount = trip['user_account'] as Map<String, dynamic>?;
+      final driverName = (userAccount != null ? userAccount['full_name'] ?? '' : '').toString().toLowerCase();
+      
+      final tripStatus = (trip['trip_status'] ?? 'Scheduled').toString();
 
       final matchesSearch = routeName.contains(_searchQuery.toLowerCase()) || 
                             driverName.contains(_searchQuery.toLowerCase());
@@ -92,21 +94,23 @@ class _AdminSchedulesState extends State<AdminSchedules> {
       return matchesSearch && matchesStatus;
     }).toList();
 
-    // 2. Sort chronologically by schedule time
+    // Sort chronologically using date and departure parameters combined context
     temp.sort((a, b) {
-      final timeA = DateTime.tryParse(a['scheduled_time']?.toString() ?? '') ?? DateTime.now();
-      final timeB = DateTime.tryParse(b['scheduled_time']?.toString() ?? '') ?? DateTime.now();
-      return timeA.compareTo(timeB);
+      final dateA = (a['schedule_date'] ?? '').toString();
+      final timeA = (a['departure_time'] ?? '').toString();
+      final dateB = (b['schedule_date'] ?? '').toString();
+      final timeB = (b['departure_time'] ?? '').toString();
+      
+      return "$dateA $timeA".compareTo("$dateB $timeB");
     });
 
     setState(() {
       _filteredSchedules = temp;
-      _currentPage = 0; // Reset page on filter mutation
+      _currentPage = 0; 
       _isLoading = false;
     });
   }
 
-  // --- Pagination Logic ---
   int get _totalPages => (_filteredSchedules.length / _itemsPerPage).ceil();
 
   List<dynamic> get _paginatedSchedules {
@@ -142,7 +146,6 @@ class _AdminSchedulesState extends State<AdminSchedules> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Components
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -159,7 +162,6 @@ class _AdminSchedulesState extends State<AdminSchedules> {
           ),
           const SizedBox(height: 24),
 
-          // Control and Filtering Ribbon
           Row(
             children: [
               Expanded(
@@ -210,7 +212,6 @@ class _AdminSchedulesState extends State<AdminSchedules> {
           ),
           const SizedBox(height: 24),
 
-          // Core Stream Section
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -229,18 +230,34 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                         itemCount: _paginatedSchedules.length,
                         itemBuilder: (context, index) {
                           final trip = _paginatedSchedules[index];
+                          
+                          // 🔒 Extract nested structural values mapping variables dynamically to your Postgres Schema rules
+                          final userAccount = trip['user_account'] as Map<String, dynamic>?;
+                          final vehicle = trip['vehicle'] as Map<String, dynamic>?;
+                          final oicProfile = trip['oic_profile'] as Map<String, dynamic>?;
+
+                          final String driver = userAccount != null ? (userAccount['full_name'] ?? 'No Assigned Driver') : 'No Assigned Driver';
+                          final String plate = vehicle != null ? (vehicle['plate_number'] ?? 'No Shuttle Linked') : 'No Shuttle Linked';
+                          final String type = vehicle != null ? (vehicle['bus_type'] ?? 'Standard Shuttle') : 'Standard Shuttle';
+                          final String company = oicProfile != null ? (oicProfile['company_name'] ?? 'GT LANTIN') : 'GT LANTIN';
+                          
+                          final String dateStr = trip['schedule_date'] ?? '';
+                          final String timeStr = trip['departure_time'] ?? 'TBD';
+                          final String deploymentTime = dateStr.isNotEmpty ? "$dateStr @ $timeStr" : timeStr;
+
                           return _buildTripCard(
                             routeName: trip['route_name'] ?? 'Unassigned Route',
-                            driverName: trip['driver_name'] ?? 'No Assigned Driver',
-                            vehiclePlate: trip['plate_number'] ?? 'No Shuttle Linked',
-                            timeString: trip['scheduled_time'] ?? 'TBD',
-                            status: trip['status'] ?? 'Scheduled',
+                            driverName: driver,
+                            vehiclePlate: plate,
+                            vehicleType: type,
+                            timeString: deploymentTime,
+                            status: trip['trip_status'] ?? 'Scheduled',
+                            companyName: company,
                           );
                         },
                       ),
           ),
 
-          // Pagination System Footnotes
           if (!_isLoading && _filteredSchedules.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 16),
@@ -278,8 +295,10 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     required String routeName,
     required String driverName,
     required String vehiclePlate,
+    required String vehicleType,
     required String timeString,
     required String status,
+    required String companyName,
   }) {
     final statusColor = _getStatusColor(status);
     return Container(
@@ -299,7 +318,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               Text(routeName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: statusColor.withAlpha(25), borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
                 child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ],
@@ -312,8 +331,9 @@ class _AdminSchedulesState extends State<AdminSchedules> {
             runSpacing: 12,
             children: [
               _cardIconText(Icons.person_outline, 'Driver: $driverName'),
-              _cardIconText(Icons.airport_shuttle_outlined, 'Shuttle: $vehiclePlate'),
+              _cardIconText(Icons.airport_shuttle_outlined, 'Shuttle: $vehiclePlate ($vehicleType)'),
               _cardIconText(Icons.access_time, 'Departure: $timeString'),
+              _cardIconText(Icons.business_outlined, 'Company: $companyName'),
             ],
           ),
         ],

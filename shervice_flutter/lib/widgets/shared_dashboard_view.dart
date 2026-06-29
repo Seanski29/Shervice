@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../models/dashboard_metric.dart';
-import '../models/maintenance_alert.dart';
-import '../models/company_trip_metric.dart';
+import '../../models/dashboard_metric.dart';
+import '../../models/maintenance_alert.dart';
+import '../../models/company_trip_metric.dart';
 
 class SharedDashboardView extends StatefulWidget {
   final Widget headerWidget;
@@ -67,10 +66,34 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           if (!mounted) return;
           setState(() {
             _metrics = [
-              DashboardMetric(title: 'Active Drivers', value: (metricsMap['totalDrivers'] ?? 0).toString(), subTitle: 'Registered profiles', icon: Icons.people, baseColor: Colors.blue),
-              DashboardMetric(title: 'Active Vehicles', value: (metricsMap['activeVehicles'] ?? 0).toString(), subTitle: 'Status: Good', icon: Icons.directions_car, baseColor: Colors.green),
-              DashboardMetric(title: 'Avg Punctuality', value: (metricsMap['averagePunctuality'] ?? 5.0).toString(), subTitle: 'Out of 5.0 rating', icon: Icons.star, baseColor: Colors.orange),
-              DashboardMetric(title: 'Maintenance Alerts', value: (metricsMap['maintenanceAlerts'] ?? 0).toString(), subTitle: 'Status: Maintenance', icon: Icons.warning_rounded, baseColor: Colors.red),
+              DashboardMetric(
+                title: 'Active Drivers', 
+                value: (metricsMap['totalDrivers'] ?? 0).toString(), 
+                subTitle: 'Registered profiles', 
+                icon: Icons.people, 
+                baseColor: Colors.blue
+              ),
+              DashboardMetric(
+                title: 'Active Vehicles', 
+                value: (metricsMap['activeVehicles'] ?? 0).toString(), 
+                subTitle: 'Ready for operation', 
+                icon: Icons.directions_car, 
+                baseColor: Colors.green
+              ),
+              DashboardMetric(
+                title: 'Avg Punctuality', 
+                value: (metricsMap['averagePunctuality'] ?? 5.0).toString(), 
+                subTitle: 'Out of 5.0 rating', 
+                icon: Icons.star, 
+                baseColor: Colors.orange
+              ),
+              DashboardMetric(
+                title: 'Maintenance Alerts', 
+                value: (metricsMap['maintenanceAlerts'] ?? 0).toString(), 
+                subTitle: 'Attention required', 
+                icon: Icons.warning_rounded, 
+                baseColor: Colors.red
+              ),
             ];
 
             _alerts = alertsList.map((log) => MaintenanceAlert.fromJson(log)).toList();
@@ -95,7 +118,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.blue)));
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: Colors.blue)),
+      );
     }
 
     return LayoutBuilder(
@@ -133,8 +158,15 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.red.shade100)),
-      child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade700, fontSize: 13, fontWeight: FontWeight.w500)),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50, 
+        borderRadius: BorderRadius.circular(8), 
+        border: Border.all(color: Colors.red.shade100),
+      ),
+      child: Text(
+        _errorMessage!, 
+        style: TextStyle(color: Colors.red.shade700, fontSize: 13, fontWeight: FontWeight.w500),
+      ),
     );
   }
 
@@ -145,15 +177,30 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       children: _metrics.map((m) => Container(
         width: width,
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+        decoration: BoxDecoration(
+          color: Colors.white, 
+          borderRadius: BorderRadius.circular(12), 
+          border: Border.all(color: Colors.grey.shade200),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(width: 120, child: Text(m.title, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600))),
-                Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: m.baseColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), child: Icon(m.icon, color: m.baseColor, size: 16)),
+                SizedBox(
+                  width: 120, 
+                  child: Text(
+                    m.title, 
+                    overflow: TextOverflow.ellipsis, 
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(6), 
+                  decoration: BoxDecoration(color: m.baseColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), 
+                  child: Icon(m.icon, color: m.baseColor, size: 16),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -169,30 +216,60 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   Widget _buildMaintenanceCard() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(12), 
+        border: Border.all(color: Colors.grey.shade200),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Recent Vehicle Maintenance Logs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-              Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(20)), child: const Text('Live Stream', style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold))),
+              const Text(
+                'Recent Vehicle Maintenance Logs', 
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), 
+                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(20)), 
+                child: const Text('Live Stream', style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
           const SizedBox(height: 20),
           _alerts.isEmpty
-              ? const Padding(padding: EdgeInsets.symmetric(vertical: 20.0), child: Center(child: Text("No active maintenance alerts logged.", style: TextStyle(color: Colors.grey, fontSize: 13))))
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20.0), 
+                  child: Center(child: Text("No active maintenance alerts logged.", style: TextStyle(color: Colors.grey, fontSize: 13))),
+                )
               : Column(
                   children: _alerts.map((log) => Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade100), borderRadius: BorderRadius.circular(8), color: Colors.grey.shade50),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade100), 
+                      borderRadius: BorderRadius.circular(8), 
+                      color: Colors.grey.shade50,
+                    ),
                     child: Row(
                       children: [
-                        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), child: const Icon(Icons.build_circle_outlined, color: Colors.red, size: 20)),
+                        Container(
+                          padding: const EdgeInsets.all(8), 
+                          decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), 
+                          child: const Icon(Icons.build_circle_outlined, color: Colors.red, size: 20),
+                        ),
                         const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(log.vehicleId, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), Text('Issue: ${log.description}', style: TextStyle(color: Colors.grey.shade600, fontSize: 11))])),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start, 
+                            children: [
+                              Text(log.vehicleId, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), 
+                              Text('Issue: ${log.description}', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   )).toList(),
@@ -205,14 +282,21 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   Widget _buildClientTripsCard() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(12), 
+        border: Border.all(color: Colors.grey.shade200),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('Weekly Passenger Trips by Client', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
           const SizedBox(height: 20),
           _companyTrips.isEmpty
-              ? Padding(padding: const EdgeInsets.symmetric(vertical: 24.0), child: Center(child: Text('No active client records retrieved.', style: TextStyle(color: Colors.grey.shade500, fontSize: 13))))
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24.0), 
+                  child: Center(child: Text('No active client records retrieved.', style: TextStyle(color: Colors.grey.shade500, fontSize: 13))),
+                )
               : ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -223,11 +307,36 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                     final color = _proceduralColorAssigner(index);
                     return Row(
                       children: [
-                        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), child: Icon(Icons.business, color: color, size: 20)),
+                        Container(
+                          padding: const EdgeInsets.all(8), 
+                          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)), 
+                          child: Icon(Icons.business, color: color, size: 20),
+                        ),
                         const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(item.companyName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), const SizedBox(height: 6), ClipRRect(borderRadius: BorderRadius.circular(2), child: LinearProgressIndicator(value: item.utilization, backgroundColor: Colors.grey.shade200, valueColor: AlwaysStoppedAnimation<Color>(color), minHeight: 4))])),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start, 
+                            children: [
+                              Text(item.companyName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), 
+                              const SizedBox(height: 6), 
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(2), 
+                                child: LinearProgressIndicator(
+                                  value: item.utilization, 
+                                  backgroundColor: Colors.grey.shade200, 
+                                  valueColor: AlwaysStoppedAnimation<Color>(color), 
+                                  minHeight: 4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(width: 16),
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(8)), child: Text('${item.tripCount} Trips', style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold, fontSize: 12))),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), 
+                          decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(8)), 
+                          child: Text('${item.tripCount} Trips', style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
                       ],
                     );
                   },
