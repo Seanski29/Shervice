@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../constant.dart';
 
 class DriverSchedules extends StatefulWidget {
   final String driverId; // Pass the logged-in driver's UUID
@@ -16,13 +17,6 @@ class _DriverSchedulesState extends State<DriverSchedules> {
   bool _isLoading = true;
   List<dynamic> _myTrips = [];
 
-  String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
-
   @override
   void initState() {
     super.initState();
@@ -33,7 +27,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
     try {
       // Fetch only the trips assigned to this specific driver
       final res = await http.get(
-        Uri.parse('$_backendUrl/schedules/driver/${widget.driverId}'),
+        Uri.parse('$backendUrl/schedules/driver/${widget.driverId}'),
       );
       if (res.statusCode == 200 && mounted) {
         setState(() {
@@ -50,7 +44,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
     try {
       final res = await http.post(
         Uri.parse(
-          '$_backendUrl/schedules/update-status',
+          '$backendUrl/schedules/update-status',
         ), // We will create this Python route next!
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({"trip_id": tripId, "status": newStatus}),

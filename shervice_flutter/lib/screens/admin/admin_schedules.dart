@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../constant.dart';
 
 class AdminSchedules extends StatefulWidget {
   const AdminSchedules({super.key});
@@ -12,19 +13,11 @@ class AdminSchedules extends StatefulWidget {
 }
 
 class _AdminSchedulesState extends State<AdminSchedules> {
-  // --- Network Routing Targeting Flask Admin Blueprint ---
-  String get _backendFetchUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api/trips';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api/trips'
-        : 'http://127.0.0.1:5000/api/trips';
-  }
-
   // --- State Variables ---
   bool _isLoading = true;
   List<dynamic> _allSchedules = [];
   List<dynamic> _filteredSchedules = [];
-  
+
   // Calendar State
   DateTime _selectedMonth = DateTime.now();
   DateTime? _selectedDate;
@@ -32,7 +25,13 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   // Filtering & Searching Metrics Configuration
   String _searchQuery = '';
   String _statusFilter = 'All';
-  final List<String> _statusOptions = ['All', 'Scheduled', 'In Progress', 'Completed', 'Cancelled'];
+  final List<String> _statusOptions = [
+    'All',
+    'Scheduled',
+    'In Progress',
+    'Completed',
+    'Cancelled',
+  ];
 
   @override
   void initState() {
@@ -43,14 +42,18 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   // --- Data Fetching & Processing (From Backend Code) ---
   Future<void> _fetchSchedulesFromDatabase() async {
     setState(() => _isLoading = true);
+
+    // Construct the URL using the constant + the specific route
+    final String url = '$backendUrl/trips';
+    debugPrint("🔍 Fetching from: $url");
+
     try {
       final response = await http
-          .get(Uri.parse(_backendFetchUrl))
+          .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
         if (data is List) {
           _allSchedules = data;
         } else if (data is Map && data.containsKey('trips')) {
@@ -61,7 +64,9 @@ class _AdminSchedulesState extends State<AdminSchedules> {
           _allSchedules = [];
         }
       } else {
-        debugPrint("⚠️ Server returned non-200 status code: ${response.statusCode}");
+        debugPrint(
+          "⚠️ Server returned non-200 status code: ${response.statusCode}",
+        );
         _allSchedules = [];
       }
     } catch (e) {
@@ -77,18 +82,23 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   void _applyFiltersAndSort() {
     List<dynamic> temp = _allSchedules.where((trip) {
       final routeName = (trip['route_name'] ?? '').toString().toLowerCase();
-      
+
       // Safe processing extracting variables out from relational nested join models
       final userAccount = trip['user_account'] as Map<String, dynamic>?;
-      final driverName = (userAccount != null ? userAccount['full_name'] ?? '' : '').toString().toLowerCase();
-      
+      final driverName =
+          (userAccount != null ? userAccount['full_name'] ?? '' : '')
+              .toString()
+              .toLowerCase();
+
       final tripStatus = (trip['trip_status'] ?? 'Scheduled').toString();
 
-      final matchesSearch = routeName.contains(_searchQuery.toLowerCase()) || 
-                            driverName.contains(_searchQuery.toLowerCase());
-      
-      final matchesStatus = _statusFilter == 'All' || 
-                            tripStatus.toLowerCase() == _statusFilter.toLowerCase();
+      final matchesSearch =
+          routeName.contains(_searchQuery.toLowerCase()) ||
+          driverName.contains(_searchQuery.toLowerCase());
+
+      final matchesStatus =
+          _statusFilter == 'All' ||
+          tripStatus.toLowerCase() == _statusFilter.toLowerCase();
 
       return matchesSearch && matchesStatus;
     }).toList();
@@ -99,7 +109,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
       final timeA = (a['departure_time'] ?? '').toString();
       final dateB = (b['schedule_date'] ?? '').toString();
       final timeB = (b['departure_time'] ?? '').toString();
-      
+
       return "$dateA $timeA".compareTo("$dateB $timeB");
     });
 
@@ -111,7 +121,8 @@ class _AdminSchedulesState extends State<AdminSchedules> {
 
   // --- Safely Extract Data for Calendar (Prevents RangeError) ---
   List<dynamic> _getTripsForDate(DateTime date) {
-    final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final dateStr =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     return _filteredSchedules.where((trip) {
       final tripDateRaw = (trip['schedule_date'] ?? '').toString();
       // Length safety check to prevent RangeError when substring(0,10) evaluates empty/short DB values
@@ -129,8 +140,19 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   }
 
   int get _totalTrips => _filteredSchedules.length;
-  int get _scheduledTrips => _filteredSchedules.where((t) => (t['trip_status'] ?? 'Scheduled').toString().toLowerCase() == 'scheduled').length;
-  int get _inProgressTrips => _filteredSchedules.where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'in progress').length;
+  int get _scheduledTrips => _filteredSchedules
+      .where(
+        (t) =>
+            (t['trip_status'] ?? 'Scheduled').toString().toLowerCase() ==
+            'scheduled',
+      )
+      .length;
+  int get _inProgressTrips => _filteredSchedules
+      .where(
+        (t) =>
+            (t['trip_status'] ?? '').toString().toLowerCase() == 'in progress',
+      )
+      .length;
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -148,7 +170,20 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   }
 
   String _monthYearFormat(DateTime date) {
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     return '${months[date.month - 1]} ${date.year}';
   }
 
@@ -173,7 +208,12 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               children: [
                 const Text(
                   'Trip Schedules',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.5,
+                  ),
                 ),
                 IconButton(
                   onPressed: _fetchSchedulesFromDatabase,
@@ -202,9 +242,18 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                       prefixIcon: const Icon(Icons.search, color: Colors.grey),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 0,
+                        horizontal: 16,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
                     ),
                   ),
                 ),
@@ -222,7 +271,10 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                       value: _statusFilter,
                       icon: const Icon(Icons.filter_alt_outlined),
                       items: _statusOptions.map((String value) {
-                        return DropdownMenuItem<String>(value: value, child: Text(value));
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
                       }).toList(),
                       onChanged: (newValue) {
                         if (newValue != null) {
@@ -259,15 +311,9 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    flex: 1,
-                    child: _buildCompactCalendarGrid(),
-                  ),
+                  Expanded(flex: 1, child: _buildCompactCalendarGrid()),
                   const SizedBox(width: 24),
-                  Expanded(
-                    flex: 2,
-                    child: _buildTripListView(),
-                  ),
+                  Expanded(flex: 2, child: _buildTripListView()),
                 ],
               ),
             const SizedBox(height: 24),
@@ -302,7 +348,10 @@ class _AdminSchedulesState extends State<AdminSchedules> {
             children: [
               Text(
                 _monthYearFormat(_selectedMonth),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Row(
                 children: [
@@ -310,14 +359,24 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                     icon: const Icon(Icons.chevron_left, size: 22),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1)),
+                    onPressed: () => setState(
+                      () => _selectedMonth = DateTime(
+                        _selectedMonth.year,
+                        _selectedMonth.month - 1,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 16),
                   IconButton(
                     icon: const Icon(Icons.chevron_right, size: 22),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1)),
+                    onPressed: () => setState(
+                      () => _selectedMonth = DateTime(
+                        _selectedMonth.year,
+                        _selectedMonth.month + 1,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -338,7 +397,13 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
-                  child: Text(day, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    day,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               );
             }).toList(),
@@ -360,23 +425,33 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               }
 
               final day = index - firstWeekday + 1;
-              final date = DateTime(_selectedMonth.year, _selectedMonth.month, day);
+              final date = DateTime(
+                _selectedMonth.year,
+                _selectedMonth.month,
+                day,
+              );
               final trips = _getTripsForDate(date);
               final hasTrips = trips.isNotEmpty;
-              final isSelected = _selectedDate?.year == date.year && 
-                                 _selectedDate?.month == date.month && 
-                                 _selectedDate?.day == date.day;
-              final isToday = DateTime.now().year == date.year && 
-                              DateTime.now().month == date.month && 
-                              DateTime.now().day == date.day;
+              final isSelected =
+                  _selectedDate?.year == date.year &&
+                  _selectedDate?.month == date.month &&
+                  _selectedDate?.day == date.day;
+              final isToday =
+                  DateTime.now().year == date.year &&
+                  DateTime.now().month == date.month &&
+                  DateTime.now().day == date.day;
 
               return GestureDetector(
                 onTap: () => setState(() => _selectedDate = date),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.blue.shade600 : (hasTrips ? Colors.blue.shade50 : Colors.white),
+                    color: isSelected
+                        ? Colors.blue.shade600
+                        : (hasTrips ? Colors.blue.shade50 : Colors.white),
                     border: Border.all(
-                      color: isToday ? Colors.orange.shade400 : Colors.grey.shade200,
+                      color: isToday
+                          ? Colors.orange.shade400
+                          : Colors.grey.shade200,
                       width: isToday ? 1.5 : 1,
                     ),
                     borderRadius: BorderRadius.circular(6),
@@ -386,8 +461,14 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                       day.toString(),
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? Colors.white : (hasTrips ? Colors.blue.shade700 : Colors.black87),
+                        fontWeight: isSelected || isToday
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                        color: isSelected
+                            ? Colors.white
+                            : (hasTrips
+                                  ? Colors.blue.shade700
+                                  : Colors.black87),
                       ),
                     ),
                   ),
@@ -416,33 +497,55 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey.shade300),
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: 48,
+                      color: Colors.grey.shade300,
+                    ),
                     const SizedBox(height: 16),
-                    Text('No trips scheduled.', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+                    Text(
+                      'No trips scheduled.',
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 16,
+                      ),
+                    ),
                   ],
                 ),
               ),
             )
           : ListView.builder(
-              shrinkWrap: true, // Prevents expanding infinitely inside scroll views
+              shrinkWrap:
+                  true, // Prevents expanding infinitely inside scroll views
               physics: const NeverScrollableScrollPhysics(),
               itemCount: displayedTrips.length,
               itemBuilder: (context, index) {
                 final trip = displayedTrips[index];
 
                 // 🔒 Extract nested structural values mapping variables dynamically to your Postgres Schema rules
-                final userAccount = trip['user_account'] as Map<String, dynamic>?;
+                final userAccount =
+                    trip['user_account'] as Map<String, dynamic>?;
                 final vehicle = trip['vehicle'] as Map<String, dynamic>?;
                 final oicProfile = trip['oic_profile'] as Map<String, dynamic>?;
 
-                final String driver = userAccount != null ? (userAccount['full_name'] ?? 'No Assigned Driver') : 'No Assigned Driver';
-                final String plate = vehicle != null ? (vehicle['plate_number'] ?? 'No Shuttle Linked') : 'No Shuttle Linked';
-                final String type = vehicle != null ? (vehicle['bus_type'] ?? 'Standard Shuttle') : 'Standard Shuttle';
-                final String company = oicProfile != null ? (oicProfile['company_name'] ?? 'GT LANTIN') : 'GT LANTIN';
-                
+                final String driver = userAccount != null
+                    ? (userAccount['full_name'] ?? 'No Assigned Driver')
+                    : 'No Assigned Driver';
+                final String plate = vehicle != null
+                    ? (vehicle['plate_number'] ?? 'No Shuttle Linked')
+                    : 'No Shuttle Linked';
+                final String type = vehicle != null
+                    ? (vehicle['bus_type'] ?? 'Standard Shuttle')
+                    : 'Standard Shuttle';
+                final String company = oicProfile != null
+                    ? (oicProfile['company_name'] ?? 'GT LANTIN')
+                    : 'GT LANTIN';
+
                 final String dateStr = trip['schedule_date'] ?? '';
                 final String timeStr = trip['departure_time'] ?? 'TBD';
-                final String deploymentTime = dateStr.isNotEmpty ? "$dateStr @ $timeStr" : timeStr;
+                final String deploymentTime = dateStr.isNotEmpty
+                    ? "$dateStr @ $timeStr"
+                    : timeStr;
 
                 return _buildTripCard(
                   routeName: trip['route_name'] ?? 'Unassigned Route',
@@ -473,8 +576,16 @@ class _AdminSchedulesState extends State<AdminSchedules> {
         runSpacing: 24,
         children: [
           _summaryStatCard('Total Trips', _totalTrips.toString(), Colors.blue),
-          _summaryStatCard('Scheduled', _scheduledTrips.toString(), Colors.green),
-          _summaryStatCard('In Progress', _inProgressTrips.toString(), Colors.orange),
+          _summaryStatCard(
+            'Scheduled',
+            _scheduledTrips.toString(),
+            Colors.green,
+          ),
+          _summaryStatCard(
+            'In Progress',
+            _inProgressTrips.toString(),
+            Colors.orange,
+          ),
         ],
       ),
     );
@@ -494,7 +605,11 @@ class _AdminSchedulesState extends State<AdminSchedules> {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey.shade700,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -525,17 +640,31 @@ class _AdminSchedulesState extends State<AdminSchedules> {
             children: [
               Expanded(
                 child: Text(
-                  routeName, 
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  routeName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Text(
-                  status.toUpperCase(), 
-                  style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -546,7 +675,10 @@ class _AdminSchedulesState extends State<AdminSchedules> {
             runSpacing: 12,
             children: [
               _cardIconText(Icons.person_outline, 'Driver: $driverName'),
-              _cardIconText(Icons.airport_shuttle_outlined, 'Shuttle: $vehiclePlate ($vehicleType)'),
+              _cardIconText(
+                Icons.airport_shuttle_outlined,
+                'Shuttle: $vehiclePlate ($vehicleType)',
+              ),
               _cardIconText(Icons.access_time, 'Departure: $timeString'),
               _cardIconText(Icons.business_outlined, 'Company: $companyName'),
             ],
@@ -563,8 +695,12 @@ class _AdminSchedulesState extends State<AdminSchedules> {
         Icon(icon, size: 16, color: Colors.grey.shade500),
         const SizedBox(width: 6),
         Text(
-          text, 
-          style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey.shade700, fontSize: 13)
+          text,
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: Colors.grey.shade700,
+            fontSize: 13,
+          ),
         ),
       ],
     );

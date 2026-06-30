@@ -5,92 +5,40 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
 
-class DriverProfile extends StatefulWidget {
-  final String driverName; // Injected on login from parent layouts
+class StaffSettings extends StatefulWidget {
+  final String staffId;
+  final String staffName;
+  final String companyName;
 
-  const DriverProfile({super.key, required this.driverName});
+  const StaffSettings({
+    super.key,
+    required this.staffId,
+    required this.staffName,
+    required this.companyName,
+  });
 
   @override
-  State<DriverProfile> createState() => _DriverProfileState();
+  State<StaffSettings> createState() => _StaffSettingsState();
 }
 
-class _DriverProfileState extends State<DriverProfile> {
+class _StaffSettingsState extends State<StaffSettings> {
   final _formKey = GlobalKey<FormState>();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
-  bool _isLoading = true;
   bool _isSaving = false;
-  Map<String, dynamic>? _profileData;
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchPersonalDriverProfile();
-  }
-
-  /// Queries the database using the logged-in name framework context
-  Future<void> _fetchPersonalDriverProfile() async {
-    try {
-      // Endpoint retrieves full record data by matching full_name text criteria
-      final response = await http
-          .get(Uri.parse('$backendUrl/test-db'))
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['connection_status'] == 'SUCCESS') {
-          final List<dynamic> profiles = data['sample_data_payload'] ?? [];
-
-          // Match the active profile in the dataset array
-          final matchingRow = profiles.firstWhere(
-            (p) =>
-                p['full_name'].toString().trim().toLowerCase() ==
-                widget.driverName.trim().toLowerCase(),
-            orElse: () => null,
-          );
-
-          setState(() {
-            _profileData = matchingRow;
-            _isLoading = false;
-          });
-          return;
-        }
-      }
-
-      setState(() => _isLoading = false);
-    } catch (e) {
-      debugPrint("❌ Profile loader intercept mismatch anomaly: $e");
-      setState(() => _isLoading = false);
-    }
-  }
-
-  /// Pushes password changes directly to the driver's local directory rows
-  /// Pushes password changes directly to the secure Supabase Auth Vault via Python
   Future<void> _updateAccountPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
 
     try {
-      final String targetUserId = _profileData?['user_id'] ?? '';
-
-      if (targetUserId.isEmpty) {
-        _showSnackBar(
-          "Profile sync failed. Cannot resolve user identity.",
-          Colors.red,
-        );
-        setState(() => _isSaving = false);
-        return;
-      }
-
-      // Pointing to the REAL authentication endpoint we just created
       final response = await http
           .post(
             Uri.parse('$backendUrl/auth/update-password'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
-              'user_id': targetUserId,
+              'user_id': widget.staffId,
               'new_password': _passwordController.text,
             }),
           )
@@ -99,10 +47,7 @@ class _DriverProfileState extends State<DriverProfile> {
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200 && responseData['success'] == true) {
-        _showSnackBar(
-          "Password updated securely in the cloud vault!",
-          Colors.green,
-        );
+        _showSnackBar("Password updated securely!", Colors.green);
         _passwordController.clear();
         _confirmPasswordController.clear();
       } else {
@@ -113,7 +58,6 @@ class _DriverProfileState extends State<DriverProfile> {
       }
     } catch (e) {
       _showSnackBar("Network error: Could not reach the server.", Colors.red);
-      debugPrint("Password update failed: $e");
     } finally {
       setState(() => _isSaving = false);
     }
@@ -138,15 +82,6 @@ class _DriverProfileState extends State<DriverProfile> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // Set fallback display data if database properties read empty or uninitialized
-    final license = _profileData?['license_no'] ?? 'N/A';
-    final hiredDate = _profileData?['date_hired'] ?? 'Not Recorded';
-    final status = _profileData?['employment_status'] ?? 'Active';
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SingleChildScrollView(
@@ -154,7 +89,7 @@ class _DriverProfileState extends State<DriverProfile> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Card Header Layout
+            // Profile Card Header
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -166,13 +101,13 @@ class _DriverProfileState extends State<DriverProfile> {
                 children: [
                   CircleAvatar(
                     radius: 36,
-                    backgroundColor: Colors.blue.shade50,
+                    backgroundColor: Colors.indigo.shade50,
                     child: Text(
-                      widget.driverName
-                          .substring(0, widget.driverName.contains(' ') ? 2 : 1)
-                          .toUpperCase(),
+                      widget.staffName.isNotEmpty
+                          ? widget.staffName[0].toUpperCase()
+                          : 'S',
                       style: TextStyle(
-                        color: Colors.blue.shade700,
+                        color: Colors.indigo.shade700,
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
@@ -184,7 +119,7 @@ class _DriverProfileState extends State<DriverProfile> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.driverName,
+                          widget.staffName,
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -198,13 +133,13 @@ class _DriverProfileState extends State<DriverProfile> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade50,
+                            color: Colors.indigo.shade50,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            status,
-                            style: const TextStyle(
-                              color: Colors.green,
+                            "Dispatch Staff",
+                            style: TextStyle(
+                              color: Colors.indigo.shade700,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -218,35 +153,7 @@ class _DriverProfileState extends State<DriverProfile> {
             ),
             const SizedBox(height: 24),
 
-            // Driver Information Block
-            const Text(
-              "OPERATIONAL RECORDS",
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                children: [
-                  _infoRow(Icons.card_membership, "License Number", license),
-                  const Divider(height: 24),
-                  _infoRow(Icons.calendar_today, "Date Hired", hiredDate),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Interactive Password Update Form Section
+            // Interactive Password Update Form
             const Text(
               "SECURITY & SETTINGS",
               style: TextStyle(
@@ -310,7 +217,7 @@ class _DriverProfileState extends State<DriverProfile> {
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _updateAccountPassword,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
+                          backgroundColor: Colors.indigo.shade600,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -335,33 +242,6 @@ class _DriverProfileState extends State<DriverProfile> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _infoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, color: Colors.grey.shade400),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF0F172A),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

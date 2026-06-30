@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../widgets/shared_drivers_view.dart';
 import '../../widgets/driver_form_dialog.dart';
 import '../../models/driver_profile_model.dart';
+import '../../constant.dart';
 
 class AdminDriver extends StatefulWidget {
   const AdminDriver({super.key});
@@ -15,15 +16,13 @@ class _AdminDriverState extends State<AdminDriver> {
   // Changing string seed forces an absolute UI state redraw on data operations
   String _refreshSeed = DateTime.now().millisecondsSinceEpoch.toString();
 
-  String get _backendUrl => 'http://127.0.0.1:5000/api';
-
   void _showDriverModal(BuildContext context, DriverProfileModel? driver) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => DriverFormDialog(
         driver: driver,
-        backendUrl: _backendUrl,
+        backendUrl: backendUrl,
         onDelete: () => _confirmPurgeDriver(context, driver!),
         onSuccess: () {
           _triggerInstantRefresh();
@@ -37,18 +36,27 @@ class _AdminDriverState extends State<AdminDriver> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirm Deletion'),
-        content: Text('Are you sure you want to permanently erase ${driver.name} from the fleet network?'),
+        content: Text(
+          'Are you sure you want to permanently erase ${driver.name} from the fleet network?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                final res = await http.delete(
-                  Uri.parse('$_backendUrl/auth/delete-driver/${driver.userId}'),
-                ).timeout(const Duration(seconds: 10));
-                
+                final res = await http
+                    .delete(
+                      Uri.parse(
+                        '$backendUrl/auth/delete-driver/${driver.userId}',
+                      ),
+                    )
+                    .timeout(const Duration(seconds: 10));
+
                 if (res.statusCode == 200) {
                   _triggerInstantRefresh();
                 }
@@ -56,8 +64,11 @@ class _AdminDriverState extends State<AdminDriver> {
                 debugPrint("❌ Failure purging account records: $e");
               }
             },
-            child: const Text('Delete permanently', style: TextStyle(color: Colors.white)),
-          )
+            child: const Text(
+              'Delete permanently',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
         ],
       ),
     );
@@ -80,7 +91,7 @@ class _AdminDriverState extends State<AdminDriver> {
         key: ValueKey('admin_drivers_list_$_refreshSeed'),
         canManage: true,
         onDriverTapped: (ctx, model) => _showDriverModal(ctx, model),
-        
+
         // FIX: Wrapped the header in a Wrap so the Title and "Add Driver" button
         // drop to the next line on narrow mobile screens instead of throwing an overflow error!
         customHeader: Wrap(
@@ -91,16 +102,32 @@ class _AdminDriverState extends State<AdminDriver> {
           children: [
             const Text(
               'Driver Management',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0F172A),
+                letterSpacing: -0.5,
+              ),
             ),
             ElevatedButton.icon(
               onPressed: () => _showDriverModal(context, null),
               icon: const Icon(Icons.person_add, color: Colors.white),
-              label: const Text('Add Driver', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Add Driver',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue.shade600,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
           ],
