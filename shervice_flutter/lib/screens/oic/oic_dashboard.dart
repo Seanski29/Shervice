@@ -537,6 +537,8 @@ class _OicDashboardState extends State<OicDashboard> {
       return status == 'scheduled';
     }).toList();
 
+    final selectedTripId = _selectedTrip?['trip_id'];
+
     Widget tripSelectionList = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -564,6 +566,7 @@ class _OicDashboardState extends State<OicDashboard> {
 
               final departure = _formatTimeString(trip['departure_time']);
               final arrival = _formatTimeString(trip['estimated_arrival_time']);
+              final isSelected = selectedTripId == trip['trip_id'];
 
               final isSelected = _selectedTrip?['trip_id'] == trip['trip_id'];
 
