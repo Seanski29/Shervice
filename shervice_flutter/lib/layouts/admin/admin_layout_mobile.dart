@@ -13,7 +13,9 @@ import '../../screens/admin/admin_feedbacks.dart';
 import '../../login/login.dart';
 
 class AdminMobileLayout extends StatefulWidget {
-  const AdminMobileLayout({super.key});
+  final String adminId; // ✅ Added adminId parameter
+
+  const AdminMobileLayout({super.key, required this.adminId});
 
   @override
   State<AdminMobileLayout> createState() => _AdminMobileLayoutState();
@@ -22,14 +24,15 @@ class AdminMobileLayout extends StatefulWidget {
 class _AdminMobileLayoutState extends State<AdminMobileLayout> {
   int _selectedIndex = 0;
 
-  // 7 Screens total
-  final List<Widget> _screens = [
+  // ✅ Changed to 'late final', added the adminId, and ADDED AdminFeedbacks to fix length mismatch!
+  late final List<Widget> _screens = [
     const AdminDashboard(),
     const AdminSchedules(),
     const AdminDriver(),
     const AdminFleet(),
     const AdminUsers(),
-    const AdminSettings(),
+    AdminSettings(adminId: widget.adminId), // ✅ Passed the ID to settings
+    const AdminFeedbacks(), // ✅ Added to match the 7 icons
   ];
 
   // Shortened Titles for Bottom Nav to prevent text from overflowing
