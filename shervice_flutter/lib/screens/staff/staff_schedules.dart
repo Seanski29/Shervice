@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../constant.dart';
 
 String _formatTimeRange(String? departureTime, String? etaTime) {
   final departure = departureTime?.toString().trim();
@@ -37,13 +38,6 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   String _statusFilter = 'All';
   final List<String> _statusOptions = ['All', 'Scheduled', 'Unassigned'];
 
-  String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
-
   @override
   void initState() {
     super.initState();
@@ -53,7 +47,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   Future<void> _fetchStaffDashboardData() async {
     try {
       final tripsResponse = await http.get(
-        Uri.parse('$_backendUrl/schedules/staff/${widget.staffId}'),
+        Uri.parse('$backendUrl/schedules/staff/${widget.staffId}'),
       );
 
       if (tripsResponse.statusCode == 200 && mounted) {
@@ -119,7 +113,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
       builder: (context) => TripDetailsDialog(
         date: date,
         trips: trips.isEmpty ? _getFilteredTrips() : trips,
-        backendUrl: _backendUrl,
+        backendUrl: backendUrl,
         onAssign: () {
           setState(() => _isLoading = true);
           _fetchStaffDashboardData();

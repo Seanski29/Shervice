@@ -113,8 +113,8 @@ def add_maintenance_log():
             "user_id": data.get('user_id')
         }
 
-        if not new_log["repair_date"] or not new_log["description"] or not new_log["vehicle_id"]:
-            return jsonify({"success": False, "message": "Missing required fields."}), 400
+        if not new_log["repair_date"] or not new_log["description"] or not new_log["vehicle_id"] or not new_log.get("user_id"):
+            return jsonify({"success": False, "message": "Missing required fields. user_id is required."}), 400
 
         # ✅ STEP 1: Purge any older maintenance records for this specific vehicle layout
         supabase.table('maintenance_log').delete().eq('vehicle_id', target_vehicle_id).execute()

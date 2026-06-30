@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../shared/vehicle_fleet_view.dart';
 
 class StaffVehicle extends StatefulWidget {
-  const StaffVehicle({super.key});
+  final String staffId;
+
+  const StaffVehicle({super.key, required this.staffId});
 
   @override
   State<StaffVehicle> createState() => _StaffVehicleState();
@@ -26,10 +28,15 @@ class _StaffVehicleState extends State<StaffVehicle> {
       body: VehicleFleetView(
         key: ValueKey('staff_fleet_list_$_refreshSeed'),
         userRole: 'staff',
+        userId: widget.staffId,
         onRefreshNeeded: _triggerInstantRefresh,
         customHeader: const Text(
           'Fleet Status Monitor',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0F172A),
+          ),
         ),
       ),
     );
