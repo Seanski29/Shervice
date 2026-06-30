@@ -34,7 +34,7 @@ def handle_api_login():
         # 1. Initialize variables before the 'if' checks
         role = "admin" 
         display_name = "System User"
-        company_str = "GT Lantin Internal" # Default value
+        company_str = "GT Lantin Internal"
 
         user_query = supabase.table('user_account').select('*').eq('user_id', user_uuid).execute()
         
@@ -55,7 +55,6 @@ def handle_api_login():
                 if driver_profile.data:
                     display_name = driver_profile.data[0].get('full_name', 'Driver')
 
-        # Now company_str is guaranteed to be defined
         return jsonify({
             "success": True,
             "data": {
@@ -85,7 +84,6 @@ def register_driver():
         })
         uid = auth_res.user.id
 
-        # SAVE NAME TO USER ACCOUNT
         supabase.table('user_account').insert({
             "user_id": uid, 
             "role": "driver", 
@@ -129,7 +127,6 @@ def register_staff_oic():
         })
         uid = auth_res.user.id
 
-        # SAVE NAME TO USER ACCOUNT
         supabase.table('user_account').insert({
             "user_id": uid,
             "role": normalized_role,
@@ -212,7 +209,6 @@ def update_driver(driver_id):
         data = request.get_json() or {}
         new_email = data.get("email", "").strip().lower()
         
-        # 1. Update the email directly inside the core Supabase Auth Vault
         if new_email:
             admin_supabase = get_admin_client()
             admin_supabase.auth.admin.update_user_by_id(
@@ -220,13 +216,11 @@ def update_driver(driver_id):
                 attributes={"email": new_email, "email_confirm": True}
             )
         
-        # 2. Sync full name and email inside your public user_account tracking folder
         supabase.table("user_account").update({
             "full_name": data.get("full_name"),
-            "username": new_email # Syncing login identifier
+            "username": new_email
         }).eq("user_id", driver_id).execute()
         
-        # 3. Sync profile operational descriptors
         supabase.table("driver_profile").update({
             "full_name": data.get("full_name"),
             "birthday": data.get("birthday"),
@@ -239,17 +233,14 @@ def update_driver(driver_id):
         print(f"❌ Driver Update Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
+
 # ─────────── ENDPOINT: PURGE DRIVER FROM SYSTEM ───────────
 @auth_bp.route('/api/auth/delete-driver/<driver_id>', methods=['DELETE'])
 def delete_driver(driver_id):
     try:
-        # Step 1: Wipe profile relations first to free foreign key constraints
         supabase.table("driver_profile").delete().eq("user_id", driver_id).execute()
-        
-        # Step 2: Wipe custom user account metadata tracking row
         supabase.table("user_account").delete().eq("user_id", driver_id).execute()
         
-        # Step 3: Now it is safe to completely clear the user out of Supabase GoTrue Auth
         admin_supabase = get_admin_client()
         admin_supabase.auth.admin.delete_user(driver_id)
         
@@ -257,79 +248,114 @@ def delete_driver(driver_id):
     except Exception as e:
         print(f"❌ Driver Delete Error: {e}")
         return jsonify({"success": False, "message": f"Server processing error: {str(e)}"}), 500
-    
+
+
+# ─────────── ENDPOINT: FACEBOOK LOGIN (strict lookup only) ───────────
 @auth_bp.route('/api/auth/facebook', methods=['POST'])
 def facebook_auth():
-    data = request.get_json()
-    email = data.get('email')
-    full_name = data.get('full_name')
-    
-    if not email:
-        return jsonify({"success": False, "message": "Facebook account has no email attached."}), 400
+    """
+    Called from login.dart when driver taps 'Continue with Facebook'.
+    Only succeeds if the driver has already linked their Facebook
+    from the driver profile page. Never creates a new account.
+    """
+    data = request.get_json() or {}
+    fb_email = str(data.get('email', '')).strip().lower()
+
+    if not fb_email:
+        return jsonify({
+            "success": False,
+            "message": "Facebook account has no email attached."
+        }), 400
 
     try:
-        # 1. Check if the user exists
-        existing_user = supabase.table('user_account').select('*').eq('username', email).execute()
-        
-        if existing_user.data:
-            # Login successful
-            account = existing_user.data[0]
-            role = account.get('role', 'driver')
-            
+        # Strict lookup by facebook_email column — never creates a new user
+        result = supabase.table('driver_profile') \
+            .select('user_id, full_name, facebook_email') \
+            .eq('facebook_email', fb_email) \
+            .execute()
+
+        if not result.data:
             return jsonify({
-                "success": True, 
-                "message": "Logged in via Facebook", 
-                "data": {
-                    "id": account['user_id'],
-                    "role": role,
-                    "name": account.get('full_name', full_name),
-                    "company": "GT Lantin Internal", 
-                    "token": "facebook-oauth-token-bypass" # Bypass standard token
-                }
-            }), 200
-            
-        else:
-            # 2. Driver doesn't exist. Create them dynamically.
-            # Create in auth vault with a random secure password
-            import secrets
-            import string
-            random_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for i in range(16))
-            
-            admin_client = get_admin_client()
-            auth_res = admin_client.auth.admin.create_user({
-                "email": email,
-                "password": random_password,
-                "email_confirm": True
-            })
-            uid = auth_res.user.id
+                "success": False,
+                "message": "No account is linked to this Facebook profile. "
+                           "Log in with your email and password first, "
+                           "then link Facebook from your profile page."
+            }), 404
 
-            # Save to user_account
-            supabase.table('user_account').insert({
-                "user_id": uid, 
-                "role": "driver", 
-                "username": email,
-                "full_name": full_name
-            }).execute()
+        profile = result.data[0]
+        user_id = profile.get('user_id')
+        display_name = profile.get('full_name', 'Driver')
 
-            # Save to driver_profile
-            supabase.table('driver_profile').insert({
-                "user_id": uid, 
-                "full_name": full_name, 
-                "employment_status": "Active"
-            }).execute()
+        # Pull role from user_account
+        account_query = supabase.table('user_account') \
+            .select('role, full_name') \
+            .eq('user_id', user_id) \
+            .execute()
 
-            return jsonify({
-                "success": True, 
-                "message": "Driver account created via Facebook", 
-                "data": {
-                    "id": uid,
-                    "role": "driver",
-                    "name": full_name,
-                    "company": "GT Lantin Internal",
-                    "token": "facebook-oauth-token-bypass"
-                }
-            }), 201
+        role = 'driver'
+        if account_query.data:
+            role = account_query.data[0].get('role', 'driver')
+            display_name = account_query.data[0].get('full_name') or display_name
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "user_id": user_id,
+                "id": user_id,
+                "role": role,
+                "name": display_name,
+                "full_name": display_name,
+                "company": "GT Lantin Internal",
+            }
+        }), 200
 
     except Exception as e:
-        print(f"❌ Facebook Auth Error: {e}")
+        print(f"❌ Facebook Login Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ─────────── ENDPOINT: LINK FACEBOOK TO EXISTING DRIVER ACCOUNT ───────────
+@auth_bp.route('/api/auth/link-facebook', methods=['POST'])
+def link_facebook():
+    """
+    Called from driver_profile.dart when a driver taps 'Link Account'.
+    Saves their Facebook email to driver_profile so future Facebook
+    logins on the login screen will work.
+    """
+    data = request.get_json() or {}
+    user_id = str(data.get('user_id', '')).strip()
+    facebook_email = str(data.get('facebook_email', '')).strip().lower()
+
+    if not user_id or not facebook_email:
+        return jsonify({
+            "success": False,
+            "message": "Missing user_id or facebook_email."
+        }), 400
+
+    try:
+        # Guard: reject if this Facebook email is already linked to a different driver
+        existing = supabase.table('driver_profile') \
+            .select('user_id') \
+            .eq('facebook_email', facebook_email) \
+            .execute()
+
+        if existing.data and existing.data[0].get('user_id') != user_id:
+            return jsonify({
+                "success": False,
+                "message": "This Facebook account is already linked to a different driver."
+            }), 409
+
+        # Save facebook_email to this driver's profile row
+        supabase.table('driver_profile') \
+            .update({'facebook_email': facebook_email}) \
+            .eq('user_id', user_id) \
+            .execute()
+
+        return jsonify({
+            "success": True,
+            "message": "Facebook account linked successfully."
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Facebook Link Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500

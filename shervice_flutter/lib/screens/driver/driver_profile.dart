@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
 
@@ -21,6 +22,7 @@ class _DriverProfileState extends State<DriverProfile> {
 
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isLinkingFacebook = false;
   Map<String, dynamic>? _profileData;
 
   @override
@@ -116,6 +118,70 @@ class _DriverProfileState extends State<DriverProfile> {
       debugPrint("Password update failed: $e");
     } finally {
       setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _linkFacebookAccount() async {
+    if (_profileData == null) {
+      _showSnackBar("Profile not loaded yet.", Colors.red);
+      return;
+    }
+
+    setState(() => _isLinkingFacebook = true);
+
+    try {
+      final LoginResult result = await FacebookAuth.instance.login(
+        permissions: ['email', 'public_profile'],
+      );
+
+      if (result.status == LoginStatus.success) {
+        final fbUser = await FacebookAuth.instance.getUserData(
+          fields: "name,email",
+        );
+        final String facebookEmail = (fbUser['email'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+
+        if (facebookEmail.isEmpty) {
+          _showSnackBar(
+            "Facebook did not return an email address.",
+            Colors.red,
+          );
+          return;
+        }
+
+        final response = await http.post(
+          Uri.parse('$backendUrl/auth/link-facebook'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'user_id': _profileData!['user_id'],
+            'facebook_email': facebookEmail,
+          }),
+        );
+
+        final responseData = jsonDecode(response.body);
+        if (response.statusCode == 200 && responseData['success'] == true) {
+          setState(() {
+            _profileData!['facebook_email'] = facebookEmail;
+          });
+          _showSnackBar("Facebook account linked successfully.", Colors.green);
+        } else {
+          _showSnackBar(
+            responseData['message'] ?? "Failed to link Facebook account.",
+            Colors.red,
+          );
+        }
+      } else if (result.status == LoginStatus.cancelled) {
+        _showSnackBar("Facebook linking cancelled.", Colors.orange);
+      } else {
+        _showSnackBar("Facebook login failed: ${result.message}", Colors.red);
+      }
+    } catch (e) {
+      _showSnackBar("Unable to link Facebook account. $e", Colors.red);
+      debugPrint("Facebook link error: $e");
+    } finally {
+      setState(() => _isLinkingFacebook = false);
     }
   }
 
@@ -219,11 +285,23 @@ class _DriverProfileState extends State<DriverProfile> {
             const SizedBox(height: 24),
 
             // Driver Information Block
-            const Text("OPERATIONAL RECORDS", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
+            const Text(
+              "OPERATIONAL RECORDS",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+                letterSpacing: 1,
+              ),
+            ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
               child: Column(
                 children: [
                   _infoRow(Icons.card_membership, "License Number", license),
@@ -235,34 +313,85 @@ class _DriverProfileState extends State<DriverProfile> {
             const SizedBox(height: 24),
 
             // Facebook Integration Block
-            const Text("SOCIAL INTEGRATION", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
+            const Text(
+              "SOCIAL INTEGRATION",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+                letterSpacing: 1,
+              ),
+            ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.blue.shade100, width: 2)),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.blue.shade100, width: 2),
+              ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFF1877F2).withValues(alpha: 0.1), shape: BoxShape.circle),
-                    child: const Icon(Icons.facebook, color: Color(0xFF1877F2), size: 32),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1877F2).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.facebook,
+                      color: Color(0xFF1877F2),
+                      size: 32,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Facebook Account", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        const Text(
+                          "Facebook Account",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text("Use Facebook to sign in instantly without typing your password.", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                        Text(
+                          _profileData?['facebook_email'] != null &&
+                                  _profileData!['facebook_email']
+                                      .toString()
+                                      .isNotEmpty
+                              ? "Linked to ${_profileData!['facebook_email']}"
+                              : "Use Facebook to sign in instantly without typing your password.",
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () => _showSnackBar("Log out and use 'Continue with Facebook' to link your account automatically.", Colors.blue.shade700),
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1877F2), elevation: 0),
-                    child: const Text("Link Account", style: TextStyle(color: Colors.white)),
-                  )
+                    onPressed: _isLinkingFacebook ? null : _linkFacebookAccount,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1877F2),
+                      elevation: 0,
+                    ),
+                    child: _isLinkingFacebook
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            "Link Account",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                  ),
                 ],
               ),
             ),
