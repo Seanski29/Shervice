@@ -883,7 +883,7 @@ class _OicDashboardState extends State<OicDashboard> {
       children: [
         Expanded(child: tripSelectionList),
         const SizedBox(width: 32),
-        Expanded(child: dispatchPanel),
+        Expanded(child: actionPanel),
       ],
     );
   }
