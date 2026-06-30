@@ -9,7 +9,7 @@ class OicSettings extends StatefulWidget {
   final String oicId;
   final String oicName;
   final String companyName;
-  final String? email; // Optional: Pass the real email if you have it!
+  final String? email;
 
   const OicSettings({
     super.key,

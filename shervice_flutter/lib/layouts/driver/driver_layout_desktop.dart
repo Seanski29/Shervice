@@ -28,7 +28,6 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
   List<Widget> get _screens => [
     DriverDashboard(driverName: widget.driverName),
     DriverSchedules(driverId: widget.driverId),
-    const DriverRatings(),
     DriverProfile(driverName: widget.driverName),
   ];
 
@@ -95,8 +94,7 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                     children: [
                       _buildSidebarItem(Icons.dashboard_outlined, 'Dashboard', 0),
                       _buildSidebarItem(Icons.calendar_month_outlined, 'My Schedule', 1),
-                      _buildSidebarItem(Icons.star_outline, 'Ratings & Metrics', 2),
-                      _buildSidebarItem(Icons.person_outline, 'Profile', 3),
+                      _buildSidebarItem(Icons.person_outline, 'Profile', 2),
                     ],
                   ),
                 ),

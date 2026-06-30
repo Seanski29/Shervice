@@ -28,11 +28,10 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
   List<Widget> get _screens => [
     DriverDashboard(driverName: widget.driverName),
     DriverSchedules(driverId: widget.driverId),
-    const DriverRatings(),
     DriverProfile(driverName: widget.driverName),
   ];
 
-  final List<String> _titles = ['Dashboard', 'Schedule', 'Ratings', 'Profile'];
+  final List<String> _titles = ['Dashboard', 'Schedule', 'Profile'];
   
   final List<IconData> _icons = [
     Icons.dashboard_outlined,
