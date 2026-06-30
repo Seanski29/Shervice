@@ -226,28 +226,50 @@ class _DriverProfileState extends State<DriverProfile> {
             const SizedBox(height: 24),
 
             // Driver Information Block
-            const Text(
-              "OPERATIONAL RECORDS",
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-                letterSpacing: 1,
-              ),
-            ),
+            const Text("OPERATIONAL RECORDS", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
               child: Column(
                 children: [
                   _infoRow(Icons.card_membership, "License Number", license),
                   const Divider(height: 24),
                   _infoRow(Icons.calendar_today, "Date Hired", hiredDate),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Facebook Integration Block
+            const Text("SOCIAL INTEGRATION", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.blue.shade100, width: 2)),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFF1877F2).withValues(alpha: 0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.facebook, color: Color(0xFF1877F2), size: 32),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("Facebook Account", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        const SizedBox(height: 4),
+                        Text("Use Facebook to sign in instantly without typing your password.", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => _showSnackBar("Log out and use 'Continue with Facebook' to link your account automatically.", Colors.blue.shade700),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1877F2), elevation: 0),
+                    child: const Text("Link Account", style: TextStyle(color: Colors.white)),
+                  )
                 ],
               ),
             ),

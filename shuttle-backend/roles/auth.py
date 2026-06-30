@@ -257,3 +257,79 @@ def delete_driver(driver_id):
     except Exception as e:
         print(f"❌ Driver Delete Error: {e}")
         return jsonify({"success": False, "message": f"Server processing error: {str(e)}"}), 500
+    
+@auth_bp.route('/api/auth/facebook', methods=['POST'])
+def facebook_auth():
+    data = request.get_json()
+    email = data.get('email')
+    full_name = data.get('full_name')
+    
+    if not email:
+        return jsonify({"success": False, "message": "Facebook account has no email attached."}), 400
+
+    try:
+        # 1. Check if the user exists
+        existing_user = supabase.table('user_account').select('*').eq('username', email).execute()
+        
+        if existing_user.data:
+            # Login successful
+            account = existing_user.data[0]
+            role = account.get('role', 'driver')
+            
+            return jsonify({
+                "success": True, 
+                "message": "Logged in via Facebook", 
+                "data": {
+                    "id": account['user_id'],
+                    "role": role,
+                    "name": account.get('full_name', full_name),
+                    "company": "GT Lantin Internal", 
+                    "token": "facebook-oauth-token-bypass" # Bypass standard token
+                }
+            }), 200
+            
+        else:
+            # 2. Driver doesn't exist. Create them dynamically.
+            # Create in auth vault with a random secure password
+            import secrets
+            import string
+            random_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for i in range(16))
+            
+            admin_client = get_admin_client()
+            auth_res = admin_client.auth.admin.create_user({
+                "email": email,
+                "password": random_password,
+                "email_confirm": True
+            })
+            uid = auth_res.user.id
+
+            # Save to user_account
+            supabase.table('user_account').insert({
+                "user_id": uid, 
+                "role": "driver", 
+                "username": email,
+                "full_name": full_name
+            }).execute()
+
+            # Save to driver_profile
+            supabase.table('driver_profile').insert({
+                "user_id": uid, 
+                "full_name": full_name, 
+                "employment_status": "Active"
+            }).execute()
+
+            return jsonify({
+                "success": True, 
+                "message": "Driver account created via Facebook", 
+                "data": {
+                    "id": uid,
+                    "role": "driver",
+                    "name": full_name,
+                    "company": "GT Lantin Internal",
+                    "token": "facebook-oauth-token-bypass"
+                }
+            }), 201
+
+    except Exception as e:
+        print(f"❌ Facebook Auth Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
