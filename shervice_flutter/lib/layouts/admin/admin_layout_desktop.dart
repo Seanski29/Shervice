@@ -1,25 +1,15 @@
 import 'package:flutter/material.dart';
-import '../screens/admin/admin_dashboard.dart';
-import '../screens/admin/admin_schedules.dart';
-import '../screens/admin/admin_drivers.dart';
-import '../screens/admin/admin_vehicles.dart';
-import '../screens/admin/admin_users.dart';
-import '../screens/admin/admin_settings.dart';
-import '../screens/admin/admin_feedbacks.dart';
-import '../login/login.dart';
+import '../../screens/admin/admin_dashboard.dart';
+import '../../screens/admin/admin_schedules.dart';
+import '../../screens/admin/admin_drivers.dart';
+import '../../screens/admin/admin_vehicles.dart';
+import '../../screens/admin/admin_users.dart';
+import '../../screens/admin/admin_settings.dart';
+import '../../screens/admin/admin_feedbacks.dart';
+import '../../login/login.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
-  // 👇 1. Declare the required variables
-  final String adminId;
-  final String adminName;
-  final String companyName;
-
-  const AdminDesktopLayout({
-    super.key,
-    required this.adminId, // 👈 Require them in the constructor
-    required this.adminName,
-    required this.companyName,
-  });
+  const AdminDesktopLayout({super.key});
 
   @override
   State<AdminDesktopLayout> createState() => _AdminDesktopLayoutState();
@@ -29,16 +19,13 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
 
-  // 👇 2. Convert from 'final List<Widget> _screens =' to a getter:
-  List<Widget> get _screens => [
+  final List<Widget> _screens = [
     const AdminDashboard(),
     const AdminSchedules(),
     const AdminDriver(),
     const AdminFleet(),
     const AdminUsers(),
-    AdminSettings(
-      adminId: widget.adminId,
-    ), // 👈 3. Now it successfully accesses widget.adminId!
+    const AdminSettings(),
     const AdminFeedbacks(),
   ];
 
@@ -62,47 +49,61 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
+                        // Perfectly circular logo container with white background
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          clipBehavior: Clip.antiAlias,
                           child: Image.asset(
-                            'logo.jpg',
-                            width: 40,
-                            height: 40,
+                            'assets/logo.jpg',
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 40,
-                                height: 40,
-                                color: Colors.white,
-                                child: const Icon(
+                              return const Center(
+                                child: Icon(
                                   Icons.directions_car,
-                                  color: Colors.green,
+                                  color: Colors.blue,
+                                  size: 24,
                                 ),
                               );
                             },
                           ),
                         ),
                         if (_isSidebarExpanded) ...[
-                          const SizedBox(width: 16),
-                          const Expanded(
+                          const SizedBox(width: 12),
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
-                                  'SHERVICE',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                                // White text logo image
+                                Image.asset(
+                                  'assets/shervice - white.jpg',
+                                  height: 25,
+                                  fit: BoxFit.contain,
+                                  alignment: Alignment.centerLeft,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Text(
+                                      'SHERVICE',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        letterSpacing: 1.0,
+                                      ),
+                                    );
+                                  },
                                 ),
-                                Text(
+                                const SizedBox(height: 4),
+                                const Text(
                                   'Admin Portal',
                                   style: TextStyle(
                                     color: Colors.white54,
                                     fontSize: 11,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -182,54 +183,8 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                           },
                         ),
                         const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade200),
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: const Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Colors.blue,
-                                child: Text(
-                                  'A',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Admin User',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      height: 1,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Admin',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                        const SlideInWelcomeWidget(role: 'Admin'),
+                        const SizedBox(width: 16),
                       ],
                     ),
                   ),
@@ -272,7 +227,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                 actions: [
                   TextButton(
                     onPressed: () {
-                      Navigator.pop(dialogContext); // Closes the alert dialog
+                      Navigator.pop(dialogContext);
                     },
                     child: const Text(
                       'Cancel',
@@ -281,11 +236,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(
-                        dialogContext,
-                      ); // Closes the alert dialog first
-
-                      // Routes back to the login screen and clears the navigation history
+                      Navigator.pop(dialogContext);
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
@@ -348,6 +299,77 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// ANIMATED WELCOME WIDGET
+// ============================================================================
+class SlideInWelcomeWidget extends StatefulWidget {
+  final String role;
+  const SlideInWelcomeWidget({super.key, required this.role});
+
+  @override
+  State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
+}
+
+class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _offsetAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(1.5, 0.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
+
+    _controller.forward().then((_) {
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) _controller.reverse();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _offsetAnimation,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          border: Border.all(color: Colors.green.shade200),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Welcome, ${widget.role}!',
+              style: TextStyle(
+                color: Colors.green.shade800,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
