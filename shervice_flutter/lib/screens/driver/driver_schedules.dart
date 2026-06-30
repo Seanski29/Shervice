@@ -18,7 +18,11 @@ class _DriverSchedulesState extends State<DriverSchedules> {
   bool _isLoading = true;
   List<dynamic> _myTrips = [];
   String _currentSort = 'Date (Newest)';
-  final List<String> _sortOptions = ['Date (Newest)', 'Date (Oldest)', 'Status'];
+  final List<String> _sortOptions = [
+    'Date (Newest)',
+    'Date (Oldest)',
+    'Status',
+  ];
   int _currentPage = 0;
   final int _itemsPerPage = 3;
   DateTime _calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
@@ -109,7 +113,9 @@ class _DriverSchedulesState extends State<DriverSchedules> {
         case 'Date (Oldest)':
           return (dateA ?? DateTime(2100)).compareTo(dateB ?? DateTime(2100));
         case 'Status':
-          return ((a['trip_status'] ?? '').toString()).compareTo((b['trip_status'] ?? '').toString());
+          return ((a['trip_status'] ?? '').toString()).compareTo(
+            (b['trip_status'] ?? '').toString(),
+          );
         case 'Date (Newest)':
         default:
           return (dateB ?? DateTime(0)).compareTo(dateA ?? DateTime(0));
@@ -141,7 +147,8 @@ class _DriverSchedulesState extends State<DriverSchedules> {
 
   void _onDateSelected(DateTime date) {
     setState(() {
-      _selectedDate = _selectedDate != null &&
+      _selectedDate =
+          _selectedDate != null &&
               _selectedDate!.year == date.year &&
               _selectedDate!.month == date.month &&
               _selectedDate!.day == date.day
@@ -153,7 +160,10 @@ class _DriverSchedulesState extends State<DriverSchedules> {
 
   void _changeMonth(int delta) {
     setState(() {
-      _calendarMonth = DateTime(_calendarMonth.year, _calendarMonth.month + delta);
+      _calendarMonth = DateTime(
+        _calendarMonth.year,
+        _calendarMonth.month + delta,
+      );
     });
   }
 
@@ -204,7 +214,10 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                             color: Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.calendar_today, color: Colors.blue),
+                          child: const Icon(
+                            Icons.calendar_today,
+                            color: Colors.blue,
+                          ),
                         ),
                       ],
                     ),
@@ -240,14 +253,21 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.green.shade50,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.route, size: 16, color: Colors.green.shade700),
+                                Icon(
+                                  Icons.route,
+                                  size: 16,
+                                  color: Colors.green.shade700,
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Live status',
@@ -274,7 +294,9 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                               fillColor: Colors.white,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
+                                borderSide: BorderSide(
+                                  color: Colors.grey.shade300,
+                                ),
                               ),
                             ),
                             items: _sortOptions.map((option) {
@@ -323,7 +345,9 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                         ),
                       )
                     else ...[
-                      ..._paginatedTrips.map((trip) => _buildScheduleCard(trip)),
+                      ..._paginatedTrips.map(
+                        (trip) => _buildScheduleCard(trip),
+                      ),
                       if (_totalPages > 1) ...[
                         const SizedBox(height: 16),
                         _buildPaginationBar(),
@@ -355,14 +379,21 @@ class _DriverSchedulesState extends State<DriverSchedules> {
             ),
           ),
           OutlinedButton(
-            onPressed: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
+            onPressed: _currentPage > 0
+                ? () => _goToPage(_currentPage - 1)
+                : null,
             child: const Text('Previous'),
           ),
           const SizedBox(width: 8),
-          Text('Page ${_currentPage + 1} of $_totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            'Page ${_currentPage + 1} of $_totalPages',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(width: 8),
           OutlinedButton(
-            onPressed: _currentPage < _totalPages - 1 ? () => _goToPage(_currentPage + 1) : null,
+            onPressed: _currentPage < _totalPages - 1
+                ? () => _goToPage(_currentPage + 1)
+                : null,
             child: const Text('Next'),
           ),
         ],
@@ -374,11 +405,18 @@ class _DriverSchedulesState extends State<DriverSchedules> {
     final tripDates = _myTrips
         .map((trip) => _parseTripDate(trip['schedule_date']?.toString()))
         .whereType<DateTime>()
-        .map((date) => '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}')
+        .map(
+          (date) =>
+              '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+        )
         .toSet();
 
     final firstDay = DateTime(_calendarMonth.year, _calendarMonth.month, 1);
-    final daysInMonth = DateTime(_calendarMonth.year, _calendarMonth.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      _calendarMonth.year,
+      _calendarMonth.month + 1,
+      0,
+    ).day;
     final firstWeekday = firstDay.weekday % 7;
 
     return Container(
@@ -395,7 +433,10 @@ class _DriverSchedulesState extends State<DriverSchedules> {
               Expanded(
                 child: Text(
                   '${_calendarMonth.monthName} ${_calendarMonth.year}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               IconButton(
@@ -417,14 +458,30 @@ class _DriverSchedulesState extends State<DriverSchedules> {
             mainAxisSpacing: 6,
             crossAxisSpacing: 6,
             children: [
-              ...['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => Center(child: Text(day, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade600)))),
+              ...['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(
+                (day) => Center(
+                  child: Text(
+                    day,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              ),
               ...List.generate(firstWeekday, (_) => const SizedBox()),
               ...List.generate(daysInMonth, (index) {
                 final day = index + 1;
-                final date = DateTime(_calendarMonth.year, _calendarMonth.month, day);
-                final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                final date = DateTime(
+                  _calendarMonth.year,
+                  _calendarMonth.month,
+                  day,
+                );
+                final key =
+                    '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
                 final hasTrip = tripDates.contains(key);
-                final isSelected = _selectedDate != null &&
+                final isSelected =
+                    _selectedDate != null &&
                     _selectedDate!.year == date.year &&
                     _selectedDate!.month == date.month &&
                     _selectedDate!.day == date.day;
@@ -435,10 +492,14 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? Colors.blue.shade600
-                          : (hasTrip ? Colors.blue.shade50 : Colors.transparent),
+                          : (hasTrip
+                                ? Colors.blue.shade50
+                                : Colors.transparent),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isSelected ? Colors.blue.shade600 : Colors.grey.shade200,
+                        color: isSelected
+                            ? Colors.blue.shade600
+                            : Colors.grey.shade200,
                       ),
                     ),
                     child: Center(
@@ -446,7 +507,9 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                         '$day',
                         style: TextStyle(
                           color: isSelected ? Colors.white : Colors.black87,
-                          fontWeight: hasTrip ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: hasTrip
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -460,7 +523,10 @@ class _DriverSchedulesState extends State<DriverSchedules> {
             children: [
               Icon(Icons.circle, size: 10, color: Colors.blue.shade100),
               const SizedBox(width: 6),
-              const Text('Days with assigned trips', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text(
+                'Days with assigned trips',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
             ],
           ),
         ],
@@ -498,11 +564,17 @@ class _DriverSchedulesState extends State<DriverSchedules> {
               Expanded(
                 child: Text(
                   trip['schedule_date']?.toString() ?? 'No date',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: bgColor,
                   borderRadius: BorderRadius.circular(8),
@@ -526,14 +598,17 @@ class _DriverSchedulesState extends State<DriverSchedules> {
               Expanded(
                 child: Text(
                   trip['route_name']?.toString() ?? 'Route',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            'Departure: ${trip['departure_time'] ?? 'Not available'}',
+            'Time: ${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'}-${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}',
             style: TextStyle(color: Colors.grey.shade600),
           ),
           if (status == 'Scheduled') ...[
@@ -542,8 +617,15 @@ class _DriverSchedulesState extends State<DriverSchedules> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => _updateTripStatus(trip['trip_id'], 'Ongoing'),
-                icon: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
-                label: const Text('Start Trip', style: TextStyle(color: Colors.white)),
+                icon: const Icon(
+                  Icons.play_arrow,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                label: const Text(
+                  'Start Trip',
+                  style: TextStyle(color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade600,
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -555,9 +637,17 @@ class _DriverSchedulesState extends State<DriverSchedules> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => _updateTripStatus(trip['trip_id'], 'Completed'),
-                icon: const Icon(Icons.check_circle, color: Colors.white, size: 18),
-                label: const Text('Finish Trip', style: TextStyle(color: Colors.white)),
+                onPressed: () =>
+                    _updateTripStatus(trip['trip_id'], 'Completed'),
+                icon: const Icon(
+                  Icons.check_circle,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                label: const Text(
+                  'Finish Trip',
+                  style: TextStyle(color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green.shade600,
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -585,7 +675,7 @@ extension on DateTime {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     return names[month - 1];
   }

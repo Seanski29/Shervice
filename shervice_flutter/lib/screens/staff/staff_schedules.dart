@@ -4,6 +4,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+String _formatTimeRange(String? departureTime, String? etaTime) {
+  final departure = departureTime?.toString().trim();
+  final eta = etaTime?.toString().trim();
+
+  final formattedDeparture = departure != null && departure.isNotEmpty
+      ? (departure.length >= 5 ? departure.substring(0, 5) : departure)
+      : '--:--';
+  final formattedEta = eta != null && eta.isNotEmpty
+      ? (eta.length >= 5 ? eta.substring(0, 5) : eta)
+      : '--:--';
+
+  return '$formattedDeparture-$formattedEta';
+}
+
 class StaffSchedules extends StatefulWidget {
   final String staffId;
   const StaffSchedules({super.key, required this.staffId});
@@ -17,7 +31,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   List<dynamic> _assignedTrips = [];
   DateTime _selectedMonth = DateTime.now();
   DateTime? _selectedDate;
-  
+
   // Search and filtering
   String _searchQuery = '';
   String _statusFilter = 'All';
@@ -55,29 +69,33 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   }
 
   List<dynamic> _getTripsForDate(DateTime date) {
-    final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    return _assignedTrips.where((trip) => trip['schedule_date'] == dateStr).toList();
+    final dateStr =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    return _assignedTrips
+        .where((trip) => trip['schedule_date'] == dateStr)
+        .toList();
   }
 
   List<dynamic> _getFilteredTrips() {
-    List<dynamic> trips = _selectedDate != null 
+    List<dynamic> trips = _selectedDate != null
         ? _getTripsForDate(_selectedDate!)
         : _assignedTrips;
-    
+
     // Apply search filter
     if (_searchQuery.isNotEmpty) {
       trips = trips.where((trip) {
         final routeName = (trip['route_name'] ?? '').toString().toLowerCase();
         final driverName = (trip['driver_name'] ?? '').toString().toLowerCase();
-        return routeName.contains(_searchQuery.toLowerCase()) || 
-               driverName.contains(_searchQuery.toLowerCase());
+        return routeName.contains(_searchQuery.toLowerCase()) ||
+            driverName.contains(_searchQuery.toLowerCase());
       }).toList();
     }
 
     // Apply status filter
     if (_statusFilter != 'All') {
       trips = trips.where((trip) {
-        final isScheduled = trip['user_id'] != null && trip['vehicle_id'] != null;
+        final isScheduled =
+            trip['user_id'] != null && trip['vehicle_id'] != null;
         if (_statusFilter == 'Scheduled') return isScheduled;
         if (_statusFilter == 'Unassigned') return !isScheduled;
         return true;
@@ -88,8 +106,12 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   }
 
   int get _totalTrips => _assignedTrips.length;
-  int get _scheduledTrips => _assignedTrips.where((t) => t['user_id'] != null && t['vehicle_id'] != null).length;
-  int get _unassignedTrips => _assignedTrips.where((t) => t['user_id'] == null || t['vehicle_id'] == null).length;
+  int get _scheduledTrips => _assignedTrips
+      .where((t) => t['user_id'] != null && t['vehicle_id'] != null)
+      .length;
+  int get _unassignedTrips => _assignedTrips
+      .where((t) => t['user_id'] == null || t['vehicle_id'] == null)
+      .length;
 
   void _showTripDetailsModal(DateTime date, List<dynamic> trips) {
     showDialog(
@@ -142,7 +164,8 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   Expanded(
                     flex: 2,
                     child: TextField(
-                      onChanged: (value) => setState(() => _searchQuery = value),
+                      onChanged: (value) =>
+                          setState(() => _searchQuery = value),
                       decoration: InputDecoration(
                         hintText: 'Search routes or drivers...',
                         prefixIcon: const Icon(Icons.search),
@@ -173,7 +196,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                         value: _statusFilter,
                         icon: const Icon(Icons.filter_alt_outlined),
                         items: _statusOptions.map((String value) {
-                          return DropdownMenuItem<String>(value: value, child: Text(value));
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
                         }).toList(),
                         onChanged: (newValue) {
                           if (newValue != null) {
@@ -194,16 +220,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Compact Calendar
-                    Expanded(
-                      flex: 1,
-                      child: _buildCompactCalendarGrid(),
-                    ),
+                    Expanded(flex: 1, child: _buildCompactCalendarGrid()),
                     const SizedBox(width: 24),
                     // Trip List
-                    Expanded(
-                      flex: 2,
-                      child: _buildTripListView(),
-                    ),
+                    Expanded(flex: 2, child: _buildTripListView()),
                   ],
                 ),
               const SizedBox(height: 24),
@@ -239,7 +259,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
             children: [
               Text(
                 _monthYearFormat(_selectedMonth),
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Row(
                 children: [
@@ -247,13 +270,23 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                     icon: const Icon(Icons.chevron_left, size: 20),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1)),
+                    onPressed: () => setState(
+                      () => _selectedMonth = DateTime(
+                        _selectedMonth.year,
+                        _selectedMonth.month - 1,
+                      ),
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right, size: 20),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1)),
+                    onPressed: () => setState(
+                      () => _selectedMonth = DateTime(
+                        _selectedMonth.year,
+                        _selectedMonth.month + 1,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -274,7 +307,13 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Center(
-                  child: Text(day, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    day,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               );
             }).toList(),
@@ -296,23 +335,33 @@ class _StaffSchedulesState extends State<StaffSchedules> {
               }
 
               final day = index - firstWeekday + 1;
-              final date = DateTime(_selectedMonth.year, _selectedMonth.month, day);
+              final date = DateTime(
+                _selectedMonth.year,
+                _selectedMonth.month,
+                day,
+              );
               final trips = _getTripsForDate(date);
               final hasTrips = trips.isNotEmpty;
-              final isSelected = _selectedDate?.year == date.year && 
-                                 _selectedDate?.month == date.month && 
-                                 _selectedDate?.day == date.day;
-              final isToday = DateTime.now().year == date.year && 
-                              DateTime.now().month == date.month && 
-                              DateTime.now().day == date.day;
+              final isSelected =
+                  _selectedDate?.year == date.year &&
+                  _selectedDate?.month == date.month &&
+                  _selectedDate?.day == date.day;
+              final isToday =
+                  DateTime.now().year == date.year &&
+                  DateTime.now().month == date.month &&
+                  DateTime.now().day == date.day;
 
               return GestureDetector(
                 onTap: () => setState(() => _selectedDate = date),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.blue.shade600 : (hasTrips ? Colors.blue.shade50 : Colors.white),
+                    color: isSelected
+                        ? Colors.blue.shade600
+                        : (hasTrips ? Colors.blue.shade50 : Colors.white),
                     border: Border.all(
-                      color: isToday ? Colors.orange.shade400 : Colors.grey.shade200,
+                      color: isToday
+                          ? Colors.orange.shade400
+                          : Colors.grey.shade200,
                       width: isToday ? 1.5 : 1,
                     ),
                     borderRadius: BorderRadius.circular(4),
@@ -323,7 +372,9 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? Colors.white : (hasTrips ? Colors.blue.shade700 : Colors.black),
+                        color: isSelected
+                            ? Colors.white
+                            : (hasTrips ? Colors.blue.shade700 : Colors.black),
                       ),
                     ),
                   ),
@@ -351,9 +402,16 @@ class _StaffSchedulesState extends State<StaffSchedules> {
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey.shade400),
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: 48,
+                      color: Colors.grey.shade400,
+                    ),
                     const SizedBox(height: 12),
-                    Text('No trips scheduled.', style: TextStyle(color: Colors.grey.shade600)),
+                    Text(
+                      'No trips scheduled.',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
                   ],
                 ),
               ),
@@ -365,9 +423,15 @@ class _StaffSchedulesState extends State<StaffSchedules> {
               separatorBuilder: (c, i) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final trip = filteredTrips[i];
-                final bool needsAssignment = trip['user_id'] == null || trip['vehicle_id'] == null;
-                final time = trip['departure_time'].toString().substring(0, 5);
-                final statusColor = needsAssignment ? Colors.orange : Colors.green;
+                final bool needsAssignment =
+                    trip['user_id'] == null || trip['vehicle_id'] == null;
+                final time = _formatTimeRange(
+                  trip['departure_time'],
+                  trip['estimated_arrival_time'],
+                );
+                final statusColor = needsAssignment
+                    ? Colors.orange
+                    : Colors.green;
 
                 return Padding(
                   padding: const EdgeInsets.all(16),
@@ -380,18 +444,28 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                           Expanded(
                             child: Text(
                               trip['route_name'] ?? 'Unspecified Route',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: statusColor.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               needsAssignment ? 'Unassigned' : 'Scheduled',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: statusColor,
+                              ),
                             ),
                           ),
                         ],
@@ -413,9 +487,20 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: () => _showTripDetailsModal(DateTime.now(), [trip]),
-                            icon: const Icon(Icons.assignment_ind, size: 16, color: Colors.white),
-                            label: const Text('Assign Assets', style: TextStyle(color: Colors.white, fontSize: 12)),
+                            onPressed: () =>
+                                _showTripDetailsModal(DateTime.now(), [trip]),
+                            icon: const Icon(
+                              Icons.assignment_ind,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              'Assign Assets',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange.shade700,
                               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -441,9 +526,15 @@ class _StaffSchedulesState extends State<StaffSchedules> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+          ),
           const SizedBox(width: 4),
-          Text(value, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
@@ -461,8 +552,16 @@ class _StaffSchedulesState extends State<StaffSchedules> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _summaryStatCard('Total Trips', _totalTrips.toString(), Colors.blue),
-          _summaryStatCard('Scheduled', _scheduledTrips.toString(), Colors.green),
-          _summaryStatCard('Unassigned', _unassignedTrips.toString(), Colors.orange),
+          _summaryStatCard(
+            'Scheduled',
+            _scheduledTrips.toString(),
+            Colors.green,
+          ),
+          _summaryStatCard(
+            'Unassigned',
+            _unassignedTrips.toString(),
+            Colors.orange,
+          ),
         ],
       ),
     );
@@ -489,7 +588,20 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   }
 
   String _monthYearFormat(DateTime date) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[date.month - 1]} ${date.year}';
   }
 }
@@ -534,7 +646,10 @@ class _TripDetailsDialogState extends State<TripDetailsDialog> {
                     children: [
                       Text(
                         'Scheduled Trips - ${_formatDate(widget.date)}',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close),
@@ -551,7 +666,9 @@ class _TripDetailsDialogState extends State<TripDetailsDialog> {
                   else
                     Column(
                       children: widget.trips.map((trip) {
-                        final bool needsAssignment = trip['user_id'] == null || trip['vehicle_id'] == null;
+                        final bool needsAssignment =
+                            trip['user_id'] == null ||
+                            trip['vehicle_id'] == null;
                         return TripCard(
                           trip: trip,
                           backendUrl: widget.backendUrl,
@@ -570,7 +687,20 @@ class _TripDetailsDialogState extends State<TripDetailsDialog> {
   }
 
   String _formatDate(DateTime date) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }
@@ -599,7 +729,9 @@ class TripCard extends StatelessWidget {
         color: needsAssignment ? Colors.orange.shade50 : Colors.green.shade50,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: needsAssignment ? Colors.orange.shade200 : Colors.green.shade200,
+          color: needsAssignment
+              ? Colors.orange.shade200
+              : Colors.green.shade200,
         ),
       ),
       child: Column(
@@ -611,24 +743,40 @@ class TripCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   trip['route_name'] ?? 'Unspecified Route',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: needsAssignment ? Colors.orange : Colors.green,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   needsAssignment ? 'Unassigned' : 'Scheduled',
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          _buildInfoRow('Departure Time', trip['departure_time'].toString().substring(0, 5)),
+          _buildInfoRow(
+            'Time',
+            _formatTimeRange(
+              trip['departure_time'],
+              trip['estimated_arrival_time'],
+            ),
+          ),
           const SizedBox(height: 8),
           _buildInfoRow('Route', trip['route_name'] ?? 'N/A'),
           if (trip['driver_name'] != null) ...[
@@ -648,9 +796,18 @@ class TripCard extends StatelessWidget {
                   Navigator.pop(context);
                   _showAssignModal(context);
                 },
-                icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 18),
-                label: const Text('Assign Assets', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700),
+                icon: const Icon(
+                  Icons.assignment_ind,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                label: const Text(
+                  'Assign Assets',
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade700,
+                ),
               ),
             ),
           ],
@@ -663,8 +820,14 @@ class TripCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
       ],
     );
   }

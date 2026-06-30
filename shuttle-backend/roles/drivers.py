@@ -45,6 +45,7 @@ def get_driver_active_trip(driver_name):
             'status': trip.get('trip_status', 'Scheduled').upper(),
             'route_name': trip.get('route_name', 'Route Unassigned'),
             'departure_time': str(trip.get('departure_time'))[:5] if trip.get('departure_time') else '--:--',
+            'estimated_arrival_time': str(trip.get('estimated_arrival_time'))[:5] if trip.get('estimated_arrival_time') else '--:--',
             'passenger_count': trip.get('passenger_count', 0),
             'route_distance': trip.get('route_distance', 0.0),
             # Vehicle Mappings
