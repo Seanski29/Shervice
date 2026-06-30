@@ -80,7 +80,11 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return const Center(
-                    child: Icon(Icons.directions_car, color: Colors.blue, size: 18),
+                    child: Icon(
+                      Icons.directions_car,
+                      color: Colors.blue,
+                      size: 18,
+                    ),
                   );
                 },
               ),
@@ -89,13 +93,13 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             // White text logo image
             Image.asset(
               'assets/shervice - white.jpg',
-              height: 25, 
-              fit: BoxFit.contain, 
+              height: 25,
+              fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
                 return const Text(
                   'SHERVICE',
                   style: TextStyle(
-                    color: Colors.white, 
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     letterSpacing: 1.0,
@@ -113,7 +117,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
           const SizedBox(width: 4),
         ],
       ),
-      
+
       // FIX: Added Padding inside SafeArea to fix pagination elements from being crushed at the bottom
       body: SafeArea(
         child: Padding(
@@ -121,7 +125,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
           child: _screens[_selectedIndex],
         ),
       ),
-      
+
       // FIX: Custom horizontally scrollable Bottom Navigation Bar to prevent yellow/black tapes!
       bottomNavigationBar: _buildCustomBottomNav(),
     );
@@ -137,8 +141,8 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
-          )
-        ]
+          ),
+        ],
       ),
       child: SafeArea(
         child: SizedBox(
@@ -164,16 +168,22 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
                       children: [
                         Icon(
                           _icons[index],
-                          color: isSelected ? Colors.blue.shade600 : Colors.grey.shade400,
+                          color: isSelected
+                              ? Colors.blue.shade600
+                              : Colors.grey.shade400,
                           size: 22,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           _shortTitles[index],
                           style: TextStyle(
-                            color: isSelected ? Colors.blue.shade700 : Colors.grey.shade500,
+                            color: isSelected
+                                ? Colors.blue.shade700
+                                : Colors.grey.shade500,
                             fontSize: 10,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.w500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -195,9 +205,16 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: const Text('Are you sure you want to log out of your account?'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Confirm Logout',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Are you sure you want to log out of your account?',
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -216,9 +233,17 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red.shade600,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         );

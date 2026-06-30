@@ -63,7 +63,11 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
                               return const Center(
-                                child: Icon(Icons.directions_car, color: Colors.blue, size: 24),
+                                child: Icon(
+                                  Icons.directions_car,
+                                  color: Colors.blue,
+                                  size: 24,
+                                ),
                               );
                             },
                           ),
@@ -78,14 +82,14 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                                 // White text logo image
                                 Image.asset(
                                   'assets/shervice - white.jpg',
-                                  height: 25, 
-                                  fit: BoxFit.contain, 
+                                  height: 25,
+                                  fit: BoxFit.contain,
                                   alignment: Alignment.centerLeft,
                                   errorBuilder: (context, error, stackTrace) {
                                     return const Text(
                                       'SHERVICE',
                                       style: TextStyle(
-                                        color: Colors.white, 
+                                        color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
                                         letterSpacing: 1.0,
@@ -97,7 +101,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                                 const Text(
                                   'Admin Portal',
                                   style: TextStyle(
-                                    color: Colors.white54, 
+                                    color: Colors.white54,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -106,34 +110,54 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                               ],
                             ),
                           ),
-                        ]
+                        ],
                       ],
                     ),
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // Expanded ListView isolates scrolling and prevents bottom overflow
                   Expanded(
                     child: ListView(
                       padding: EdgeInsets.zero,
                       children: [
                         _buildNavItem(0, 'Overview', Icons.grid_view),
-                        _buildNavItem(1, 'Schedules', Icons.calendar_month_outlined),
-                        _buildNavItem(2, 'Driver Profiles', Icons.people_outline),
-                        _buildNavItem(3, 'Vehicle Status', Icons.directions_car_outlined),
-                        _buildNavItem(4, 'System Users', Icons.admin_panel_settings_outlined),
-                        _buildNavItem(5, 'System Settings', Icons.settings_outlined),
+                        _buildNavItem(
+                          1,
+                          'Schedules',
+                          Icons.calendar_month_outlined,
+                        ),
+                        _buildNavItem(
+                          2,
+                          'Driver Profiles',
+                          Icons.people_outline,
+                        ),
+                        _buildNavItem(
+                          3,
+                          'Vehicle Status',
+                          Icons.directions_car_outlined,
+                        ),
+                        _buildNavItem(
+                          4,
+                          'System Users',
+                          Icons.admin_panel_settings_outlined,
+                        ),
+                        _buildNavItem(
+                          5,
+                          'System Settings',
+                          Icons.settings_outlined,
+                        ),
                       ],
                     ),
                   ),
-                  
+
                   // Static footer item
                   _buildNavItem(99, 'Log Out', Icons.logout, isLogout: true),
                   const SizedBox(height: 20),
                 ],
               ),
             ),
-            
+
             // Main App Content Window
             Expanded(
               child: Column(
@@ -143,7 +167,9 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                     height: 70,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade200),
+                      ),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -163,9 +189,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                     ),
                   ),
                   // Render targeted module
-                  Expanded(
-                    child: _screens[_selectedIndex],
-                  ),
+                  Expanded(child: _screens[_selectedIndex]),
                 ],
               ),
             ),
@@ -175,7 +199,12 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     );
   }
 
-  Widget _buildNavItem(int index, String title, IconData icon, {bool isLogout = false}) {
+  Widget _buildNavItem(
+    int index,
+    String title,
+    IconData icon, {
+    bool isLogout = false,
+  }) {
     bool isActive = _selectedIndex == index && !isLogout;
 
     return InkWell(
@@ -185,37 +214,57 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
             context: context,
             builder: (BuildContext dialogContext) {
               return AlertDialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-                content: const Text('Are you sure you want to log out of your account?'),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: const Text(
+                  'Confirm Logout',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                content: const Text(
+                  'Are you sure you want to log out of your account?',
+                ),
                 actions: [
                   TextButton(
                     onPressed: () {
                       Navigator.pop(dialogContext);
                     },
-                    child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.pop(dialogContext);
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red.shade600,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Logout',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               );
             },
           );
         } else {
-          setState(() { 
-            _selectedIndex = index; 
+          setState(() {
+            _selectedIndex = index;
           });
         }
       },
@@ -227,9 +276,15 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
-          mainAxisAlignment: _isSidebarExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+          mainAxisAlignment: _isSidebarExpanded
+              ? MainAxisAlignment.start
+              : MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isActive ? Colors.white : Colors.white70, size: 20),
+            Icon(
+              icon,
+              color: isActive ? Colors.white : Colors.white70,
+              size: 20,
+            ),
             if (_isSidebarExpanded) ...[
               const SizedBox(width: 16),
               Expanded(
@@ -243,7 +298,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                   ),
                 ),
               ),
-            ]
+            ],
           ],
         ),
       ),
@@ -262,7 +317,8 @@ class SlideInWelcomeWidget extends StatefulWidget {
   State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
 }
 
-class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with SingleTickerProviderStateMixin {
+class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
 
@@ -273,14 +329,11 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with Single
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _offsetAnimation = Tween<Offset>(
-      begin: const Offset(1.5, 0.0), 
+      begin: const Offset(1.5, 0.0),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutQuart,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
 
     _controller.forward().then((_) {
       Future.delayed(const Duration(seconds: 5), () {

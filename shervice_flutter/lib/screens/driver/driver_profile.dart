@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../constant.dart';
 
 class DriverProfile extends StatefulWidget {
   final String driverName; // Injected on login from parent layouts
@@ -22,14 +23,6 @@ class _DriverProfileState extends State<DriverProfile> {
   bool _isSaving = false;
   Map<String, dynamic>? _profileData;
 
-  // Centralized local network gateway configuration mapping
-  String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
-
   @override
   void initState() {
     super.initState();
@@ -41,7 +34,7 @@ class _DriverProfileState extends State<DriverProfile> {
     try {
       // Endpoint retrieves full record data by matching full_name text criteria
       final response = await http
-          .get(Uri.parse('$_backendUrl/test-db'))
+          .get(Uri.parse('$backendUrl/test-db'))
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -94,7 +87,7 @@ class _DriverProfileState extends State<DriverProfile> {
       // Pointing to the REAL authentication endpoint we just created
       final response = await http
           .post(
-            Uri.parse('$_backendUrl/auth/update-password'),
+            Uri.parse('$backendUrl/auth/update-password'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'user_id': targetUserId,

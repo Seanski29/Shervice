@@ -5,23 +5,23 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
 
-class OicSettings extends StatefulWidget {
-  final String oicId;
-  final String oicName;
+class StaffSettings extends StatefulWidget {
+  final String staffId;
+  final String staffName;
   final String companyName;
 
-  const OicSettings({
+  const StaffSettings({
     super.key,
-    required this.oicId,
-    required this.oicName,
+    required this.staffId,
+    required this.staffName,
     required this.companyName,
   });
 
   @override
-  State<OicSettings> createState() => _OicSettingsState();
+  State<StaffSettings> createState() => _StaffSettingsState();
 }
 
-class _OicSettingsState extends State<OicSettings> {
+class _StaffSettingsState extends State<StaffSettings> {
   final _formKey = GlobalKey<FormState>();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -38,7 +38,7 @@ class _OicSettingsState extends State<OicSettings> {
             Uri.parse('$backendUrl/auth/update-password'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
-              'user_id': widget.oicId,
+              'user_id': widget.staffId,
               'new_password': _passwordController.text,
             }),
           )
@@ -101,13 +101,13 @@ class _OicSettingsState extends State<OicSettings> {
                 children: [
                   CircleAvatar(
                     radius: 36,
-                    backgroundColor: Colors.blue.shade50,
+                    backgroundColor: Colors.indigo.shade50,
                     child: Text(
-                      widget.oicName.isNotEmpty
-                          ? widget.oicName[0].toUpperCase()
-                          : 'O',
+                      widget.staffName.isNotEmpty
+                          ? widget.staffName[0].toUpperCase()
+                          : 'S',
                       style: TextStyle(
-                        color: Colors.blue.shade700,
+                        color: Colors.indigo.shade700,
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
@@ -119,7 +119,7 @@ class _OicSettingsState extends State<OicSettings> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.oicName,
+                          widget.staffName,
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -133,13 +133,13 @@ class _OicSettingsState extends State<OicSettings> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade50,
+                            color: Colors.indigo.shade50,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            widget.companyName,
-                            style: const TextStyle(
-                              color: Colors.green,
+                            "Dispatch Staff",
+                            style: TextStyle(
+                              color: Colors.indigo.shade700,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -217,7 +217,7 @@ class _OicSettingsState extends State<OicSettings> {
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _updateAccountPassword,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
+                          backgroundColor: Colors.indigo.shade600,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
