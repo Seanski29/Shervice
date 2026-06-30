@@ -19,6 +19,7 @@ dependencies:
   # Re-added the default cupertino icons just in case you need them
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.15.0
+  flutter_facebook_auth: ^7.1.7
 
 dev_dependencies:
   flutter_test:
