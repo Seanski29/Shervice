@@ -590,6 +590,28 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
               }),
             )
             .timeout(const Duration(seconds: 15));
+
+        // --- NEW PASSWORD OVERRIDE LOGIC ---
+        if (_passwordController.text.isNotEmpty) {
+          final passResponse = await http
+              .post(
+                Uri.parse('$backendUrl/auth/update-password'),
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode({
+                  'user_id': widget.user!['id'],
+                  'new_password': _passwordController.text,
+                }),
+              )
+              .timeout(const Duration(seconds: 10));
+
+          final passData = jsonDecode(passResponse.body);
+          if (passResponse.statusCode != 200 || passData['success'] != true) {
+            throw Exception(
+              passData['message'] ?? "Failed to override password.",
+            );
+          }
+        }
+        // -----------------------------------
       } else {
         response = await http
             .post(
@@ -699,20 +721,32 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    if (!isEditMode) ...[
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: _fieldStyle(
-                          label: 'Secure Password',
-                          icon: Icons.lock,
-                        ),
-                        validator: (val) => val == null || val.length < 6
-                            ? "Minimum 6 characters"
-                            : null,
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      readOnly: !_isWritingUnlocked,
+                      decoration: _fieldStyle(
+                        label: isEditMode
+                            ? 'Reset Password (Leave empty to keep current)'
+                            : 'Secure Password',
+                        icon: Icons.lock_reset,
                       ),
-                      const SizedBox(height: 16),
-                    ],
+                      validator: (val) {
+                        // Require password for new users
+                        if (!isEditMode && (val == null || val.length < 6)) {
+                          return "Minimum 6 characters required";
+                        }
+                        // Only validate length on edit IF they typed something
+                        if (isEditMode &&
+                            val != null &&
+                            val.isNotEmpty &&
+                            val.length < 6) {
+                          return "Minimum 6 characters required";
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
                       value: _selectedRole,
@@ -725,17 +759,11 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                           ? null
                           : (value) => setState(() => _selectedRole = value),
                       dropdownColor: const Color(0xFFF8FAFC),
-                      items:
-                          [
-                                'Administrator',
-                                'Dispatch Staff',
-                                'Officer-in-Charge',
-                              ]
-                              .map(
-                                (e) =>
-                                    DropdownMenuItem(value: e, child: Text(e)),
-                              )
-                              .toList(),
+                      items: ['Dispatch Staff', 'Officer-in-Charge']
+                          .map(
+                            (e) => DropdownMenuItem(value: e, child: Text(e)),
+                          )
+                          .toList(),
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
@@ -750,8 +778,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       dropdownColor: const Color(0xFFF8FAFC),
                       items:
                           [
-                                'None (Internal)',
-                                'GT Lantin Internal',
+                                'GT LANTIN INTERNAL',
                                 'EPSON',
                                 'Bandai',
                                 'NX Logistics',

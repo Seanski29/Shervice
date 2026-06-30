@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:http/http.dart' as http;
 import '../constant.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart'; // Added Facebook Auth
+import '../constant.dart';
 
 // Imports for your layouts and the forgot password screen
 import '../layouts/admin/admin_layout.dart';
@@ -12,7 +14,7 @@ import '../layouts/driver/driver_layout.dart';
 // TODO: Adjust these two import paths to match exactly what you named your responsive wrapper files
 import '../layouts/oic/oic_layout.dart';
 import '../layouts/staff/staff_layout.dart';
-import 'forgot_password.dart';
+// import 'forgot_password.dart'; // Removed since the button is replaced
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,6 +30,156 @@ class _LoginScreenState extends State<LoginScreen> {
 
   double _bgAlignX = 0.0;
   double _bgAlignY = 0.0;
+
+  bool _isFacebookLoading = false; // Added state for Facebook button loading
+
+  // --- NEW FACEBOOK LOGIN FUNCTION ---
+  Future<void> _loginWithFacebook() async {
+    setState(() => _isFacebookLoading = true);
+    final navigator = Navigator.of(context);
+
+    try {
+      if (kIsWeb) {
+        await FacebookAuth.instance.webAndDesktopInitialize(
+          appId: '2455846521593896',
+          cookie: true,
+          xfbml: true,
+          version: 'v17.0',
+        );
+      }
+
+      final LoginResult result = await FacebookAuth.instance.login(
+        permissions: ['email', 'public_profile'],
+      );
+
+      if (result.status == LoginStatus.success) {
+        final userData = await FacebookAuth.instance.getUserData(
+          fields: "name,email",
+        );
+
+        final response = await http.post(
+          Uri.parse('$backendUrl/auth/facebook'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': userData['email'],
+            'full_name': userData['name'],
+          }),
+        );
+
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+        if ((response.statusCode == 200 || response.statusCode == 201) &&
+            responseData['success'] == true) {
+          final userDataResponse = responseData['data'];
+          final String role = userDataResponse['role'];
+
+          // Copied your exact routing logic from below so everything matches perfectly
+          if (role == 'admin') {
+            if (mounted) {
+              // 👇 Extract the ID and pass it to AdminLayout
+              final String realAdminId =
+                  (userData['user_id'] ?? userData['id'] ?? '').toString();
+              navigator.pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => AdminLayout(adminId: realAdminId),
+                ),
+              );
+            }
+          } else if (role == 'oic') {
+            if (mounted) {
+              final String realUserId =
+                  (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
+                      .toString();
+              final String oicDisplayName =
+                  (userDataResponse['name'] ??
+                          userDataResponse['full_name'] ??
+                          'OIC')
+                      .toString();
+              final String oicCompany =
+                  (userDataResponse['company'] ?? 'Internal').toString();
+              navigator.pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => OicLayout(
+                    oicId: realUserId,
+                    oicName: oicDisplayName,
+                    companyName: oicCompany,
+                  ),
+                ),
+              );
+            }
+          } else if (role == 'staff') {
+            if (mounted) {
+              final String realUserId =
+                  (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
+                      .toString();
+              final String staffDisplayName =
+                  (userDataResponse['name'] ??
+                          userDataResponse['full_name'] ??
+                          'Staff Member')
+                      .toString();
+              final String staffCompany =
+                  (userDataResponse['company'] ?? 'Internal').toString();
+              navigator.pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => StaffLayout(
+                    staffId: realUserId,
+                    staffName: staffDisplayName,
+                    companyName: staffCompany,
+                  ),
+                ),
+              );
+            }
+          } else if (role == 'driver') {
+            if (mounted) {
+              final String realUserId =
+                  (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
+                      .toString();
+              final String driverDisplayName =
+                  (userDataResponse['name'] ??
+                          userDataResponse['full_name'] ??
+                          'Driver')
+                      .toString();
+              final String driverCompany =
+                  (userDataResponse['company'] ?? 'Internal').toString();
+              navigator.pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => DriverLayout(
+                    driverId: realUserId,
+                    driverName: driverDisplayName,
+                    companyName: driverCompany,
+                  ),
+                ),
+              );
+            }
+          } else {
+            _showSnackBar(
+              'Unrecognized user role assigned.',
+              Colors.red.shade600,
+            );
+          }
+        } else {
+          _showSnackBar(
+            responseData['message'] ?? 'Facebook auth rejected by server.',
+            Colors.red.shade600,
+          );
+        }
+      } else if (result.status == LoginStatus.cancelled) {
+        _showSnackBar("Facebook login cancelled.", Colors.orange.shade600);
+      } else {
+        _showSnackBar(
+          "Facebook Login Failed: ${result.message}",
+          Colors.red.shade600,
+        );
+      }
+    } catch (e) {
+      _showSnackBar("Facebook authentication error: $e", Colors.red.shade600);
+    } finally {
+      if (mounted) {
+        setState(() => _isFacebookLoading = false);
+      }
+    }
+  }
+  // -----------------------------------
 
   // Dynamic Login Logic Function linking straight to Python API
   Future<void> _handleLogin() async {
@@ -71,10 +223,16 @@ class _LoginScreenState extends State<LoginScreen> {
         final String role = userData['role'];
 
         // Navigates based on the role payload returned by Supabase via Flask
+        // Navigates based on the role payload returned by Supabase via Flask
         if (role == 'admin') {
           if (mounted) {
+            // 👇 Extract the ID and pass it to AdminLayout
+            final String realAdminId =
+                (userData['user_id'] ?? userData['id'] ?? '').toString();
             navigator.pushReplacement(
-              MaterialPageRoute(builder: (context) => const AdminLayout()),
+              MaterialPageRoute(
+                builder: (context) => AdminLayout(adminId: realAdminId),
+              ),
             );
           }
         } else if (role == 'oic') {
@@ -296,23 +454,60 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 24),
 
-                    // Forgot Password Link
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const ForgotPasswordScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text("Forgot Password?"),
+                    // Facebook Login Button Replacing Forgot Password
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _isFacebookLoading
+                            ? null
+                            : _loginWithFacebook,
+                        icon: _isFacebookLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.facebook, color: Colors.white),
+                        label: Text(
+                          _isFacebookLoading
+                              ? "Connecting..."
+                              : "Continue with Facebook",
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(
+                            0xFF1877F2,
+                          ), // Official Facebook Blue
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    // // Forgot Password Link
+                    // Align(
+                    //   alignment: Alignment.centerRight,
+                    //   child: TextButton(
+                    //     onPressed: () {
+                    //       Navigator.push(
+                    //         context,
+                    //         MaterialPageRoute(
+                    //           builder: (context) =>
+                    //               const ForgotPasswordScreen(),
+                    //         ),
+                    //       );
+                    //     },
+                    //     child: const Text("Forgot Password?"),
+                    //   ),
+                    // ),
                     const SizedBox(height: 20),
 
                     // Login Button Triggering Async Flask Network Validation
