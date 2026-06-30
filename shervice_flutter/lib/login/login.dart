@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart'; // Required for kIsWeb flag
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:http/http.dart' as http;
+import '../constant.dart';
 
 // Imports for your layouts and the forgot password screen
 import '../layouts/admin/admin_layout.dart';
@@ -28,15 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
   double _bgAlignX = 0.0;
   double _bgAlignY = 0.0;
 
-  // Helper getter to determine local backend base address seamlessly
-  String get _backendUrl {
-    if (kIsWeb) return 'http://localhost:5000/api/auth/login';
-    // Loops back to your machine's server if running a mobile emulator
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api/auth/login'
-        : 'http://127.0.0.1:5000/api/auth/login';
-  }
-
   // Dynamic Login Logic Function linking straight to Python API
   Future<void> _handleLogin() async {
     final String email = _emailController.text.trim();
@@ -60,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(_backendUrl),
+        Uri.parse('$backendUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       );

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'admin_layout_desktop.dart'; 
+import 'admin_layout_desktop.dart';
 import 'admin_layout_mobile.dart';
 
 class AdminLayout extends StatelessWidget {
@@ -14,7 +14,7 @@ class AdminLayout extends StatelessWidget {
         if (constraints.maxWidth > 800) {
           return const AdminDesktopLayout(); // Show the Web/Desktop view
         } else {
-          return const AdminMobileLayout();  // Show the Phone view
+          return const AdminMobileLayout(); // Show the Phone view
         }
       },
     );

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../constant.dart';
 
 class DriverSchedules extends StatefulWidget {
   final String driverId;
@@ -23,13 +24,6 @@ class _DriverSchedulesState extends State<DriverSchedules> {
   DateTime _calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _selectedDate;
 
-  String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
-
   @override
   void initState() {
     super.initState();
@@ -38,9 +32,10 @@ class _DriverSchedulesState extends State<DriverSchedules> {
 
   Future<void> _fetchMySchedules() async {
     try {
-      final res = await http
-          .get(Uri.parse('$_backendUrl/schedules/driver/${widget.driverId}'))
-          .timeout(const Duration(seconds: 10));
+      // Fetch only the trips assigned to this specific driver
+      final res = await http.get(
+        Uri.parse('$backendUrl/schedules/driver/${widget.driverId}'),
+      );
       if (res.statusCode == 200 && mounted) {
         final data = jsonDecode(res.body);
         setState(() {
@@ -68,7 +63,9 @@ class _DriverSchedulesState extends State<DriverSchedules> {
   Future<void> _updateTripStatus(int tripId, String newStatus) async {
     try {
       final res = await http.post(
-        Uri.parse('$_backendUrl/schedules/update-status'),
+        Uri.parse(
+          '$backendUrl/schedules/update-status',
+        ), // We will create this Python route next!
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'trip_id': tripId, 'status': newStatus}),
       );
