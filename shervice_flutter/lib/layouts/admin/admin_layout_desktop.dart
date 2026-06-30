@@ -29,8 +29,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     const AdminUsers(),
     AdminSettings(
       adminId: widget.adminId,
-    ), // 👇 Pass the ID into the settings page
-    const AdminFeedbacks(), // (Remove this line from Mobile layout if you took it out earlier)
+    ), // 👇 Pass the ID into the settings page // (Remove this line from Mobile layout if you took it out earlier)
   ];
 
   @override

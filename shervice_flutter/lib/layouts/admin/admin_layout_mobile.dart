@@ -31,8 +31,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     const AdminDriver(),
     const AdminFleet(),
     const AdminUsers(),
-    AdminSettings(adminId: widget.adminId), // ✅ Passed the ID to settings
-    const AdminFeedbacks(), // ✅ Added to match the 7 icons
+    AdminSettings(adminId: widget.adminId), // ✅ Passed the ID to settings // ✅ Added to match the 7 icons
   ];
 
   // Shortened Titles for Bottom Nav to prevent text from overflowing
@@ -43,7 +42,6 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     'Fleet',
     'Users',
     'Settings',
-    'Feedbacks',
   ];
 
   // Icons matching each screen

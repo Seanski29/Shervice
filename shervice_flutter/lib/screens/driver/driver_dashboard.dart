@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-import '../../constant.dart';
+
+// IMPORTANT: Using your project's constant file or inline definition
+const String backendUrl = kIsWeb ? 'http://127.0.0.1:5000/api' : 'http://10.0.2.2:5000/api';
 
 class DriverDashboard extends StatefulWidget {
   final String driverName;
@@ -43,11 +45,34 @@ class _DriverDashboardState extends State<DriverDashboard> {
             _isLoading = false;
           });
         }
+      } else {
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint("❌ Driver Dashboard Sync Failure: $e");
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // ─── ROBUST SAFETY CHECK FOR BACKEND DATA ───
+  bool _hasAssignedTripData() {
+    if (_activeTrip == null) return false;
+
+    // Check if the backend returned an empty map or specifically marked it empty
+    if (_activeTrip!.isEmpty) return false;
+
+    final routeName = _activeTrip!['route_name'];
+    final departureTime = _activeTrip!['departure_time'];
+    final status = _activeTrip!['status'];
+    final plateNumber = _activeTrip!['plate_number'];
+
+    final hasRouteInfo = routeName != null && routeName.toString().trim().isNotEmpty;
+    final hasScheduleInfo = departureTime != null && departureTime.toString().trim().isNotEmpty;
+    final hasStatusInfo = status != null && status.toString().trim().isNotEmpty;
+    final hasVehicleInfo = plateNumber != null && plateNumber.toString().trim().isNotEmpty && plateNumber.toString().trim() != 'No Plate Assigned';
+
+    // If we have AT LEAST ONE piece of valid dispatch data, render the card.
+    return hasRouteInfo || hasScheduleInfo || hasStatusInfo || hasVehicleInfo;
   }
 
   @override
@@ -128,10 +153,11 @@ class _DriverDashboardState extends State<DriverDashboard> {
             ),
             const SizedBox(height: 12),
 
-            if (_activeTrip == null) // 👈 Complete clean comparison expression
-              _buildEmptyTripPlaceholder()
+            // ─── SAFE CONDITIONAL RENDERING ───
+            if (_hasAssignedTripData())
+              _buildActiveTripCard()
             else
-              _buildActiveTripCard(),
+              _buildEmptyTripPlaceholder(),
 
             const SizedBox(height: 24),
 
@@ -146,7 +172,11 @@ class _DriverDashboardState extends State<DriverDashboard> {
               ),
             ),
             const SizedBox(height: 12),
-            _buildVehicleDetailsCard(),
+            
+            if (_hasAssignedTripData()) 
+              _buildVehicleDetailsCard()
+            else 
+              _buildEmptyVehiclePlaceholder(),
           ],
         ),
       ),
@@ -154,6 +184,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
   }
 
   Widget _buildActiveTripCard() {
+    // We already passed the `_hasAssignedTripData()` check to get here, so we know `_activeTrip` is not null.
     final status = _activeTrip!['status'] ?? 'SCHEDULED';
     final isOngoing = status == 'ONGOING';
 
@@ -190,7 +221,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'TRP-${_activeTrip!['trip_id']}',
+                  'TRP-${_activeTrip!['trip_id'] ?? 'TBD'}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -210,7 +241,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  status,
+                  status.toString().toUpperCase(),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -224,8 +255,8 @@ class _DriverDashboardState extends State<DriverDashboard> {
           _buildTimelineRow(
             Icons.my_location,
             'ROUTE PLAN',
-            _activeTrip!['route_name'],
-            _activeTrip!['departure_time'],
+            _activeTrip!['route_name']?.toString() ?? 'Pending Assignment',
+            _activeTrip!['departure_time']?.toString() ?? '--:--',
             Colors.blue.shade200,
           ),
           const SizedBox(height: 24),
@@ -240,12 +271,12 @@ class _DriverDashboardState extends State<DriverDashboard> {
                 _buildRouteDetail(
                   Icons.people_alt_outlined,
                   'Passengers',
-                  '${_activeTrip!['passenger_count']} Logged',
+                  '${_activeTrip!['passenger_count'] ?? 0} Logged',
                 ),
                 _buildRouteDetail(
                   Icons.straighten,
                   'Distance',
-                  '${_activeTrip!['route_distance']} km',
+                  '${_activeTrip!['route_distance'] ?? 0} km',
                 ),
                 _buildRouteDetail(
                   Icons.pin_drop_outlined,
@@ -260,14 +291,46 @@ class _DriverDashboardState extends State<DriverDashboard> {
     );
   }
 
+  Widget _buildEmptyTripPlaceholder() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.directions_bus_outlined,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No route or schedule assigned',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Pull down to refresh when your assigned route becomes available from dispatch.',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildVehicleDetailsCard() {
-    final hasVehicle =
-        _activeTrip != null &&
-        _activeTrip!['plate_number'] != 'No Plate Assigned';
-    final plate = hasVehicle ? _activeTrip!['plate_number'] : 'UNASSIGNED';
-    final model = hasVehicle
-        ? _activeTrip!['model']
-        : 'Contact OIC Staff Dispatcher';
+    final plate = _activeTrip!['plate_number']?.toString() ?? 'UNASSIGNED';
+    final model = _activeTrip!['model']?.toString() ?? 'Contact Staff Dispatcher';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -310,46 +373,34 @@ class _DriverDashboardState extends State<DriverDashboard> {
               ],
             ),
           ),
-          if (hasVehicle)
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
-              tooltip: 'Scan Vehicle QR',
-            ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
+            tooltip: 'Scan Vehicle QR',
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyTripPlaceholder() {
+  Widget _buildEmptyVehiclePlaceholder() {
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Center(
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.directions_bus_outlined,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 12),
+            Icon(Icons.key_off, color: Colors.grey.shade400, size: 28),
+            const SizedBox(width: 12),
             Text(
-              'No Active Dispatches Assigned',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
-                fontSize: 16,
-              ),
-            ),
-            Text(
-              'Pull down to refresh when your shift layout begins.',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-            ),
+              'No vehicle keys assigned to your profile.',
+              style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+            )
           ],
         ),
       ),

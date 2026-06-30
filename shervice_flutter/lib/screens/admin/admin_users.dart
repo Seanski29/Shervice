@@ -214,32 +214,6 @@ class _AdminUsersState extends State<AdminUsers> {
               Wrap(
                 spacing: 12,
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AdminFeedbacks(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.forum_outlined, size: 20),
-                    label: const Text(
-                      'View Feedbacks',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue.shade700,
-                      side: BorderSide(color: Colors.blue.shade600),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
                   ElevatedButton.icon(
                     onPressed: () => _showUserModal(context),
                     icon: const Icon(

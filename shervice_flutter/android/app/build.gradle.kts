@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com_shervice"
+    namespace = "com.shervice.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

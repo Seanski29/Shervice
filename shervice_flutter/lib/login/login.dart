@@ -456,10 +456,31 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
+                    // Login Button Triggering Async Flask Network Validation
+                    SizedBox(
+                      width: double.infinity,
+                      height: 45,
+                      child: ElevatedButton(
+                        onPressed: _handleLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade600,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          "Log In",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
                     // Facebook Login Button Replacing Forgot Password
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: 42,
                       child: ElevatedButton.icon(
                         onPressed: _isFacebookLoading
                             ? null
@@ -481,9 +502,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(
-                            0xFF1877F2,
-                          ), // Official Facebook Blue
+                          backgroundColor: const Color(0xFF1877F2),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -508,29 +527,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     //     child: const Text("Forgot Password?"),
                     //   ),
                     // ),
-                    const SizedBox(height: 20),
-
-                    // Login Button Triggering Async Flask Network Validation
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          "Log In",
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
                     const Text(
                       "GT LANTIN SHUTTLE SERVICES",
                       style: TextStyle(fontSize: 10, color: Colors.grey),
