@@ -537,6 +537,8 @@ class _OicDashboardState extends State<OicDashboard> {
       return status == 'scheduled';
     }).toList();
 
+    final selectedTripId = _selectedTrip?['trip_id'];
+
     Widget tripSelectionList = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -564,43 +566,86 @@ class _OicDashboardState extends State<OicDashboard> {
 
               final departure = _formatTimeString(trip['departure_time']);
               final arrival = _formatTimeString(trip['estimated_arrival_time']);
+              final isSelected = selectedTripId == trip['trip_id'];
 
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text("TRIP ID: ${trip['trip_id']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)), overflow: TextOverflow.ellipsis),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(20)),
-                          child: Text("SCHEDULED", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    _iconTextRow(Icons.access_time, "${trip['schedule_date']} | $departure - $arrival"),
-                    const SizedBox(height: 4),
-                    _iconTextRow(Icons.location_on, trip['route_name'] ?? 'Unassigned Route'),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(child: _iconTextRow(Icons.airport_shuttle, "Shuttle: $vehiclePlate | Driver: $driverName")),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
-                          child: Text("👥 $passengerCount Passengers", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
-                        )
-                      ],
-                    ),
-                  ],
+              return GestureDetector(
+                onTap: () => setState(() => _selectedTrip = trip),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.teal.shade50 : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: isSelected
+                            ? Colors.teal.shade300
+                            : Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              "TRIP ID: ${trip['trip_id']}",
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Color(0xFF0F172A)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              "SCHEDULED",
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade700),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      _iconTextRow(
+                          Icons.access_time,
+                          "${trip['schedule_date']} | $departure - $arrival"),
+                      const SizedBox(height: 4),
+                      _iconTextRow(Icons.location_on,
+                          trip['route_name'] ?? 'Unassigned Route'),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: _iconTextRow(Icons.airport_shuttle,
+                                "Shuttle: $vehiclePlate | Driver: $driverName"),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(6)),
+                            child: Text(
+                              "👥 $passengerCount Passengers",
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF334155)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -608,20 +653,73 @@ class _OicDashboardState extends State<OicDashboard> {
       ],
     );
 
-  // ─── TAB 4: COMPLETED TRIP EVALUATIONS VIEW (Excludes evaluated IDs) ───
-  Widget _buildFeedbackView() {
-    final uncompletedTrips = _allTrips.where((t) {
-      final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
-      final currentTripId = int.tryParse(t['trip_id'].toString()) ?? -1;
-      
-      // ✅ ADDED THE COMPANY FILTER LOGIC HERE
-      final dbCompanyName = (t['oic_profile'] ?? {})['company_name']?.toString().toLowerCase().trim() ?? '';
-      final targetCompanyName = widget.companyName.toLowerCase().trim();
-
-      return status == 'completed' && 
-             !_evaluatedTripIds.contains(currentTripId) &&
-             dbCompanyName == targetCompanyName;
-    }).toList();
+    Widget actionPanel = Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: _selectedTrip == null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Dispatch Trip',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                const SizedBox(height: 16),
+                Text(
+                  'Choose a scheduled trip from the list to assign a passenger headcount and dispatch it.',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Dispatch Trip #${_selectedTrip!['trip_id']}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Color(0xFF0F172A)),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Passenger Headcount',
+                    hintText: 'Enter passenger count',
+                    fillColor: const Color(0xFFF1F5F9),
+                    filled: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (value) => _passengerCount = value,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal.shade600,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    onPressed: _dispatchTripWithHeadcount,
+                    child: const Text('Dispatch Trip',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+    );
 
     if (isMobile) {
       return Column(
@@ -633,6 +731,7 @@ class _OicDashboardState extends State<OicDashboard> {
         ],
       );
     }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
