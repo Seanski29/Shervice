@@ -36,7 +36,8 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
     'History',
     'Drivers',
     'Attendance',
-    'Analytics',
+    //   'Analytics',
+    'Settings',
   ];
 
   // Icons matching each screen
@@ -62,8 +63,8 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
       StaffTrips(staffId: widget.staffId),
       const StaffDrivers(),
       const StaffAttendance(),
-      const StaffAnalytics(),
 
+      //const StaffAnalytics(),
       StaffSettings(
         staffId: widget.staffId,
         staffName: widget.staffName,
