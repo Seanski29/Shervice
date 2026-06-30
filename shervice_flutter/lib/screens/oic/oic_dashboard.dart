@@ -675,16 +675,11 @@ class _OicDashboardState extends State<OicDashboard> {
             'No scheduled trips are available to dispatch right now.',
           )
         else
-          GridView.builder(
+          ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isMobile ? 1 : 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: isMobile ? 2.6 : 2.2,
-            ),
             itemCount: scheduledTrips.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final trip = scheduledTrips[index];
               final driverName =
@@ -701,7 +696,7 @@ class _OicDashboardState extends State<OicDashboard> {
               return GestureDetector(
                 onTap: () => setState(() => _selectedTrip = trip),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isSelected ? Colors.teal.shade50 : Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -715,23 +710,25 @@ class _OicDashboardState extends State<OicDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Text(
                               "TRIP ID: ${trip['trip_id']}",
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                fontSize: 15,
                                 color: Color(0xFF0F172A),
                               ),
                               overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
+                              horizontal: 8,
+                              vertical: 3,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.green.shade50,
@@ -740,7 +737,7 @@ class _OicDashboardState extends State<OicDashboard> {
                             child: Text(
                               "SCHEDULED",
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green.shade700,
                               ),
@@ -748,45 +745,57 @@ class _OicDashboardState extends State<OicDashboard> {
                           ),
                         ],
                       ),
-                      const Spacer(),
-                      _iconTextRow(
-                        Icons.access_time,
+                      const SizedBox(height: 6),
+                      Text(
                         "${trip['schedule_date']} | $departure - $arrival",
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                       const SizedBox(height: 4),
-                      _iconTextRow(
-                        Icons.location_on,
+                      Text(
                         trip['route_name'] ?? 'Unassigned Route',
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: _iconTextRow(
-                              Icons.airport_shuttle,
-                              "Shuttle: $vehiclePlate | Driver: $driverName",
-                            ),
+                      Text(
+                        "Shuttle: $vehiclePlate | Driver: $driverName",
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          "👥 $passengerCount Passengers",
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF334155),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              "👥 $passengerCount Passengers",
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF334155),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),

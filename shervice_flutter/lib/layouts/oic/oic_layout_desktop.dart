@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../screens/oic/oic_dashboard.dart';
 import '../../../screens/oic/oic_schedules.dart';
@@ -204,15 +206,28 @@ class SlideInWelcomeWidget extends StatefulWidget {
 class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
+  Timer? _hideTimer;
+
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
     _offsetAnimation = Tween<Offset>(begin: const Offset(1.5, 0.0), end: Offset.zero).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
     _controller.forward();
+
+    _hideTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) {
+        _controller.reverse();
+      }
+    });
   }
+
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void dispose() {
+    _hideTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) => SlideTransition(
         position: _offsetAnimation,

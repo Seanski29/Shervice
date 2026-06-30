@@ -17,6 +17,8 @@ class OicSchedules extends StatefulWidget {
 class _OicSchedulesState extends State<OicSchedules> {
   bool _isLoading = true;
   List<dynamic> _myTrips = [];
+  DateTime _focusedMonth = DateTime.now();
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -65,159 +67,385 @@ class _OicSchedulesState extends State<OicSchedules> {
     });
   }
 
+  List<dynamic> get _recentSchedules {
+    final sorted = [..._myTrips]
+      ..sort((a, b) {
+        final aDate = _parseDate(a['schedule_date']);
+        final bDate = _parseDate(b['schedule_date']);
+        if (aDate == null || bDate == null) return 0;
+        return bDate.compareTo(aDate);
+      });
+    return sorted.take(4).toList();
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) {
+      final text = value.toString().trim();
+      if (text.isEmpty) return null;
+      try {
+        return DateTime.parse(text.split(' ').first);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String _formatDateLabel(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  String _formatTime(dynamic value) {
+    if (value == null) return '--:--';
+    final text = value.toString();
+    if (text.length >= 5) return text.substring(0, 5);
+    return text;
+  }
+
+  List<dynamic> _schedulesForDate(DateTime day) {
+    return _myTrips.where((trip) {
+      final date = _parseDate(trip['schedule_date']);
+      return date != null &&
+          date.year == day.year &&
+          date.month == day.month &&
+          date.day == day.day;
+    }).toList();
+  }
+
+  void _showDayDetailsDialog(DateTime day, List<dynamic> schedules) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(_formatDateLabel(day)),
+        content: SizedBox(
+          width: 420,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: schedules.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final trip = schedules[index];
+              final isPending = trip['trip_status']?.toString().toLowerCase().contains('pending') ?? false;
+              final statusColor = isPending ? Colors.orange.shade700 : Colors.green.shade700;
+              final statusBg = isPending ? Colors.orange.shade50 : Colors.green.shade50;
+
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            trip['route_name'] ?? 'Unknown Route',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            trip['trip_status']?.toString() ?? 'Unknown',
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Departure: ${_formatTime(trip['departure_time'])}  •  ETA: ${_formatTime(trip['estimated_arrival_time'])}'),
+                    const SizedBox(height: 4),
+                    Text('Passengers: ${trip['passenger_count'] ?? 0}  •  Distance: ${trip['route_distance'] ?? 0} km'),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    final recentSchedules = _recentSchedules;
+    final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final daysBefore = firstDayOfMonth.weekday % 7;
+    final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
+    final totalCells = ((daysBefore + daysInMonth) / 7).ceil() * 7;
+    final now = DateTime.now();
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'My Trip Requests',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'A calendar view of your recent schedules and dispatches.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => _showNewScheduleModal(context),
+                icon: const Icon(Icons.add, size: 18, color: Colors.white),
+                label: const Text(
+                  'New Request',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade600,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'My Trip Requests',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                  ),
+                  'Recent Schedules',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Track the status of your fleet requests.',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-            ElevatedButton.icon(
-              onPressed: () => _showNewScheduleModal(context),
-              icon: const Icon(Icons.add, size: 18, color: Colors.white),
-              label: const Text(
-                'New Request',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade600,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        if (_isLoading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(40),
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else if (_myTrips.isEmpty)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(40),
-              child: Text(
-                "You have no scheduled trips.",
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-          )
-        else
-          ..._myTrips.map((trip) {
-            final bool isPending = trip['trip_status'].toString().contains(
-              'Pending',
-            );
-            final Color statusColor = isPending
-                ? Colors.orange.shade700
-                : Colors.green.shade700;
-            final Color statusBg = isPending
-                ? Colors.orange.shade50
-                : Colors.green.shade50;
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        trip['route_name'] ?? 'Unknown Route',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                const SizedBox(height: 10),
+                if (_isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (recentSchedules.isEmpty)
+                  const Text('No schedules recorded yet.', style: TextStyle(color: Colors.grey))
+                else
+                  ...recentSchedules.map((trip) {
+                    final isPending = trip['trip_status']?.toString().toLowerCase().contains('pending') ?? false;
+                    final statusColor = isPending ? Colors.orange.shade700 : Colors.green.shade700;
+                    final statusBg = isPending ? Colors.orange.shade50 : Colors.green.shade50;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          trip['trip_status'],
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _iconText(Icons.calendar_today, trip['schedule_date']),
-                      const SizedBox(width: 16),
-                      // Departure to Arrival Arrow
-                      Row(
+                      child: Row(
                         children: [
-                          const Icon(
-                            Icons.access_time,
-                            size: 16,
-                            color: Colors.blue,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  trip['route_name'] ?? 'Unknown Route',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${trip['schedule_date'] ?? ''} • ${_formatTime(trip['departure_time'])} → ${_formatTime(trip['estimated_arrival_time'])}',
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'} ➔ ${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade800,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              trip['trip_status']?.toString() ?? 'Unknown',
+                              style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(width: 16),
-                      // Distance Display
-                      _iconText(Icons.map, "${trip['route_distance']} km"),
-                      const SizedBox(width: 16),
-                      _iconText(Icons.people, "${trip['passenger_count']} Pax"),
-                    ],
+                    );
+                  }),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
+                          icon: const Icon(Icons.chevron_left),
+                        ),
+                        IconButton(
+                          onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
+                          icon: const Icon(Icons.chevron_right),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                      .map(
+                        (day) => Expanded(
+                          child: Center(
+                            child: Text(
+                              day,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 8),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 1.0,
                   ),
-                ],
-              ),
-            );
-          }),
-      ],
+                  itemCount: totalCells,
+                  itemBuilder: (context, index) {
+                    final date = DateTime(_focusedMonth.year, _focusedMonth.month, index - daysBefore + 1);
+                    final isCurrentMonth = date.month == _focusedMonth.month;
+                    final schedules = _schedulesForDate(date);
+                    final isOccupied = schedules.isNotEmpty;
+                    final isSelected = _selectedDate != null &&
+                        _selectedDate!.year == date.year &&
+                        _selectedDate!.month == date.month &&
+                        _selectedDate!.day == date.day;
+                    final isToday = now.year == date.year && now.month == date.month && now.day == date.day;
+
+                    return InkWell(
+                      onTap: isOccupied
+                          ? () {
+                              setState(() => _selectedDate = date);
+                              _showDayDetailsDialog(date, schedules);
+                            }
+                          : () => setState(() => _selectedDate = date),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.blue.shade50
+                              : isOccupied
+                                  ? Colors.blue.shade50
+                                  : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isToday ? Colors.blue.shade300 : Colors.transparent,
+                            width: isToday ? 1.5 : 1,
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              date.day.toString(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isCurrentMonth ? Colors.black87 : Colors.grey.shade400,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            if (isOccupied)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade600,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  schedules.length > 1 ? '${schedules.length}' : '1',
+                                  style: const TextStyle(fontSize: 10, color: Colors.white),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

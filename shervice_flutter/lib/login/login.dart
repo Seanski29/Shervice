@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:http/http.dart' as http;
 import '../constant.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart'; // Added Facebook Auth
+import '../constant.dart';
 
 // Imports for your layouts and the forgot password screen
 import '../layouts/admin/admin_layout.dart';
@@ -32,15 +33,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isFacebookLoading = false; // Added state for Facebook button loading
 
-  // Helper getter to determine local backend base address seamlessly
-  String get _backendUrl {
-    if (kIsWeb) return 'http://localhost:5000/api';
-    // Loops back to your machine's server if running a mobile emulator
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
-
   // --- NEW FACEBOOK LOGIN FUNCTION ---
   Future<void> _loginWithFacebook() async {
     setState(() => _isFacebookLoading = true);
@@ -66,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         final response = await http.post(
-          Uri.parse('$_backendUrl/auth/facebook'),
+          Uri.parse('$backendUrl/auth/facebook'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'email': userData['email'],
@@ -84,8 +76,13 @@ class _LoginScreenState extends State<LoginScreen> {
           // Copied your exact routing logic from below so everything matches perfectly
           if (role == 'admin') {
             if (mounted) {
+              // 👇 Extract the ID and pass it to AdminLayout
+              final String realAdminId =
+                  (userData['user_id'] ?? userData['id'] ?? '').toString();
               navigator.pushReplacement(
-                MaterialPageRoute(builder: (context) => const AdminLayout()),
+                MaterialPageRoute(
+                  builder: (context) => AdminLayout(adminId: realAdminId),
+                ),
               );
             }
           } else if (role == 'oic') {
@@ -459,10 +456,31 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
+                    // Login Button Triggering Async Flask Network Validation
+                    SizedBox(
+                      width: double.infinity,
+                      height: 45,
+                      child: ElevatedButton(
+                        onPressed: _handleLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade600,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          "Log In",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
                     // Facebook Login Button Replacing Forgot Password
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: 42,
                       child: ElevatedButton.icon(
                         onPressed: _isFacebookLoading
                             ? null
@@ -484,9 +502,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(
-                            0xFF1877F2,
-                          ), // Official Facebook Blue
+                          backgroundColor: const Color(0xFF1877F2),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -511,29 +527,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     //     child: const Text("Forgot Password?"),
                     //   ),
                     // ),
-                    const SizedBox(height: 20),
-
-                    // Login Button Triggering Async Flask Network Validation
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          "Log In",
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
                     const Text(
                       "GT LANTIN SHUTTLE SERVICES",
                       style: TextStyle(fontSize: 10, color: Colors.grey),

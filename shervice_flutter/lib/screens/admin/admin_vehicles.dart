@@ -430,25 +430,33 @@ class _AdminFleetState extends State<AdminFleet> {
           if (!_isLoading && _filteredVehicles.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                alignment: WrapAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredVehicles.length)} of ${_filteredVehicles.length} vehicles',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 260),
+                    child: Text(
+                      'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredVehicles.length)} of ${_filteredVehicles.length} vehicles',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 14,
+                      ),
+                      softWrap: true,
+                    ),
                   ),
-                  Row(
+                  Wrap(
+                    spacing: 8,
                     children: [
                       OutlinedButton(
                         onPressed: _currentPage > 0 ? _prevPage : null,
                         child: const Text('Previous'),
                       ),
-                      const SizedBox(width: 8),
                       Text(
                         'Page ${_currentPage + 1} of $_totalPages',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(width: 8),
                       OutlinedButton(
                         onPressed: _currentPage < _totalPages - 1
                             ? _nextPage
