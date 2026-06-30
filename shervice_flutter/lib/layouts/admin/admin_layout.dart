@@ -3,18 +3,19 @@ import 'admin_layout_desktop.dart';
 import 'admin_layout_mobile.dart';
 
 class AdminLayout extends StatelessWidget {
-  const AdminLayout({super.key});
+  final String adminId; // 👇 Add this
+  const AdminLayout({super.key, required this.adminId});
 
   @override
   Widget build(BuildContext context) {
-    // LayoutBuilder gives us the constraints (size) of the screen
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Breakpoint: If the screen is wider than 800 pixels...
         if (constraints.maxWidth > 800) {
-          return const AdminDesktopLayout(); // Show the Web/Desktop view
+          // 👇 Pass it to Desktop
+          return AdminDesktopLayout(adminId: adminId);
         } else {
-          return const AdminMobileLayout(); // Show the Phone view
+          // 👇 Pass it to Mobile
+          return AdminMobileLayout(adminId: adminId);
         }
       },
     );

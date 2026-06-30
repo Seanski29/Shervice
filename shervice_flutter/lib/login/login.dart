@@ -71,10 +71,16 @@ class _LoginScreenState extends State<LoginScreen> {
         final String role = userData['role'];
 
         // Navigates based on the role payload returned by Supabase via Flask
+        // Navigates based on the role payload returned by Supabase via Flask
         if (role == 'admin') {
           if (mounted) {
+            // 👇 Extract the ID and pass it to AdminLayout
+            final String realAdminId =
+                (userData['user_id'] ?? userData['id'] ?? '').toString();
             navigator.pushReplacement(
-              MaterialPageRoute(builder: (context) => const AdminLayout()),
+              MaterialPageRoute(
+                builder: (context) => AdminLayout(adminId: realAdminId),
+              ),
             );
           }
         } else if (role == 'oic') {
@@ -297,22 +303,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                    // Forgot Password Link
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const ForgotPasswordScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text("Forgot Password?"),
-                      ),
-                    ),
+                    // // Forgot Password Link
+                    // Align(
+                    //   alignment: Alignment.centerRight,
+                    //   child: TextButton(
+                    //     onPressed: () {
+                    //       Navigator.push(
+                    //         context,
+                    //         MaterialPageRoute(
+                    //           builder: (context) =>
+                    //               const ForgotPasswordScreen(),
+                    //         ),
+                    //       );
+                    //     },
+                    //     child: const Text("Forgot Password?"),
+                    //   ),
+                    // ),
                     const SizedBox(height: 20),
 
                     // Login Button Triggering Async Flask Network Validation

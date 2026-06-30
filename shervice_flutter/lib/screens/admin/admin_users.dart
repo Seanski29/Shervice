@@ -776,11 +776,18 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                           ? null
                           : (value) => setState(() => _selectedCompany = value),
                       dropdownColor: const Color(0xFFF8FAFC),
-                      items: ['EPSON', 'Bandai', 'NX Logistics']
-                          .map(
-                            (e) => DropdownMenuItem(value: e, child: Text(e)),
-                          )
-                          .toList(),
+                      items:
+                          [
+                                'GT LANTIN INTERNAL',
+                                'EPSON',
+                                'Bandai',
+                                'NX Logistics',
+                              ]
+                              .map(
+                                (e) =>
+                                    DropdownMenuItem(value: e, child: Text(e)),
+                              )
+                              .toList(),
                     ),
                   ],
                 ),
