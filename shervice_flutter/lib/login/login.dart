@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart'; // Required for kIsWeb flag
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:http/http.dart' as http;
+import '../constant.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart'; // Added Facebook Auth
 
 // Imports for your layouts and the forgot password screen
@@ -139,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(_backendUrl),
+        Uri.parse('$backendUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       );

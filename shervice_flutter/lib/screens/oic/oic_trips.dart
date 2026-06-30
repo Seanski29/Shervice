@@ -3,11 +3,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
+import '../../constant.dart';
 
 class OicTrips extends StatefulWidget {
-  final String oicId; 
+  final String oicId;
 
-  const OicTrips({super.key, required this.oicId}); 
+  const OicTrips({super.key, required this.oicId});
 
   @override
   State<OicTrips> createState() => _OicTripsState();
@@ -18,13 +19,6 @@ class _OicTripsState extends State<OicTrips> {
   List<dynamic> _trips = [];
   bool _isLoading = true;
 
-  String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
-
   @override
   void initState() {
     super.initState();
@@ -34,7 +28,7 @@ class _OicTripsState extends State<OicTrips> {
   Future<void> _fetchDeploymentLogs() async {
     try {
       final res = await http.get(
-        Uri.parse('$_backendUrl/schedules/oic/${widget.oicId}'),
+        Uri.parse('$backendUrl/schedules/oic/${widget.oicId}'),
       );
 
       if (res.statusCode == 200) {
@@ -78,7 +72,9 @@ class _OicTripsState extends State<OicTrips> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               SizedBox(
-                width: MediaQuery.of(context).size.width > 700 ? 420 : double.infinity,
+                width: MediaQuery.of(context).size.width > 700
+                    ? 420
+                    : double.infinity,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -93,13 +89,18 @@ class _OicTripsState extends State<OicTrips> {
                     const SizedBox(height: 4),
                     Text(
                       'Comprehensive log of all fleet deployments and passenger counts.',
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   ],
                 ),
               ),
               SizedBox(
-                width: MediaQuery.of(context).size.width > 700 ? 250 : double.infinity,
+                width: MediaQuery.of(context).size.width > 700
+                    ? 250
+                    : double.infinity,
                 child: TextField(
                   onChanged: (val) => setState(() => _searchTerm = val),
                   decoration: InputDecoration(
@@ -191,8 +192,12 @@ class _OicTripsState extends State<OicTrips> {
                       }
 
                       // ✅ USING THE SAFE TIME FORMATTER
-                      final departure = _formatTimeString(trip['departure_time']);
-                      final arrival = _formatTimeString(trip['estimated_arrival_time']);
+                      final departure = _formatTimeString(
+                        trip['departure_time'],
+                      );
+                      final arrival = _formatTimeString(
+                        trip['estimated_arrival_time'],
+                      );
 
                       return Padding(
                         padding: const EdgeInsets.all(16),

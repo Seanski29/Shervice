@@ -10,7 +10,12 @@ class AdminDashboard extends StatelessWidget {
       showClientTrips: true, // Admins track company metrics
       headerWidget: Text(
         'Fleet Overview',
-        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5),
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF0F172A),
+          letterSpacing: -0.5,
+        ),
       ),
     );
   }
