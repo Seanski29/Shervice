@@ -9,7 +9,8 @@ import '../../screens/admin/admin_feedbacks.dart';
 import '../../login/login.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
-  const AdminDesktopLayout({super.key});
+  final String adminId; // 👇 Add this
+  const AdminDesktopLayout({super.key, required this.adminId});
 
   @override
   State<AdminDesktopLayout> createState() => _AdminDesktopLayoutState();
@@ -19,14 +20,17 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
 
-  final List<Widget> _screens = [
+  late final List<Widget> _screens = [
+    // Note the "late final" so we can access widget.adminId
     const AdminDashboard(),
     const AdminSchedules(),
     const AdminDriver(),
     const AdminFleet(),
     const AdminUsers(),
-    const AdminSettings(),
-    const AdminFeedbacks(),
+    AdminSettings(
+      adminId: widget.adminId,
+    ), // 👇 Pass the ID into the settings page
+    const AdminFeedbacks(), // (Remove this line from Mobile layout if you took it out earlier)
   ];
 
   @override
