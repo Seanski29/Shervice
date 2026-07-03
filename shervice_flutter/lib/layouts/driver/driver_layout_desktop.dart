@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../screens/driver/driver_dashboard.dart';
 import '../../screens/driver/driver_schedules.dart';
-import '../../screens/driver/driver_ratings.dart';
 import '../../screens/driver/driver_profile.dart';
 import '../../login/login.dart';
+import '../../widgets/shervice_floating_stack.dart';
+import '../../constant.dart';
 
 class DriverLayoutDesktop extends StatefulWidget {
   final String driverId;
@@ -26,112 +27,116 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
   bool _isSidebarExpanded = true;
 
   List<Widget> get _screens => [
-    DriverDashboard(driverName: widget.driverName),
-    DriverSchedules(driverId: widget.driverId),
-    DriverProfile(driverName: widget.driverName),
-  ];
+        DriverDashboard(driverName: widget.driverName),
+        DriverSchedules(driverId: widget.driverId),
+        DriverProfile(driverName: widget.driverName),
+      ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: Row(
-        children: [
-          // Sidebar
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: _isSidebarExpanded ? 260 : 76,
-            color: const Color(0xFF1E293B),
-            child: Column(
-              children: [
-                // Branding Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
-                      ),
-                      if (_isSidebarExpanded) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Image.asset(
-                                'assets/shervice - white.jpg',
-                                height: 25,
-                                fit: BoxFit.contain,
-                                errorBuilder: (c, e, s) => const Text('SHERVICE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                'Driver Portal',
-                                style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500),
-                              ),
-                            ],
+    return SherviceFloatingStack(
+      userRole: 'Driver',
+      userName: widget.driverName,
+      localIp: localIp,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: Row(
+          children: [
+            // Sidebar
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: _isSidebarExpanded ? 260 : 76,
+              color: const Color(0xFF1E293B),
+              child: Column(
+                children: [
+                  // Branding Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
                           ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
                         ),
+                        if (_isSidebarExpanded) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  'assets/shervice - white.jpg',
+                                  height: 25,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (c, e, s) => const Text('SHERVICE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                ),
+                                const Text(
+                                  'Driver Portal',
+                                  style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                const Divider(color: Colors.white10, thickness: 1, height: 1),
-                const SizedBox(height: 16),
-                
-                // Navigation Items
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      _buildSidebarItem(Icons.dashboard_outlined, 'Dashboard', 0),
-                      _buildSidebarItem(Icons.calendar_month_outlined, 'My Schedule', 1),
-                      _buildSidebarItem(Icons.person_outline, 'Profile', 2),
-                    ],
+                  const Divider(color: Colors.white10, thickness: 1, height: 1),
+                  const SizedBox(height: 16),
+
+                  // Navigation Items
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        _buildSidebarItem(Icons.dashboard_outlined, 'Dashboard', 0),
+                        _buildSidebarItem(Icons.calendar_month_outlined, 'My Schedule', 1),
+                        _buildSidebarItem(Icons.person_outline, 'Profile', 2),
+                      ],
+                    ),
                   ),
-                ),
-                
-                // Footer Logout
-                const Divider(color: Colors.white10, thickness: 1, height: 1),
-                _buildSidebarItem(Icons.logout, 'Log Out', 99, isLogout: true),
-                const SizedBox(height: 20),
-              ],
+
+                  // Footer Logout
+                  const Divider(color: Colors.white10, thickness: 1, height: 1),
+                  _buildSidebarItem(Icons.logout, 'Log Out', 99, isLogout: true),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
-          ),
-          
-          // Main Content Area
-          Expanded(
-            child: Column(
-              children: [
-                Container(
-                  height: 70,
-                  color: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.menu, color: Colors.grey),
-                        onPressed: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded),
-                      ),
-                      const Spacer(),
-                      const Icon(Icons.notifications_none, color: Colors.grey),
-                      const SizedBox(width: 24),
-                    ],
+
+            // Main Content Area
+            Expanded(
+              child: Column(
+                children: [
+                  Container(
+                    height: 70,
+                    color: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.menu, color: Colors.grey),
+                          onPressed: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded),
+                        ),
+                        const Spacer(),
+                        const Icon(Icons.notifications_none, color: Colors.grey),
+                        const SizedBox(width: 24),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(child: _screens[_selectedIndex]),
-              ],
+                  Expanded(child: _screens[_selectedIndex]),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

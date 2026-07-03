@@ -1,11 +1,12 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import '../../../screens/oic/oic_dashboard.dart';
 import '../../../screens/oic/oic_schedules.dart';
 import '../../../screens/oic/oic_trips.dart';
 import '../../../screens/oic/oic_settings.dart';
 import '../../../login/login.dart';
+import '../../../widgets/shervice_floating_stack.dart';
+import '../../../constant.dart';
 
 class OicLayoutDesktop extends StatefulWidget {
   final String oicId;
@@ -29,7 +30,6 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
 
   @override
   Widget build(BuildContext context) {
-    // List of screens available to the OIC
     final List<Widget> screens = [
       OicDashboard(
         oicName: widget.oicName,
@@ -38,7 +38,6 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
       ),
       OicSchedules(oicId: widget.oicId),
       OicTrips(oicId: widget.oicId),
-      // 👈 Added OicSettings here
       OicSettings(
         oicId: widget.oicId,
         oicName: widget.oicName,
@@ -46,20 +45,25 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
       ),
     ];
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: Row(
-        children: [
-          _buildSidebar(),
-          Expanded(
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(child: screens[_selectedIndex]),
-              ],
+    return SherviceFloatingStack(
+      userRole: 'OIC',
+      userName: widget.oicName,
+      localIp: localIp,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: Row(
+          children: [
+            _buildSidebar(),
+            Expanded(
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  Expanded(child: screens[_selectedIndex]),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -79,19 +83,13 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
                   clipBehavior: Clip.antiAlias,
                   child: Image.asset(
                     'assets/logo.jpg',
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Center(
-                        child: Icon(Icons.directions_car, color: Colors.blue, size: 24),
-                      );
-                    },
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Center(child: Icon(Icons.directions_car, color: Colors.blue, size: 24)),
                   ),
                 ),
                 if (_isSidebarExpanded) ...[
@@ -105,9 +103,8 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
                           height: 25,
                           fit: BoxFit.contain,
                           alignment: Alignment.centerLeft,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Text('SHERVICE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold));
-                          },
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Text('SHERVICE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
                         const Text('OIC Portal', style: TextStyle(color: Colors.white54, fontSize: 11)),
                       ],
@@ -152,7 +149,10 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
             Icon(icon, color: isActive ? Colors.white : Colors.white70, size: 20),
             if (_isSidebarExpanded) ...[
               const SizedBox(width: 16),
-              Text(title, style: TextStyle(color: isActive ? Colors.white : Colors.white70, fontWeight: isActive ? FontWeight.bold : FontWeight.w500)),
+              Text(title,
+                  style: TextStyle(
+                      color: isActive ? Colors.white : Colors.white70,
+                      fontWeight: isActive ? FontWeight.bold : FontWeight.w500)),
             ],
           ],
         ),
@@ -166,7 +166,9 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
-            IconButton(icon: const Icon(Icons.menu, color: Colors.grey), onPressed: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded)),
+            IconButton(
+                icon: const Icon(Icons.menu, color: Colors.grey),
+                onPressed: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded)),
             const Spacer(),
             SlideInWelcomeWidget(role: widget.oicName),
             const SizedBox(width: 16),
@@ -212,13 +214,12 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with Single
   void initState() {
     super.initState();
     _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
-    _offsetAnimation = Tween<Offset>(begin: const Offset(1.5, 0.0), end: Offset.zero).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
+    _offsetAnimation = Tween<Offset>(begin: const Offset(1.5, 0.0), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
     _controller.forward();
 
     _hideTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted) {
-        _controller.reverse();
-      }
+      if (mounted) _controller.reverse();
     });
   }
 
@@ -228,13 +229,22 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with Single
     _controller.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) => SlideTransition(
         position: _offsetAnimation,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(color: Colors.green.shade50, border: Border.all(color: Colors.green.shade200), borderRadius: BorderRadius.circular(30)),
-          child: Row(children: [Icon(Icons.check_circle, color: Colors.green.shade600, size: 18), const SizedBox(width: 8), Text('Welcome, ${widget.role}!', style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold))]),
+          decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              border: Border.all(color: Colors.green.shade200),
+              borderRadius: BorderRadius.circular(30)),
+          child: Row(children: [
+            Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
+            const SizedBox(width: 8),
+            Text('Welcome, ${widget.role}!',
+                style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold))
+          ]),
         ),
       );
 }

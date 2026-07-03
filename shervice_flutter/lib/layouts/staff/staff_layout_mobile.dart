@@ -8,6 +8,8 @@ import '../../screens/staff/staff_attendance.dart';
 import '../../screens/staff/staff_analytics.dart';
 import '../../login/login.dart';
 import '../../screens/staff/staff_settings.dart';
+import '../../widgets/shervice_floating_stack.dart';
+import '../../constant.dart';
 
 class StaffLayoutMobile extends StatefulWidget {
   final String staffId;
@@ -70,9 +72,13 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
       ),
     ];
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
+    return SherviceFloatingStack(
+      userRole: 'Staff',
+      userName: widget.staffName,
+      localIp: localIp,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
         automaticallyImplyLeading: false,
@@ -149,6 +155,7 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
 
       // Custom horizontally scrollable Bottom Navigation Bar for 7 items
       bottomNavigationBar: _buildCustomBottomNav(),
+      ),
     );
   }
 

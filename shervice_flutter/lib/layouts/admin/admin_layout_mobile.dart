@@ -11,6 +11,8 @@ import '../../screens/admin/admin_feedbacks.dart';
 
 // IMPORTANT: Import the Login Screen
 import '../../login/login.dart';
+import '../../widgets/shervice_floating_stack.dart';
+import '../../constant.dart';
 
 class AdminMobileLayout extends StatefulWidget {
   final String adminId; // ✅ Added adminId parameter
@@ -57,78 +59,79 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        automaticallyImplyLeading: false, // Hide back button
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Perfectly circular logo container with white background
-            Container(
-              width: 32,
-              height: 32,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
+    return SherviceFloatingStack(
+      userRole: 'Admin',
+      userName: 'System Admin',
+      localIp: localIp,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1E293B),
+          elevation: 0,
+          automaticallyImplyLeading: false, // Hide back button
+          centerTitle: true,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Perfectly circular logo container with white background
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Image.asset(
+                  'assets/logo.jpg',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Icon(
+                        Icons.directions_car,
+                        color: Colors.blue,
+                        size: 18,
+                      ),
+                    );
+                  },
+                ),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: Image.asset(
-                'assets/logo.jpg',
-                fit: BoxFit.cover,
+              const SizedBox(width: 10),
+              // White text logo image
+              Image.asset(
+                'assets/shervice - white.jpg',
+                height: 25,
+                fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
-                  return const Center(
-                    child: Icon(
-                      Icons.directions_car,
-                      color: Colors.blue,
-                      size: 18,
+                  return const Text(
+                    'SHERVICE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: 1.0,
                     ),
                   );
                 },
               ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
+              onPressed: () => _handleLogout(context),
             ),
-            const SizedBox(width: 10),
-            // White text logo image
-            Image.asset(
-              'assets/shervice - white.jpg',
-              height: 25,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const Text(
-                  'SHERVICE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    letterSpacing: 1.0,
-                  ),
-                );
-              },
-            ),
+            const SizedBox(width: 4),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
-            onPressed: () => _handleLogout(context),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: _screens[_selectedIndex],
           ),
-          const SizedBox(width: 4),
-        ],
-      ),
-
-      // FIX: Added Padding inside SafeArea to fix pagination elements from being crushed at the bottom
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: _screens[_selectedIndex],
         ),
+        bottomNavigationBar: _buildCustomBottomNav(),
       ),
-
-      // FIX: Custom horizontally scrollable Bottom Navigation Bar to prevent yellow/black tapes!
-      bottomNavigationBar: _buildCustomBottomNav(),
     );
   }
 
