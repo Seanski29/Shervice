@@ -4,6 +4,8 @@ import '../../screens/driver/driver_schedules.dart';
 import '../../screens/driver/driver_ratings.dart';
 import '../../screens/driver/driver_profile.dart';
 import '../../login/login.dart';
+import '../../widgets/shervice_floating_stack.dart';
+import '../../constant.dart';
 
 class DriverLayoutMobile extends StatefulWidget {
   final String driverId;
@@ -42,48 +44,53 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
+    return SherviceFloatingStack(
+      userRole: 'Driver',
+      userName: widget.driverName,
+      localIp: localIp,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1E293B),
+          elevation: 0,
+          centerTitle: true,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
+              const SizedBox(width: 10),
+              Image.asset(
+                'assets/shervice - white.jpg',
+                height: 25,
+                fit: BoxFit.contain,
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
+              onPressed: () => _confirmLogout(context),
             ),
-            const SizedBox(width: 10),
-            Image.asset(
-              'assets/shervice - white.jpg',
-              height: 25,
-              fit: BoxFit.contain,
-            ),
+            const SizedBox(width: 4),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
-            onPressed: () => _confirmLogout(context),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: _screens[_selectedIndex],
           ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: _screens[_selectedIndex],
         ),
+        bottomNavigationBar: _buildBottomNav(),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 

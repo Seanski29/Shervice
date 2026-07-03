@@ -1,5 +1,5 @@
 import os
-from flask import Flask, make_response, request
+from flask import Flask, make_response, request  # Removed 'app' from this line
 from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -13,6 +13,8 @@ import roles.staff as staff_module
 import roles.passenger as passenger_module
 import roles.vehicle as vehicles_module  
 import roles.schedules as schedules_module
+
+from gemeni import ai_bp  # Kept the import here cleanly
 
 class TransportBackendApp:
     def __init__(self):
@@ -77,6 +79,10 @@ class TransportBackendApp:
         self.app.register_blueprint(passenger_module.passenger_bp)
         self.app.register_blueprint(vehicles_module.vehicles_bp) 
         self.app.register_blueprint(schedules_module.schedules_bp)
+        
+        # REGISTER THE AI BLUEPRINT HERE CORRECTLY
+        self.app.register_blueprint(ai_bp)
+
     def run(self):
         # Force alignment to explicit loopback addresses
         self.app.run(host='0.0.0.0', port=5000, debug=True)

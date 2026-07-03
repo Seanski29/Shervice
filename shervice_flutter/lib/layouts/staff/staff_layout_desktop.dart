@@ -8,6 +8,8 @@ import '../../screens/staff/staff_attendance.dart';
 import '../../screens/staff/staff_analytics.dart';
 import '../../login/login.dart';
 import '../../screens/staff/staff_settings.dart';
+import '../../widgets/shervice_floating_stack.dart';
+import '../../constant.dart';
 
 class StaffLayoutDesktop extends StatefulWidget {
   final String staffId;
@@ -50,20 +52,25 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: Row(
-        children: [
-          _buildSidebar(),
-          Expanded(
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(child: _screens[_selectedIndex]),
-              ],
+    return SherviceFloatingStack(
+      userRole: 'Staff',
+      userName: widget.staffName,
+      localIp: localIp,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: Row(
+          children: [
+            _buildSidebar(),
+            Expanded(
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  Expanded(child: _screens[_selectedIndex]),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
