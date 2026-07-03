@@ -35,7 +35,6 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
     'Requests',
     'History',
     'Drivers',
-    'Attendance',
     //   'Analytics',
     'Settings',
   ];
@@ -58,11 +57,10 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
         staffName: widget.staffName,
         companyName: widget.companyName,
       ),
-      const StaffVehicle(),
+      StaffVehicle(staffId: widget.staffId),
       StaffSchedules(staffId: widget.staffId),
       StaffTrips(staffId: widget.staffId),
       const StaffDrivers(),
-      const StaffAttendance(),
 
       //const StaffAnalytics(),
       StaffSettings(

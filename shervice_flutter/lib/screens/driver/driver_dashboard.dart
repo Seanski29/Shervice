@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'dart:io';
 
 // IMPORTANT: Using your project's constant file or inline definition
-const String backendUrl = kIsWeb ? 'http://127.0.0.1:5000/api' : 'http://10.0.2.2:5000/api';
+const String backendUrl = kIsWeb
+    ? 'http://127.0.0.1:5000/api'
+    : 'http://10.0.2.2:5000/api';
 
 class DriverDashboard extends StatefulWidget {
   final String driverName;
@@ -63,16 +65,29 @@ class _DriverDashboardState extends State<DriverDashboard> {
 
     final routeName = _activeTrip!['route_name'];
     final departureTime = _activeTrip!['departure_time'];
+    final estimatedArrival = _activeTrip!['estimated_arrival_time'];
     final status = _activeTrip!['status'];
     final plateNumber = _activeTrip!['plate_number'];
 
-    final hasRouteInfo = routeName != null && routeName.toString().trim().isNotEmpty;
-    final hasScheduleInfo = departureTime != null && departureTime.toString().trim().isNotEmpty;
+    final hasRouteInfo =
+        routeName != null && routeName.toString().trim().isNotEmpty;
+    final hasScheduleInfo =
+        departureTime != null && departureTime.toString().trim().isNotEmpty;
+    final hasEtaInfo =
+        estimatedArrival != null &&
+        estimatedArrival.toString().trim().isNotEmpty;
     final hasStatusInfo = status != null && status.toString().trim().isNotEmpty;
-    final hasVehicleInfo = plateNumber != null && plateNumber.toString().trim().isNotEmpty && plateNumber.toString().trim() != 'No Plate Assigned';
+    final hasVehicleInfo =
+        plateNumber != null &&
+        plateNumber.toString().trim().isNotEmpty &&
+        plateNumber.toString().trim() != 'No Plate Assigned';
 
     // If we have AT LEAST ONE piece of valid dispatch data, render the card.
-    return hasRouteInfo || hasScheduleInfo || hasStatusInfo || hasVehicleInfo;
+    return hasRouteInfo ||
+        hasScheduleInfo ||
+        hasEtaInfo ||
+        hasStatusInfo ||
+        hasVehicleInfo;
   }
 
   @override
@@ -172,10 +187,10 @@ class _DriverDashboardState extends State<DriverDashboard> {
               ),
             ),
             const SizedBox(height: 12),
-            
-            if (_hasAssignedTripData()) 
+
+            if (_hasAssignedTripData())
               _buildVehicleDetailsCard()
-            else 
+            else
               _buildEmptyVehiclePlaceholder(),
           ],
         ),
@@ -187,6 +202,8 @@ class _DriverDashboardState extends State<DriverDashboard> {
     // We already passed the `_hasAssignedTripData()` check to get here, so we know `_activeTrip` is not null.
     final status = _activeTrip!['status'] ?? 'SCHEDULED';
     final isOngoing = status == 'ONGOING';
+    final departureTime = _activeTrip!['departure_time']?.toString();
+    final estimatedArrival = _activeTrip!['estimated_arrival_time']?.toString();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -256,7 +273,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
             Icons.my_location,
             'ROUTE PLAN',
             _activeTrip!['route_name']?.toString() ?? 'Pending Assignment',
-            _activeTrip!['departure_time']?.toString() ?? '--:--',
+            _formatDepartureEta(departureTime, estimatedArrival),
             Colors.blue.shade200,
           ),
           const SizedBox(height: 24),
@@ -265,8 +282,10 @@ class _DriverDashboardState extends State<DriverDashboard> {
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Colors.white24, width: 1)),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 12,
+              alignment: WrapAlignment.spaceBetween,
               children: [
                 _buildRouteDetail(
                   Icons.people_alt_outlined,
@@ -277,6 +296,11 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   Icons.straighten,
                   'Distance',
                   '${_activeTrip!['route_distance'] ?? 0} km',
+                ),
+                _buildRouteDetail(
+                  Icons.access_time,
+                  'Schedule',
+                  _formatDepartureEta(departureTime, estimatedArrival),
                 ),
                 _buildRouteDetail(
                   Icons.pin_drop_outlined,
@@ -330,7 +354,8 @@ class _DriverDashboardState extends State<DriverDashboard> {
 
   Widget _buildVehicleDetailsCard() {
     final plate = _activeTrip!['plate_number']?.toString() ?? 'UNASSIGNED';
-    final model = _activeTrip!['model']?.toString() ?? 'Contact Staff Dispatcher';
+    final model =
+        _activeTrip!['model']?.toString() ?? 'Contact Staff Dispatcher';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -399,8 +424,11 @@ class _DriverDashboardState extends State<DriverDashboard> {
             const SizedBox(width: 12),
             Text(
               'No vehicle keys assigned to your profile.',
-              style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-            )
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),
@@ -455,6 +483,20 @@ class _DriverDashboardState extends State<DriverDashboard> {
         ),
       ],
     );
+  }
+
+  String _formatDepartureEta(String? departureTime, String? etaTime) {
+    final departure = departureTime?.trim();
+    final eta = etaTime?.trim();
+
+    final formattedDeparture = departure != null && departure.isNotEmpty
+        ? (departure.length >= 5 ? departure.substring(0, 5) : departure)
+        : '--:--';
+    final formattedEta = eta != null && eta.isNotEmpty
+        ? (eta.length >= 5 ? eta.substring(0, 5) : eta)
+        : '--:--';
+
+    return '$formattedDeparture-$formattedEta';
   }
 
   Widget _buildRouteDetail(IconData icon, String label, String value) {
