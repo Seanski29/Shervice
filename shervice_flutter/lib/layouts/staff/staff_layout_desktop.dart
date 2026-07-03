@@ -34,7 +34,7 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
       staffName: widget.staffName,
       companyName: widget.companyName,
     ),
-    const StaffVehicle(),
+    StaffVehicle(staffId: widget.staffId),
     StaffSchedules(staffId: widget.staffId),
     StaffTrips(staffId: widget.staffId),
     const StaffDrivers(),
