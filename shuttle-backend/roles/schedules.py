@@ -3,6 +3,14 @@ from flask import Blueprint, request, jsonify
 schedules_bp = Blueprint('schedules', __name__)
 supabase = None  # Injected in app.py
 
+
+def _create_notification(payload):
+    try:
+        supabase.table('app_notification').insert(payload).execute()
+    except Exception as e:
+        print(f"❌ Notification Create Error: {e}")
+
+
 @schedules_bp.route('/api/schedules/request', methods=['POST'])
 def create_trip_request():
     """OIC submits a new trip request"""
@@ -22,11 +30,11 @@ def create_trip_request():
 
         oic_uuid = data.get('oic_id')
         
-        # 1. Lookup the integer ID from the oic_profile table
+        # 1. Lookup the integer ID and company name from the oic_profile table
         # 🛡️ THE PGRST116 FIX: Removed .single() to handle duplicate user_ids safely
         oic_lookup = (
             supabase.table('oic_profile')
-            .select('oic_id')
+            .select('oic_id, company_name')
             .eq('user_id', oic_uuid)
             .execute()
         )
@@ -36,23 +44,38 @@ def create_trip_request():
             
         # Safely grab the first integer ID from the list
         oic_int_id = oic_lookup.data[0].get('oic_id')
-        
+        company_name = oic_lookup.data[0].get('company_name')
+        final_route = data.get('destination', 'Unspecified Route')
+        final_date = data.get('departure_date')
+
         # 2. Insert using the correct integer ID
         response = (
             supabase.table('trip_schedule')
             .insert({
                 "oic_id": oic_int_id, 
                 "staff_id": data.get('staff_id'),
-                "route_name": data.get('destination', 'Unspecified Route'),
+                "route_name": final_route,
                 "route_distance": r_distance, 
                 "passenger_count": p_count, 
-                "schedule_date": data.get('departure_date'), 
+                "schedule_date": final_date, 
                 "departure_time": data.get('departure_time'),
                 "estimated_arrival_time": data.get('estimated_arrival_time'), 
                 "trip_status": "Pending Staff Assignment" 
             })
             .execute()
         )
+
+        if response.data and len(response.data) > 0:
+            trip_id = response.data[0].get('trip_id')
+            notification_payload = {
+                "title": "New trip request",
+                "message": f"{final_route} requested for {final_date}",
+                "target_role": "staff",
+                "related_trip_id": trip_id,
+            }
+            if company_name:
+                notification_payload["target_company"] = company_name
+            _create_notification(notification_payload)
 
         return jsonify({"success": True, "message": "Trip request submitted to staff!"}), 201
     except Exception as e:
@@ -192,17 +215,61 @@ def assign_trip_assets():
     try:
         data = request.get_json() or {}
         trip_id = data.get('trip_id')
+        driver_uuid = data.get('driver_uuid')
         
         response = (
             supabase.table('trip_schedule')
             .update({
-                "user_id": data.get('driver_uuid'),  
+                "user_id": driver_uuid,  
                 "vehicle_id": data.get('vehicle_id'), 
                 "trip_status": "Scheduled"
             })
             .eq('trip_id', trip_id)
             .execute()
         )
+
+        # Send a notification to the assigned OIC and optionally the assigned driver
+        trip_info = (
+            supabase.table('trip_schedule')
+            .select('route_name, schedule_date, oic_id')
+            .eq('trip_id', trip_id)
+            .execute()
+        )
+
+        if trip_info.data:
+            route_name = trip_info.data[0].get('route_name')
+            schedule_date = trip_info.data[0].get('schedule_date')
+            oic_id = trip_info.data[0].get('oic_id')
+
+            oic_profile = (
+                supabase.table('oic_profile')
+                .select('user_id, company_name')
+                .eq('oic_id', oic_id)
+                .execute()
+            )
+
+            company_name = None
+            if oic_profile.data:
+                oic_user_id = oic_profile.data[0].get('user_id')
+                company_name = oic_profile.data[0].get('company_name')
+                _create_notification({
+                    "title": "Trip assigned",
+                    "message": f"{route_name} is scheduled for {schedule_date}",
+                    "target_user_id": oic_user_id,
+                    "target_role": "oic",
+                    "target_company": company_name,
+                    "related_trip_id": trip_id,
+                })
+
+            if driver_uuid:
+                _create_notification({
+                    "title": "You were assigned a trip",
+                    "message": f"{route_name} is scheduled for {schedule_date}",
+                    "target_user_id": driver_uuid,
+                    "target_role": "driver",
+                    "target_company": company_name,
+                    "related_trip_id": trip_id,
+                })
 
         return jsonify({"success": True, "message": "Trip successfully dispatched!"}), 200
     except Exception as e:

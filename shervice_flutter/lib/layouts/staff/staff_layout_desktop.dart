@@ -8,6 +8,7 @@ import '../../screens/staff/staff_attendance.dart';
 import '../../screens/staff/staff_analytics.dart';
 import '../../login/login.dart';
 import '../../screens/staff/staff_settings.dart';
+import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 
@@ -30,6 +31,7 @@ class StaffLayoutDesktop extends StatefulWidget {
 class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
+  bool _showWelcome = true;
 
   List<Widget> get _screens => [
     StaffDashboard(
@@ -250,8 +252,19 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
                 setState(() => _isSidebarExpanded = !_isSidebarExpanded),
           ),
           const Spacer(),
-          const SizedBox(width: 24),
-          SlideInWelcomeWidget(role: widget.staffName),
+          if (_showWelcome) ...[
+            SlideInWelcomeWidget(
+              role: widget.staffName,
+              onHidden: () => setState(() => _showWelcome = false),
+            ),
+            const SizedBox(width: 16),
+          ],
+          NotificationBell(
+            role: 'Staff',
+            userId: widget.staffId,
+            userName: widget.staffName,
+            companyName: widget.companyName,
+          ),
           const SizedBox(width: 16),
         ],
       ),
@@ -308,7 +321,8 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
 // ============================================================================
 class SlideInWelcomeWidget extends StatefulWidget {
   final String role;
-  const SlideInWelcomeWidget({super.key, required this.role});
+  final VoidCallback? onHidden;
+  const SlideInWelcomeWidget({super.key, required this.role, this.onHidden});
 
   @override
   State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
@@ -330,6 +344,13 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
       begin: const Offset(1.5, 0.0),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.dismissed) {
+        widget.onHidden?.call();
+      }
+    });
+
     _controller.forward().then((_) {
       Future.delayed(const Duration(seconds: 5), () {
         if (mounted) _controller.reverse();

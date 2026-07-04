@@ -42,18 +42,21 @@ def handle_api_login():
             account = user_query.data[0]
             role = account.get('role', '').lower()
             display_name = account.get('full_name') or "System User"
-            
+            company_str = account.get('company_name') or company_str
+
             # 2. Add specific formatting for OICs
             if role == 'oic':
                 oic_profile = supabase.table('oic_profile').select('company_name').eq('user_id', user_uuid).execute()
                 if oic_profile.data:
                     company_str = oic_profile.data[0].get('company_name', 'Unknown')
-            
+
             # 3. Fallback for old Drivers registered before the SQL update
-            elif role == 'driver' and display_name == "System User":
-                driver_profile = supabase.table('driver_profile').select('full_name').eq('user_id', user_uuid).execute()
+            elif role == 'driver':
+                driver_profile = supabase.table('driver_profile').select('full_name, company_name').eq('user_id', user_uuid).execute()
                 if driver_profile.data:
-                    display_name = driver_profile.data[0].get('full_name', 'Driver')
+                    if display_name == 'System User':
+                        display_name = driver_profile.data[0].get('full_name', 'Driver')
+                    company_str = driver_profile.data[0].get('company_name') or company_str
 
         return jsonify({
             "success": True,

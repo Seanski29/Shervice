@@ -6,6 +6,7 @@ from supabase import create_client, Client
 
 # Import your blueprint role modules from the folder structures
 import roles.auth as auth_module
+import roles.notifs as notifs_module  #new
 import roles.admin as admin_module
 import roles.oic as oic_module
 import roles.drivers as drivers_module
@@ -62,6 +63,7 @@ class TransportBackendApp:
         variable space before mounting blueprints into the unified server schema.
         """
         auth_module.supabase = self.supabase
+        notifs_module.supabase = self.supabase #new
         admin_module.supabase = self.supabase
         oic_module.supabase = self.supabase
         drivers_module.supabase = self.supabase
@@ -72,6 +74,7 @@ class TransportBackendApp:
 
         # Register functional application blueprints cleanly
         self.app.register_blueprint(auth_module.auth_bp)
+        self.app.register_blueprint(notifs_module.notifs_bp) #new
         self.app.register_blueprint(admin_module.admin_bp)
         self.app.register_blueprint(oic_module.oic_bp)
         self.app.register_blueprint(drivers_module.drivers_bp)
@@ -85,7 +88,9 @@ class TransportBackendApp:
 
     def run(self):
         # Force alignment to explicit loopback addresses
-        self.app.run(host='0.0.0.0', port=5000, debug=True)
+        # Disable the auto-reloader and debug mode for stability during testing
+        # (the development reloader can cause transient connection resets)
+        self.app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 
 if __name__ == '__main__':
     server = TransportBackendApp()
