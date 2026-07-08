@@ -5,11 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
+import '../../widgets/driver_rating_badge.dart';
 
 class DriverProfile extends StatefulWidget {
-  final String driverName; // Injected on login from parent layouts
+  final String driverName;
+  final String driverId;
 
-  const DriverProfile({super.key, required this.driverName});
+  const DriverProfile({
+    super.key,
+    required this.driverName,
+    required this.driverId,
+  });
 
   @override
   State<DriverProfile> createState() => _DriverProfileState();
@@ -258,23 +264,45 @@ class _DriverProfileState extends State<DriverProfile> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            status,
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                status,
+                                style: const TextStyle(
+                                  color: Colors.green,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            // 👈 NEW: The Smart Badge inside a matching amber container!
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: DriverRatingBadge(
+                                key: UniqueKey(),
+                                driverUuid: widget.driverId,
+                                backendUrl: backendUrl,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

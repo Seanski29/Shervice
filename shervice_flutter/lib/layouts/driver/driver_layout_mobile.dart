@@ -31,7 +31,7 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
   List<Widget> get _screens => [
     DriverDashboard(driverName: widget.driverName),
     DriverSchedules(driverId: widget.driverId),
-    DriverProfile(driverName: widget.driverName),
+    DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
   ];
 
   final List<String> _titles = ['Dashboard', 'Schedule', 'Profile'];

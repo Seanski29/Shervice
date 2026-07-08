@@ -2,12 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:qr_flutter/qr_flutter.dart'; // <-- 1. IMPORT ADDED
 import 'dart:io';
-
-// IMPORTANT: Using your project's constant file or inline definition
-const String backendUrl = kIsWeb
-    ? 'http://127.0.0.1:5000/api'
-    : 'http://10.0.2.2:5000/api';
+import '../../constant.dart';
 
 class DriverDashboard extends StatefulWidget {
   final String driverName;
@@ -59,8 +56,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
   // ─── ROBUST SAFETY CHECK FOR BACKEND DATA ───
   bool _hasAssignedTripData() {
     if (_activeTrip == null) return false;
-
-    // Check if the backend returned an empty map or specifically marked it empty
     if (_activeTrip!.isEmpty) return false;
 
     final routeName = _activeTrip!['route_name'];
@@ -82,12 +77,63 @@ class _DriverDashboardState extends State<DriverDashboard> {
         plateNumber.toString().trim().isNotEmpty &&
         plateNumber.toString().trim() != 'No Plate Assigned';
 
-    // If we have AT LEAST ONE piece of valid dispatch data, render the card.
     return hasRouteInfo ||
         hasScheduleInfo ||
         hasEtaInfo ||
         hasStatusInfo ||
         hasVehicleInfo;
+  }
+
+  // ─── 2. QR CODE MODAL LOGIC ADDED ───
+  void _showPassengerQR(String tripId) {
+    final String baseUrl = backendUrl.replaceAll('/api', '');
+    final String evalUrl = '$baseUrl/evaluate?trip_id=$tripId';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Passenger Evaluation',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Ask passengers to scan this code as they exit to evaluate the trip.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: SizedBox(
+                width: 200,
+                height: 200,
+                child: QrImageView(
+                  data: evalUrl,
+                  version: QrVersions.auto,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -103,7 +149,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
         child: ListView(
           padding: const EdgeInsets.all(20.0),
           children: [
-            // Greeting Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -156,7 +201,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
             ),
             const SizedBox(height: 24),
 
-            // CURRENT DISPATCH SECTION
             const Text(
               'CURRENT DISPATCH',
               style: TextStyle(
@@ -168,7 +212,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
             ),
             const SizedBox(height: 12),
 
-            // ─── SAFE CONDITIONAL RENDERING ───
             if (_hasAssignedTripData())
               _buildActiveTripCard()
             else
@@ -176,7 +219,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
 
             const SizedBox(height: 24),
 
-            // ASSIGNED VEHICLE SECTION
             const Text(
               'ASSIGNED VEHICLE',
               style: TextStyle(
@@ -199,7 +241,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
   }
 
   Widget _buildActiveTripCard() {
-    // We already passed the `_hasAssignedTripData()` check to get here, so we know `_activeTrip` is not null.
     final status = _activeTrip!['status'] ?? 'SCHEDULED';
     final isOngoing = status == 'ONGOING';
     final departureTime = _activeTrip!['departure_time']?.toString();
@@ -308,6 +349,30 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   isOngoing ? 'In Transit' : 'Pending',
                 ),
               ],
+            ),
+          ),
+          // ─── 3. TRIGGER BUTTON ADDED HERE ───
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () =>
+                  _showPassengerQR(_activeTrip!['trip_id'].toString()),
+              icon: const Icon(Icons.qr_code, color: Colors.blue),
+              label: const Text(
+                'Show Passenger QR',
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
         ],
