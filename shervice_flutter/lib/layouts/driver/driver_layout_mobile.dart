@@ -29,7 +29,7 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
 
   // The 4 Screens for the Driver
   List<Widget> get _screens => [
-    DriverDashboard(driverName: widget.driverName),
+    DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
     DriverSchedules(driverId: widget.driverId),
     DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
   ];
