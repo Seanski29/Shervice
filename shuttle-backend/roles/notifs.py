@@ -6,12 +6,7 @@ from dotenv import load_dotenv
 from flask import Blueprint, request, jsonify
 from supabase import create_client
 
-# Create the blueprint
 notifs_bp = Blueprint('notifs', __name__)
-
-# This will be dynamically assigned in app.py
-supabase = None 
-
 
 def _create_supabase_client():
     load_dotenv()
@@ -20,7 +15,6 @@ def _create_supabase_client():
     if not url or not key:
         raise RuntimeError('Missing SUPABASE_URL or SUPABASE_KEY environment variables.')
     return create_client(url, key)
-
 
 def _execute_supabase(action, retries=3, backoff=0.25):
     last_exc = None
@@ -44,26 +38,21 @@ def _execute_supabase(action, retries=3, backoff=0.25):
             time.sleep(backoff * attempt)
     raise last_exc
 
-
 # ==========================================
-# 1. FETCH NOTIFICATIONS (WITH ROLE/COMPANY FILTERING)
+# 1. FETCH NOTIFICATIONS (WITH STRICT DRIVER ISOLATION)
 # ==========================================
 @notifs_bp.route('/api/notifications', methods=['GET'])
 def get_notifications():
     try:
-        # Get parameters passed from Flutter and normalize whitespace/case
         user_id = request.args.get('user_id')
         role = (request.args.get('role') or '').strip().lower()
         company = (request.args.get('company') or '').strip()
         if company.lower() in ('internal', 'gt lantin internal', 'unknown'):
             company = ''
 
-        print(f"🔔 get_notifications called with user_id={user_id!r}, role={role!r}, company={company!r}")
-
         if not user_id:
             return jsonify({"success": False, "message": "Missing user_id parameter"}), 400
 
-        # Admin sees everything.
         supabase_client = _create_supabase_client()
         try:
             response = _execute_supabase(
@@ -78,45 +67,49 @@ def get_notifications():
             except Exception:
                 pass
 
-        if role.lower() == 'admin':
-            filtered_notifications = response.data or []
+        raw_notifs = response.data or []
+        filtered_notifications = []
+
+        # --------------------------------------------------
+        # THE STRICT FILTERS
+        # --------------------------------------------------
+        if role == 'admin':
+            # Admins see everything
+            filtered_notifications = raw_notifs
+            
+        elif role == 'driver':
+            # RUTHLESS DRIVER FILTER: 
+            # Drivers ONLY see notifications explicitly linked to their exact UUID.
+            for notification in raw_notifs:
+                target_user_id = notification.get('target_user_id')
+                if str(target_user_id) == str(user_id):
+                    filtered_notifications.append(notification)
+                    
         else:
-            filtered_notifications = []
-            for notification in response.data or []:
+            # STAFF AND OIC FILTER:
+            # They get the flexible rules (Global broadcasts, company broadcasts, etc.)
+            for notification in raw_notifs:
                 target_user_id = notification.get('target_user_id')
                 target_role = (notification.get('target_role') or '').strip().lower()
                 target_company = (notification.get('target_company') or '').strip()
 
-                # Directly addressed to the current user.
                 if str(target_user_id) == str(user_id):
                     filtered_notifications.append(notification)
                     continue
-
-                # Global notification for everyone.
                 if not target_role and not target_company:
                     filtered_notifications.append(notification)
                     continue
-
-                # Company-wide notification for all roles.
                 if not target_role and company and target_company.lower() == company.lower():
                     filtered_notifications.append(notification)
                     continue
-
-                # Role-wide notification for all companies.
                 if target_role == role and not target_company:
                     filtered_notifications.append(notification)
                     continue
-
-                # If the user has no valid company mapping, show same-role notifications anyway.
                 if target_role == role and not company:
                     filtered_notifications.append(notification)
                     continue
-
-                # Role + company scoped notification.
                 if target_role == role and company and target_company.lower() == company.lower():
                     filtered_notifications.append(notification)
-
-            print(f"🔔 returning {len(filtered_notifications)} notifications (raw fetched: {len(response.data or [])}) for user_id={user_id}")
 
         return jsonify({
             "success": True,
@@ -156,3 +149,38 @@ def mark_as_read(notif_id):
     except Exception as e:
         print(f"❌ Notification Update Error: {e}")
         return jsonify({"success": False, "message": "Internal server error."}), 500
+
+
+# ==========================================
+# 3. UNIVERSAL TRIGGER HELPER
+# ==========================================
+def trigger_notification(title, message, target_user_id=None, target_role=None, target_company=None, related_trip_id=None, source_tag='system'):
+    """
+    Call this function from anywhere in your backend to generate a notification.
+    """
+    try:
+        supabase_client = _create_supabase_client()
+        try:
+            payload = {
+                'title': title,
+                'message': message,
+                'source_tag': source_tag
+            }
+            if target_user_id: payload['target_user_id'] = target_user_id
+            if target_role: payload['target_role'] = target_role
+            if target_company: payload['target_company'] = target_company
+            if related_trip_id: payload['related_trip_id'] = related_trip_id
+
+            _execute_supabase(
+                lambda: supabase_client.table('app_notification').insert(payload).execute()
+            )
+            print(f"✅ Notification triggered successfully: {title}")
+            return True
+        finally:
+            try:
+                supabase_client.postgrest.session.close()
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"❌ Failed to trigger notification: {e}")
+        return False
