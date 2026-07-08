@@ -4,6 +4,7 @@ import '../../../screens/oic/oic_schedules.dart';
 import '../../../screens/oic/oic_trips.dart';
 import '../../../screens/oic/oic_settings.dart';
 import '../../../login/login.dart';
+import '../../../widgets/notification_bell.dart';
 import '../../../widgets/shervice_floating_stack.dart';
 import '../../../constant.dart';
 
@@ -77,8 +78,13 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
                 child: Image.asset(
                   'assets/logo.jpg',
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Center(child: Icon(Icons.directions_car, color: Colors.blue, size: 18)),
+                  errorBuilder: (context, error, stackTrace) => const Center(
+                    child: Icon(
+                      Icons.directions_car,
+                      color: Colors.blue,
+                      size: 18,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -88,12 +94,23 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) => const Text(
                   'SHERVICE',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.0),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 1.0,
+                  ),
                 ),
               ),
             ],
           ),
           actions: [
+            NotificationBell(
+              role: 'OIC',
+              userId: widget.oicId,
+              userName: widget.oicName,
+              companyName: widget.companyName,
+            ),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
               onPressed: () => _confirmLogout(context),
@@ -119,13 +136,15 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
+            border: Border(
+              top: BorderSide(color: Colors.grey.shade200, width: 1),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -2),
-              )
+              ),
             ],
           ),
           child: SafeArea(
@@ -142,16 +161,22 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
                         children: [
                           Icon(
                             _icons[index],
-                            color: isSelected ? Colors.blue.shade600 : Colors.grey.shade400,
+                            color: isSelected
+                                ? Colors.blue.shade600
+                                : Colors.grey.shade400,
                             size: 22,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             _titles[index],
                             style: TextStyle(
-                              color: isSelected ? Colors.blue.shade700 : Colors.grey.shade500,
+                              color: isSelected
+                                  ? Colors.blue.shade700
+                                  : Colors.grey.shade500,
                               fontSize: 10,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -174,8 +199,13 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to log out of your account?'),
+        title: const Text(
+          'Confirm Logout',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Are you sure you want to log out of your account?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -184,13 +214,24 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () {
               Navigator.pop(ctx);
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
             },
-            child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Logout',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -206,17 +247,22 @@ class SlideInWelcomeWidget extends StatefulWidget {
   State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
 }
 
-class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with SingleTickerProviderStateMixin {
+class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
-    _offsetAnimation = Tween<Offset>(begin: const Offset(1.5, 0.0), end: Offset.zero).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart),
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
     );
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(1.5, 0.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
     _controller.forward().then((_) {
       Future.delayed(const Duration(seconds: 5), () {
         if (mounted) _controller.reverse();
@@ -241,7 +287,11 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with Single
           border: Border.all(color: Colors.green.shade200),
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Row(
@@ -251,7 +301,10 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with Single
             const SizedBox(width: 8),
             Text(
               'Welcome, ${widget.role}!',
-              style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.green.shade800,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),

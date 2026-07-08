@@ -9,5 +9,8 @@
             "folderPath": "Shuttle Services\\shervice_flutter\\lib\\screens\\passenger\\",
             "color": "foldercolorizer.color_ffffff"
         }
-    ]
+    ],
+    "python.terminal.executeInFileDir": false,
+    "python.terminal.defaultActivationScript": "",
+    "python-envs.defaultEnvManager": "ms-python.python:system"
 }

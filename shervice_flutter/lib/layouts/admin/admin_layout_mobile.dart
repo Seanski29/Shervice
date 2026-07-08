@@ -11,6 +11,7 @@ import '../../screens/admin/admin_feedbacks.dart';
 
 // IMPORTANT: Import the Login Screen
 import '../../login/login.dart';
+import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 
@@ -33,7 +34,9 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     const AdminDriver(),
     const AdminFleet(),
     const AdminUsers(),
-    AdminSettings(adminId: widget.adminId), // ✅ Passed the ID to settings // ✅ Added to match the 7 icons
+    AdminSettings(
+      adminId: widget.adminId,
+    ), // ✅ Passed the ID to settings // ✅ Added to match the 7 icons
   ];
 
   // Shortened Titles for Bottom Nav to prevent text from overflowing
@@ -117,6 +120,13 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             ],
           ),
           actions: [
+            NotificationBell(
+              role: 'Admin',
+              userId: widget.adminId,
+              userName: 'Admin',
+              companyName: '',
+            ),
+            const SizedBox(width: 4),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
               onPressed: () => _handleLogout(context),

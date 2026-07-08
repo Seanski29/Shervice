@@ -70,7 +70,6 @@ def handle_api_login():
         print(f"❌ Login Rejected: {e}")
         return jsonify({"success": False, "message": "Invalid email or password credentials."}), 401
 
-
 @auth_bp.route('/api/auth/register-driver', methods=['POST'])
 def register_driver():
     try:

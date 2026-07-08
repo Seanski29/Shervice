@@ -1,11 +1,48 @@
 import os
+import time
+import socket
+import traceback
 from datetime import datetime
 from typing import Any, Dict, List, cast
+from dotenv import load_dotenv
 from flask import Blueprint, jsonify, request
 from supabase import create_client
 
 # Blueprint must be defined first so decorators can use it down the line
 admin_bp = Blueprint('admin', __name__)
+
+
+def _create_supabase_client():
+    load_dotenv()
+    url = os.getenv('SUPABASE_URL')
+    key = os.getenv('SUPABASE_KEY')
+    if not url or not key:
+        raise RuntimeError('Missing SUPABASE_URL or SUPABASE_KEY environment variables.')
+    return create_client(url, key)
+
+
+def _execute_supabase(action, retries=3, backoff=0.25):
+    last_exc = None
+    for attempt in range(1, retries + 1):
+        try:
+            return action()
+        except Exception as e:
+            last_exc = e
+            message = str(e).lower()
+            retryable = (
+                isinstance(e, OSError)
+                or '10035' in message
+                or 'non-blocking socket operation' in message
+                or 'temporarily unavailable' in message
+                or 'timeout' in message
+            )
+            print(f'⚠️ Supabase retry attempt {attempt}/{retries}: {e}')
+            traceback.print_exc()
+            if not retryable or attempt >= retries:
+                break
+            time.sleep(backoff * attempt)
+    raise last_exc
+
 
 # Dynamically assigned by app.py upon initialization
 supabase = None
@@ -87,26 +124,37 @@ def get_admin_schedules():
 @admin_bp.route('/api/dashboard/metrics', methods=['GET'])
 def get_dashboard_metrics():
     """Calculates unified fleet parameters, active counts, and weekly completed trip metrics live"""
+    local_client = _create_supabase_client()
     try:
         # 1. Count Total Active Registered Drivers
-        drivers_query = supabase.table('user_account').select('user_id').eq('role', 'driver').execute()
+        drivers_query = _execute_supabase(
+            lambda: local_client.table('user_account').select('user_id').eq('role', 'driver').execute()
+        )
         total_drivers = len(drivers_query.data) if drivers_query.data else 0
 
         # 2. Count Active Vehicles
-        vehicles_query = supabase.table('vehicle').select('vehicle_id').eq('is_available', True).execute()
+        vehicles_query = _execute_supabase(
+            lambda: local_client.table('vehicle').select('vehicle_id').eq('is_available', True).execute()
+        )
         active_vehicles = len(vehicles_query.data) if vehicles_query.data else 0
 
         # 3. Count Active Maintenance Alerts
-        alerts_count_query = supabase.table('vehicle').select('vehicle_id').eq('is_available', False).execute()
+        alerts_count_query = _execute_supabase(
+            lambda: local_client.table('vehicle').select('vehicle_id').eq('is_available', False).execute()
+        )
         maintenance_alerts_count = len(alerts_count_query.data) if alerts_count_query.data else 0
 
         # 4. Fetch recent maintenance log entries stream details
-        alerts_log_query = supabase.table('maintenance_log')\
-            .select('maintenance_id, description, vehicle_id')\
-            .order('repair_date', desc=True)\
-            .execute()
+        alerts_log_query = _execute_supabase(
+            lambda: local_client.table('maintenance_log')
+                .select('maintenance_id, description, vehicle_id')
+                .order('repair_date', desc=True)
+                .execute()
+        )
 
-        all_vehicles = supabase.table('vehicle').select('vehicle_id, plate_number').execute()
+        all_vehicles = _execute_supabase(
+            lambda: local_client.table('vehicle').select('vehicle_id, plate_number').execute()
+        )
         vehicle_map = {}
         if all_vehicles.data:
             for v in all_vehicles.data:
@@ -128,20 +176,26 @@ def get_dashboard_metrics():
                 })
 
         # 5. Calculate Dynamic Satisfaction Scores directly from OIC Evaluation values
-        oic_evals = supabase.table('oic_evaluation').select('overall_rating').execute()
+        oic_evals = _execute_supabase(
+            lambda: local_client.table('oic_evaluation').select('overall_rating').execute()
+        )
         oic_ratings = [r['overall_rating'] for r in oic_evals.data if r.get('overall_rating')] if oic_evals.data else []
         avg_satisfaction = sum(oic_ratings) / len(oic_ratings) if oic_ratings else 5.0
 
         # 6. Fetch Company Weekly Utilization Metrics Live
         company_weekly_metrics = []
         try:
-            companies_fetch = supabase.table('oic_profile').select('company_name').execute()
+            companies_fetch = _execute_supabase(
+                lambda: local_client.table('oic_profile').select('company_name').execute()
+            )
             company_list = [c['company_name'] for c in companies_fetch.data if c.get('company_name')] if companies_fetch.data else []
 
             if not company_list:
                 company_list = ["Bandai", "NX Logistics", "EPSON", "GT LANTIN"]
 
-            trips_fetch = supabase.table('trip_schedule').select('*').eq('trip_status', 'Completed').execute()
+            trips_fetch = _execute_supabase(
+                lambda: local_client.table('trip_schedule').select('*').eq('trip_status', 'Completed').execute()
+            )
             counts = {name: 0 for name in company_list}
             if trips_fetch.data:
                 for idx, t in enumerate(trips_fetch.data):
@@ -173,6 +227,11 @@ def get_dashboard_metrics():
     except Exception as e:
         print(f"❌ Dashboard Metrics Engine Failure: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        try:
+            local_client.postgrest.session.close()
+        except Exception:
+            pass
 
 
 # ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────

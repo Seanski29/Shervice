@@ -5,6 +5,7 @@ import '../../../screens/oic/oic_schedules.dart';
 import '../../../screens/oic/oic_trips.dart';
 import '../../../screens/oic/oic_settings.dart';
 import '../../../login/login.dart';
+import '../../../widgets/notification_bell.dart';
 import '../../../widgets/shervice_floating_stack.dart';
 import '../../../constant.dart';
 
@@ -27,6 +28,7 @@ class OicLayoutDesktop extends StatefulWidget {
 class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
+  bool _showWelcome = true;
 
   @override
   Widget build(BuildContext context) {
@@ -83,13 +85,21 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
                   clipBehavior: Clip.antiAlias,
                   child: Image.asset(
                     'assets/logo.jpg',
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Center(child: Icon(Icons.directions_car, color: Colors.blue, size: 24)),
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Icon(
+                        Icons.directions_car,
+                        color: Colors.blue,
+                        size: 24,
+                      ),
+                    ),
                   ),
                 ),
                 if (_isSidebarExpanded) ...[
@@ -104,9 +114,18 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
                           fit: BoxFit.contain,
                           alignment: Alignment.centerLeft,
                           errorBuilder: (context, error, stackTrace) =>
-                              const Text('SHERVICE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              const Text(
+                                'SHERVICE',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                         ),
-                        const Text('OIC Portal', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                        const Text(
+                          'OIC Portal',
+                          style: TextStyle(color: Colors.white54, fontSize: 11),
+                        ),
                       ],
                     ),
                   ),
@@ -133,10 +152,17 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
     );
   }
 
-  Widget _buildNavItem(int index, String title, IconData icon, {bool isLogout = false}) {
+  Widget _buildNavItem(
+    int index,
+    String title,
+    IconData icon, {
+    bool isLogout = false,
+  }) {
     bool isActive = _selectedIndex == index && !isLogout;
     return InkWell(
-      onTap: () => isLogout ? _confirmLogout(context) : setState(() => _selectedIndex = index),
+      onTap: () => isLogout
+          ? _confirmLogout(context)
+          : setState(() => _selectedIndex = index),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -146,13 +172,20 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: isActive ? Colors.white : Colors.white70, size: 20),
+            Icon(
+              icon,
+              color: isActive ? Colors.white : Colors.white70,
+              size: 20,
+            ),
             if (_isSidebarExpanded) ...[
               const SizedBox(width: 16),
-              Text(title,
-                  style: TextStyle(
-                      color: isActive ? Colors.white : Colors.white70,
-                      fontWeight: isActive ? FontWeight.bold : FontWeight.w500)),
+              Text(
+                title,
+                style: TextStyle(
+                  color: isActive ? Colors.white : Colors.white70,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
             ],
           ],
         ),
@@ -161,21 +194,37 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
   }
 
   Widget _buildHeader() => Container(
-        height: 70,
-        decoration: BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            IconButton(
-                icon: const Icon(Icons.menu, color: Colors.grey),
-                onPressed: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded)),
-            const Spacer(),
-            SlideInWelcomeWidget(role: widget.oicName),
-            const SizedBox(width: 16),
-          ],
+    height: 70,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.menu, color: Colors.grey),
+          onPressed: () =>
+              setState(() => _isSidebarExpanded = !_isSidebarExpanded),
         ),
-      );
-
+        const Spacer(),
+        if (_showWelcome) ...[
+          SlideInWelcomeWidget(
+            role: widget.oicName,
+            onHidden: () => setState(() => _showWelcome = false),
+          ),
+          const SizedBox(width: 10),
+        ],
+        NotificationBell(
+          role: 'OIC',
+          userId: widget.oicId,
+          userName: widget.oicName,
+          companyName: widget.companyName,
+        ),
+        const SizedBox(width: 16),
+      ],
+    ),
+  );
   void _confirmLogout(BuildContext context) {
     showDialog(
       context: context,
@@ -183,12 +232,20 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
         title: const Text('Confirm Logout'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+            ),
             onPressed: () {
               Navigator.pop(ctx);
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
             },
             child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),
@@ -200,12 +257,14 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
 
 class SlideInWelcomeWidget extends StatefulWidget {
   final String role;
-  const SlideInWelcomeWidget({super.key, required this.role});
+  final VoidCallback? onHidden;
+  const SlideInWelcomeWidget({super.key, required this.role, this.onHidden});
   @override
   State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
 }
 
-class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with SingleTickerProviderStateMixin {
+class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
   Timer? _hideTimer;
@@ -213,9 +272,21 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with Single
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
-    _offsetAnimation = Tween<Offset>(begin: const Offset(1.5, 0.0), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(1.5, 0.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.dismissed) {
+        widget.onHidden?.call();
+      }
+    });
+
     _controller.forward();
 
     _hideTimer = Timer(const Duration(seconds: 5), () {
@@ -232,19 +303,27 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with Single
 
   @override
   Widget build(BuildContext context) => SlideTransition(
-        position: _offsetAnimation,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              border: Border.all(color: Colors.green.shade200),
-              borderRadius: BorderRadius.circular(30)),
-          child: Row(children: [
-            Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
-            const SizedBox(width: 8),
-            Text('Welcome, ${widget.role}!',
-                style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold))
-          ]),
-        ),
-      );
+    position: _offsetAnimation,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        border: Border.all(color: Colors.green.shade200),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            'Welcome, ${widget.role}!',
+            style: TextStyle(
+              color: Colors.green.shade800,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
