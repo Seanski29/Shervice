@@ -2,14 +2,22 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
-import 'package:qr_flutter/qr_flutter.dart'; // <-- 1. IMPORT ADDED
+import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:io';
 import '../../constant.dart';
 
+// 1. ADDED IMPORT FOR THE BADGE
+import '../../widgets/driver_rating_badge.dart';
+
 class DriverDashboard extends StatefulWidget {
   final String driverName;
+  final String driverId; // 2. DRIVER ID ADDED HERE
 
-  const DriverDashboard({super.key, required this.driverName});
+  const DriverDashboard({
+    super.key,
+    required this.driverName,
+    required this.driverId, // 2. DRIVER ID REQUIRED HERE
+  });
 
   @override
   State<DriverDashboard> createState() => _DriverDashboardState();
@@ -53,7 +61,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
     }
   }
 
-  // ─── ROBUST SAFETY CHECK FOR BACKEND DATA ───
   bool _hasAssignedTripData() {
     if (_activeTrip == null) return false;
     if (_activeTrip!.isEmpty) return false;
@@ -84,7 +91,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
         hasVehicleInfo;
   }
 
-  // ─── 2. QR CODE MODAL LOGIC ADDED ───
   void _showPassengerQR(String tripId) {
     final String baseUrl = backendUrl.replaceAll('/api', '');
     final String evalUrl = '$baseUrl/evaluate?trip_id=$tripId';
@@ -173,6 +179,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
                     ),
                   ],
                 ),
+                // 3. HARDCODED RATING REPLACED HERE
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -183,18 +190,10 @@ class _DriverDashboardState extends State<DriverDashboard> {
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.amber.shade200),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.star, color: Colors.amber.shade600, size: 18),
-                      const SizedBox(width: 4),
-                      const Text(
-                        '4.9',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
+                  child: DriverRatingBadge(
+                    key: UniqueKey(),
+                    driverUuid: widget.driverId,
+                    backendUrl: backendUrl,
                   ),
                 ),
               ],
@@ -351,7 +350,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
               ],
             ),
           ),
-          // ─── 3. TRIGGER BUTTON ADDED HERE ───
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,

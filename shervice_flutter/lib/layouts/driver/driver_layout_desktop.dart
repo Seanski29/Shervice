@@ -28,7 +28,7 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
   bool _isSidebarExpanded = true;
 
   List<Widget> get _screens => [
-    DriverDashboard(driverName: widget.driverName),
+    DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
     DriverSchedules(driverId: widget.driverId),
     DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
   ];
