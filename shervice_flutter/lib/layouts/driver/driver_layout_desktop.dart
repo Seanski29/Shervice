@@ -30,7 +30,7 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
   List<Widget> get _screens => [
     DriverDashboard(driverName: widget.driverName),
     DriverSchedules(driverId: widget.driverId),
-    DriverProfile(driverName: widget.driverName),
+    DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
   ];
 
   @override

@@ -4,6 +4,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
+
 # Import your blueprint role modules from the folder structures
 import roles.auth as auth_module
 import roles.notifs as notifs_module  #new
@@ -14,6 +15,8 @@ import roles.staff as staff_module
 import roles.passenger as passenger_module
 import roles.vehicle as vehicles_module  
 import roles.schedules as schedules_module
+
+
 
 from gemeni import ai_bp  # Kept the import here cleanly
 
