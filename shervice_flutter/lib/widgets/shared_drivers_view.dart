@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/driver_profile_model.dart';
 import '../constant.dart';
+import 'driver_rating_badge.dart';
 
 class SharedDriversView extends StatefulWidget {
   final bool canManage;
@@ -250,36 +251,15 @@ class SharedDriversViewState extends State<SharedDriversView> {
                                 children: [
                                   Row(
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.amber.shade50,
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.star,
-                                              color: Colors.amber.shade600,
-                                              size: 12,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              driver.rating.toString(),
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                      DriverRatingBadge(
+                                        key: UniqueKey(),
+                                        driverUuid: driver.userId,
+                                        backendUrl: backendUrl,
                                       ),
+
                                       const SizedBox(width: 8),
+
+                                      // 2. KEPT: The Active/Inactive status badge remains exactly the same
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 8,

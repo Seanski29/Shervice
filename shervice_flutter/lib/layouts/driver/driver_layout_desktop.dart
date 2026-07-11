@@ -3,6 +3,7 @@ import '../../screens/driver/driver_dashboard.dart';
 import '../../screens/driver/driver_schedules.dart';
 import '../../screens/driver/driver_profile.dart';
 import '../../login/login.dart';
+import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 
@@ -27,10 +28,10 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
   bool _isSidebarExpanded = true;
 
   List<Widget> get _screens => [
-        DriverDashboard(driverName: widget.driverName),
-        DriverSchedules(driverId: widget.driverId),
-        DriverProfile(driverName: widget.driverName),
-      ];
+    DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
+    DriverSchedules(driverId: widget.driverId),
+    DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +52,10 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                 children: [
                   // Branding Header
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 24,
+                    ),
                     child: Row(
                       children: [
                         Container(
@@ -62,7 +66,10 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                             shape: BoxShape.circle,
                           ),
                           clipBehavior: Clip.antiAlias,
-                          child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
+                          child: Image.asset(
+                            'assets/logo.jpg',
+                            fit: BoxFit.cover,
+                          ),
                         ),
                         if (_isSidebarExpanded) ...[
                           const SizedBox(width: 12),
@@ -75,11 +82,21 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                                   'assets/shervice - white.jpg',
                                   height: 25,
                                   fit: BoxFit.contain,
-                                  errorBuilder: (c, e, s) => const Text('SHERVICE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  errorBuilder: (c, e, s) => const Text(
+                                    'SHERVICE',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                                 const Text(
                                   'Driver Portal',
-                                  style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500),
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ],
                             ),
@@ -96,8 +113,16 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                     child: ListView(
                       padding: EdgeInsets.zero,
                       children: [
-                        _buildSidebarItem(Icons.dashboard_outlined, 'Dashboard', 0),
-                        _buildSidebarItem(Icons.calendar_month_outlined, 'My Schedule', 1),
+                        _buildSidebarItem(
+                          Icons.dashboard_outlined,
+                          'Dashboard',
+                          0,
+                        ),
+                        _buildSidebarItem(
+                          Icons.calendar_month_outlined,
+                          'My Schedule',
+                          1,
+                        ),
                         _buildSidebarItem(Icons.person_outline, 'Profile', 2),
                       ],
                     ),
@@ -105,7 +130,12 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
 
                   // Footer Logout
                   const Divider(color: Colors.white10, thickness: 1, height: 1),
-                  _buildSidebarItem(Icons.logout, 'Log Out', 99, isLogout: true),
+                  _buildSidebarItem(
+                    Icons.logout,
+                    'Log Out',
+                    99,
+                    isLogout: true,
+                  ),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -123,11 +153,18 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.menu, color: Colors.grey),
-                          onPressed: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded),
+                          onPressed: () => setState(
+                            () => _isSidebarExpanded = !_isSidebarExpanded,
+                          ),
                         ),
                         const Spacer(),
-                        const Icon(Icons.notifications_none, color: Colors.grey),
-                        const SizedBox(width: 24),
+                        NotificationBell(
+                          role: 'Driver',
+                          userId: widget.driverId,
+                          userName: widget.driverName,
+                          companyName: widget.companyName,
+                        ),
+                        const SizedBox(width: 16),
                       ],
                     ),
                   ),
@@ -141,12 +178,19 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
     );
   }
 
-  Widget _buildSidebarItem(IconData icon, String title, int index, {bool isLogout = false}) {
+  Widget _buildSidebarItem(
+    IconData icon,
+    String title,
+    int index, {
+    bool isLogout = false,
+  }) {
     final isSelected = _selectedIndex == index && !isLogout;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: InkWell(
-        onTap: () => isLogout ? _confirmLogout(context) : setState(() => _selectedIndex = index),
+        onTap: () => isLogout
+            ? _confirmLogout(context)
+            : setState(() => _selectedIndex = index),
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -155,9 +199,15 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
-            mainAxisAlignment: _isSidebarExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+            mainAxisAlignment: _isSidebarExpanded
+                ? MainAxisAlignment.start
+                : MainAxisAlignment.center,
             children: [
-              Icon(icon, color: isSelected ? Colors.white : Colors.grey.shade400, size: 20),
+              Icon(
+                icon,
+                color: isSelected ? Colors.white : Colors.grey.shade400,
+                size: 20,
+              ),
               if (_isSidebarExpanded) ...[
                 const SizedBox(width: 16),
                 Expanded(
@@ -166,7 +216,9 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.grey.shade300,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -186,10 +238,18 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
         title: const Text('Confirm Logout'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600),
-            onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+            ),
+            onPressed: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+            ),
             child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),
         ],

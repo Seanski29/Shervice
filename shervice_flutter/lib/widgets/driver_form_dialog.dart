@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/driver_profile_model.dart';
+import 'driver_evaluation_view.dart'; // Make sure the path matches where you saved it!
 
 class DriverFormDialog extends StatefulWidget {
   final DriverProfileModel? driver;
@@ -332,6 +333,46 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
         ),
       ),
       actions: [
+        if (widget.driver != null)
+          TextButton.icon(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => Dialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: SizedBox(
+                    width: 600, // Good width for desktop/tablet
+                    height: 600,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                          Expanded(
+                            child: DriverEvaluationView(
+                              driverUuid: widget.driver!.userId,
+                              backendUrl: widget.backendUrl,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.star, color: Colors.amber),
+            label: const Text(
+              'View Performance',
+              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+            ),
+          ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [

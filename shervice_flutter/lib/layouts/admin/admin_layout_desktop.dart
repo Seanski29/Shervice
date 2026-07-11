@@ -7,12 +7,13 @@ import '../../screens/admin/admin_users.dart';
 import '../../screens/admin/admin_settings.dart';
 import '../../screens/admin/admin_feedbacks.dart';
 import '../../login/login.dart';
+import '../../widgets/notification_bell.dart';
 // 1. Import the Ploop wrapper
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
-  final String adminId; 
+  final String adminId;
   const AdminDesktopLayout({super.key, required this.adminId});
 
   @override
@@ -87,7 +88,13 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                     'assets/logo.jpg',
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
-                      return const Center(child: Icon(Icons.directions_car, color: Colors.blue, size: 24));
+                      return const Center(
+                        child: Icon(
+                          Icons.directions_car,
+                          color: Colors.blue,
+                          size: 24,
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -97,9 +104,20 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Image.asset('assets/shervice - white.jpg', height: 25, fit: BoxFit.contain),
+                        Image.asset(
+                          'assets/shervice - white.jpg',
+                          height: 25,
+                          fit: BoxFit.contain,
+                        ),
                         const SizedBox(height: 4),
-                        const Text('Admin Portal', style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500)),
+                        const Text(
+                          'Admin Portal',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -115,8 +133,16 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                 _buildNavItem(0, 'Overview', Icons.grid_view),
                 _buildNavItem(1, 'Schedules', Icons.calendar_month_outlined),
                 _buildNavItem(2, 'Driver Profiles', Icons.people_outline),
-                _buildNavItem(3, 'Vehicle Status', Icons.directions_car_outlined),
-                _buildNavItem(4, 'System Users', Icons.admin_panel_settings_outlined),
+                _buildNavItem(
+                  3,
+                  'Vehicle Status',
+                  Icons.directions_car_outlined,
+                ),
+                _buildNavItem(
+                  4,
+                  'System Users',
+                  Icons.admin_panel_settings_outlined,
+                ),
                 _buildNavItem(5, 'System Settings', Icons.settings_outlined),
               ],
             ),
@@ -140,17 +166,30 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
         children: [
           IconButton(
             icon: const Icon(Icons.menu, color: Colors.grey),
-            onPressed: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded),
+            onPressed: () =>
+                setState(() => _isSidebarExpanded = !_isSidebarExpanded),
           ),
           const Spacer(),
           const SlideInWelcomeWidget(role: 'Admin'),
+          const SizedBox(width: 16),
+          NotificationBell(
+            role: 'Admin',
+            userId: widget.adminId,
+            userName: 'Admin',
+            companyName: '',
+          ),
           const SizedBox(width: 16),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(int index, String title, IconData icon, {bool isLogout = false}) {
+  Widget _buildNavItem(
+    int index,
+    String title,
+    IconData icon, {
+    bool isLogout = false,
+  }) {
     bool isActive = _selectedIndex == index && !isLogout;
     return InkWell(
       onTap: () {
@@ -158,15 +197,26 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
           showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                'Confirm Logout',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               content: const Text('Are you sure you want to log out?'),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    );
                   },
                   child: const Text('Logout'),
                 ),
@@ -186,10 +236,19 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: isActive ? Colors.white : Colors.white70, size: 20),
+            Icon(
+              icon,
+              color: isActive ? Colors.white : Colors.white70,
+              size: 20,
+            ),
             if (_isSidebarExpanded) ...[
               const SizedBox(width: 16),
-              Text(title, style: TextStyle(color: isActive ? Colors.white : Colors.white70)),
+              Text(
+                title,
+                style: TextStyle(
+                  color: isActive ? Colors.white : Colors.white70,
+                ),
+              ),
             ],
           ],
         ),
@@ -206,7 +265,8 @@ class SlideInWelcomeWidget extends StatefulWidget {
   State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
 }
 
-class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with SingleTickerProviderStateMixin {
+class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<Offset> _offsetAnimation;
 

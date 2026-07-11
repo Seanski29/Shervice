@@ -4,6 +4,7 @@ import '../../screens/driver/driver_schedules.dart';
 import '../../screens/driver/driver_ratings.dart';
 import '../../screens/driver/driver_profile.dart';
 import '../../login/login.dart';
+import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 
@@ -28,13 +29,13 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
 
   // The 4 Screens for the Driver
   List<Widget> get _screens => [
-    DriverDashboard(driverName: widget.driverName),
+    DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
     DriverSchedules(driverId: widget.driverId),
-    DriverProfile(driverName: widget.driverName),
+    DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
   ];
 
   final List<String> _titles = ['Dashboard', 'Schedule', 'Profile'];
-  
+
   final List<IconData> _icons = [
     Icons.dashboard_outlined,
     Icons.calendar_month_outlined,
@@ -76,6 +77,12 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
             ],
           ),
           actions: [
+            NotificationBell(
+              role: 'Driver',
+              userId: widget.driverId,
+              userName: widget.driverName,
+              companyName: widget.companyName,
+            ),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
               onPressed: () => _confirmLogout(context),
@@ -104,8 +111,8 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
-          )
-        ]
+          ),
+        ],
       ),
       child: SafeArea(
         child: SizedBox(
@@ -121,16 +128,22 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
                     children: [
                       Icon(
                         _icons[index],
-                        color: isSelected ? Colors.blue.shade600 : Colors.grey.shade400,
+                        color: isSelected
+                            ? Colors.blue.shade600
+                            : Colors.grey.shade400,
                         size: 22,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         _titles[index],
                         style: TextStyle(
-                          color: isSelected ? Colors.blue.shade700 : Colors.grey.shade500,
+                          color: isSelected
+                              ? Colors.blue.shade700
+                              : Colors.grey.shade500,
                           fontSize: 10,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.w500,
                         ),
                       ),
                     ],
@@ -149,8 +162,13 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to log out of your account?'),
+        title: const Text(
+          'Confirm Logout',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Are you sure you want to log out of your account?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -159,7 +177,9 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () {
               Navigator.pop(ctx);
@@ -168,7 +188,13 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
               );
             },
-            child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Logout',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
