@@ -6,6 +6,7 @@ import '../../login/login.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
+import '../../session_manager.dart';
 
 class DriverLayoutDesktop extends StatefulWidget {
   final String driverId;
@@ -246,10 +247,14 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
             ),
-            onPressed: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-            ),
+            onPressed: () async {
+              await SessionManager.clearSession();
+              Navigator.pop(ctx);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
             child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),
         ],

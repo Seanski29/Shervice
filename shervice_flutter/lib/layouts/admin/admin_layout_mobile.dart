@@ -14,6 +14,7 @@ import '../../login/login.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
+import '../../session_manager.dart';
 
 class AdminMobileLayout extends StatefulWidget {
   final String adminId; // ✅ Added adminId parameter
@@ -218,6 +219,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
+        // 👈 It's named 'dialogContext' here
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -237,12 +239,17 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(dialogContext); // Close dialog
-                // Properly route back to LoginScreen
+              onPressed: () async {
+                // 1. Clear session
+                await SessionManager.clearSession();
+
+                // 2. FIXED: Use dialogContext to pop the dialog safely
+                Navigator.pop(dialogContext);
+
+                // 3. Navigate back to login
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
                 );
               },
               style: ElevatedButton.styleFrom(

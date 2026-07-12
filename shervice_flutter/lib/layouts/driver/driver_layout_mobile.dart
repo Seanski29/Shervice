@@ -7,6 +7,7 @@ import '../../login/login.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
+import '../../session_manager.dart';
 
 class DriverLayoutMobile extends StatefulWidget {
   final String driverId;
@@ -181,7 +182,8 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            onPressed: () {
+            onPressed: () async {
+              await SessionManager.clearSession();
               Navigator.pop(ctx);
               Navigator.pushReplacement(
                 context,

@@ -7,6 +7,7 @@ import '../../../login/login.dart';
 import '../../../widgets/notification_bell.dart';
 import '../../../widgets/shervice_floating_stack.dart';
 import '../../../constant.dart';
+import '../../session_manager.dart';
 
 class OicLayoutMobile extends StatefulWidget {
   final String oicId;
@@ -218,7 +219,8 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            onPressed: () {
+            onPressed: () async {
+              await SessionManager.clearSession();
               Navigator.pop(ctx);
               Navigator.pushReplacement(
                 context,
