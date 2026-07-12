@@ -11,6 +11,7 @@ import '../../widgets/notification_bell.dart';
 // 1. Import the Ploop wrapper
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
+import '../../session_manager.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
   final String adminId;
@@ -211,7 +212,8 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    await SessionManager.clearSession();
                     Navigator.pop(ctx);
                     Navigator.pushReplacement(
                       context,

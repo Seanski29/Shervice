@@ -8,6 +8,7 @@ import '../../../login/login.dart';
 import '../../../widgets/notification_bell.dart';
 import '../../../widgets/shervice_floating_stack.dart';
 import '../../../constant.dart';
+import '../../session_manager.dart';
 
 class OicLayoutDesktop extends StatefulWidget {
   final String oicId;
@@ -240,7 +241,8 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
             ),
-            onPressed: () {
+            onPressed: () async {
+              await SessionManager.clearSession();
               Navigator.pop(ctx);
               Navigator.pushReplacement(
                 context,

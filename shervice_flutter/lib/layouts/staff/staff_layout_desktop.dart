@@ -11,6 +11,7 @@ import '../../screens/staff/staff_settings.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
+import '../../session_manager.dart';
 
 class StaffLayoutDesktop extends StatefulWidget {
   final String staffId;
@@ -295,7 +296,8 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            onPressed: () {
+            onPressed: () async {
+              await SessionManager.clearSession();
               Navigator.pop(ctx);
               Navigator.pushReplacement(
                 context,
