@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-// 1. Your PC's actual Wi-Fi IP address
-const String localIp = '192.168.1.11';
+// 1. CHANGE THIS to your PC's actual Wi-Fi IP address
+const String localIp = '10.129.21.10';
 
 String get backendUrl {
   // 2. Web Check FIRST
