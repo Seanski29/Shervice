@@ -1,20 +1,18 @@
-import 'package:flutter/foundation.dart'; // dart:io is removed!
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 // 1. CHANGE THIS to your PC's actual Wi-Fi IP address
 const String localIp = '192.168.1.11';
 
 String get backendUrl {
-  // 2. Web check
-  if (kIsWeb) {
+  // 2. CHANGE THIS so the web browser generates the QR code correctly
+  if (kIsWeb) return 'http://$localIp:5000/api';
+
+  // For physical mobile devices on the same network, use the host machine IP.
+  if (Platform.isAndroid || Platform.isIOS) {
     return 'http://$localIp:5000/api';
   }
 
-  // 3. Web-safe mobile check
-  if (defaultTargetPlatform == TargetPlatform.android || 
-      defaultTargetPlatform == TargetPlatform.iOS) {
-    return 'http://$localIp:5000/api';
-  }
-
-  // 4. Fixed syntax on the fallback
+  // Fallback for desktop or simulator running locally.
   return 'http://127.0.0.1:5000/api';
 }
