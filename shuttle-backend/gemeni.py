@@ -1,14 +1,16 @@
+import os
 import json
 from flask import Blueprint, request, jsonify
 from google import genai
 from google.genai import types
 
+# 1. Import your clean rules and schema from the new file
+from ai_rules import get_shervice_system_prompt, get_ai_schema
+
 ai_bp = Blueprint('ai', __name__)
 
-# IMPORTANT: Your Google AI Studio API Key
-GEMINI_API_KEY = "AQ.Ab8RN6KiaatA4WjsytI_lvdm3ErtqqkazyzTrvzCNQHq3vhJfA"
-
-# Initialize the new official SDK client
+# SECURITY: Load from .env so your key isn't hardcoded in the file
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 @ai_bp.route('/api/ai/chat', methods=['POST'])
@@ -20,33 +22,19 @@ def ai_chat():
         user_role = data.get('role', 'User')
         user_name = data.get('name', 'User')
 
-        # 2. Strict System Prompt defining Shervice's exact AI rules
-        system_prompt = f"""
-        You are the 'Shervice Copilot', an in-app support assistant for the GT LANTIN Shuttle Service System.
-        You are talking to {user_name}, whose role is {user_role}.
-        
-        YOUR RULES:
-        1. NO ROUTING/LOGISTICS: Do NOT give routing advice, ETA predictions, or logistics calculations.
-        2. APP NAVIGATION: Answer questions on how to use the app (e.g., "How do I add a schedule?", "How do I delete a user?"). Be concise and provide step-by-step instructions based on standard web/app dashboards.
-        3. BUG REPORTING: If the user reports a bug, acknowledge it and assure them IT staff has been notified.
-        4. EMERGENCY PROTOCOL: provide immediate instructions for emergencies (e.g., "Call 911", "Contact the shuttle service manager") and do NOT provide any other information.make it short.
-    
-        OUTPUT FORMAT:
-        You must answer using the systems actual names and roles used in the GT LANTIN Shuttle Service System. Do NOT make up names or roles.
-        You MUST respond ONLY with a valid  JSON object matching this exact structure:
-        {{
-            "reply": "Your conversational response to the user.",
-            "action": "normal" | "bug" | "emergency"
-        }}
-        """
+        # 2. Get the dynamically generated system prompt
+        system_prompt = get_shervice_system_prompt(user_name, user_role)
+        schema = get_ai_schema()
 
-        # 3. Requesting JSON output using the correct GenerateContentConfig object
+        # 3. Requesting JSON output using the correct config
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=user_message,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                response_mime_type="application/json"
+                response_mime_type="application/json",
+                response_schema=schema,
+                temperature=0.0 # Lock this to 0.0 for strict rule adherence
             )
         )
         
