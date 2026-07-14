@@ -24,25 +24,22 @@ class OicDashboard extends StatefulWidget {
 
 class _OicDashboardState extends State<OicDashboard> {
   // ─── TAB STATE ───
-  // 5 tabs: pending, approved, dispatched, manage_trip, give_feedback
+  // 5 tabs: pending, approved, dispatched, manage_trip, completed
   String _currentPath = 'pending';
 
   // ─── FORM STATE ───
   String _passengerCount = '';
-  int _rating = 5;
-  String _comments = '';
   Map<String, dynamic>? _selectedTrip;
 
   // ─── DATA STATE ───
   bool _isLoading = true;
   List<dynamic> _allTrips = [];
-  Set<int> _evaluatedTripIds = {};
 
   // ─── PAGINATION STATE (one per paginated tab) ───
   int _pendingPage = 0;
   int _approvedPage = 0;
   int _dispatchedPage = 0;
-  int _feedbackPage = 0;
+  int _completedPage = 0;
   final int _itemsPerPage = 4;
 
   @override
@@ -51,29 +48,17 @@ class _OicDashboardState extends State<OicDashboard> {
     _fetchLiveSchedules();
   }
 
-  // ─── DATA FETCH: trips + already-evaluated IDs ───
+  // ─── DATA FETCH: trips ───
   Future<void> _fetchLiveSchedules() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
       final tripsRes = await http.get(Uri.parse('$backendUrl/trips'));
-      final evalsRes = await http.get(
-        Uri.parse('$backendUrl/evaluations/mutual'),
-      );
 
-      if (tripsRes.statusCode == 200 && evalsRes.statusCode == 200) {
+      if (tripsRes.statusCode == 200) {
         final tripsData = jsonDecode(tripsRes.body);
-        final evalsData = jsonDecode(evalsRes.body);
-
         final List<dynamic> fetchedTrips = tripsData['trips'] ?? [];
-        final List<dynamic> fetchedEvals = evalsData['evaluations'] ?? [];
-
-        // Build set of trip IDs already evaluated by OIC
-        final evaluatedIds = fetchedEvals
-            .where((e) => e['evaluator_type'] == 'OIC')
-            .map<int>((e) => int.tryParse(e['trip_id'].toString()) ?? -1)
-            .toSet();
 
         // Filter trips belonging to this OIC by ID or company name
         final matchingTrips = fetchedTrips.where((t) {
@@ -81,8 +66,7 @@ class _OicDashboardState extends State<OicDashboard> {
           final targetOicId = widget.oicId.toString().trim();
           if (dbOicId == targetOicId) return true;
 
-          final dbCompany =
-              (t['oic_profile'] ?? {})['company_name']
+          final dbCompany = (t['oic_profile'] ?? {})['company_name']
                   ?.toString()
                   .toLowerCase()
                   .trim() ??
@@ -92,7 +76,6 @@ class _OicDashboardState extends State<OicDashboard> {
 
         setState(() {
           _allTrips = matchingTrips;
-          _evaluatedTripIds = evaluatedIds;
           _isLoading = false;
         });
       }
@@ -138,51 +121,10 @@ class _OicDashboardState extends State<OicDashboard> {
     }
   }
 
-  // ─── EVALUATION SUBMIT ───
-  Future<void> _submitOicEvaluation() async {
-    if (_selectedTrip == null) return;
-
-    setState(() => _isLoading = true);
-    try {
-      final res = await http
-          .post(
-            Uri.parse('$backendUrl/evaluations/mutual'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'trip_id':
-                  int.tryParse(
-                    (_selectedTrip!['trip_id'] ?? _selectedTrip!['id'])
-                        .toString(),
-                  ) ??
-                  1,
-              'oic_id': int.tryParse(widget.oicId) ?? 1,
-              'overall_rating': _rating,
-              'comments': _comments.trim(),
-              'evaluator_type': 'OIC',
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        _showSnackBar('Evaluation successfully recorded!', Colors.purple);
-        _resetFormState();
-        await _fetchLiveSchedules();
-      } else {
-        _showSnackBar('Server error: ${res.statusCode}', Colors.red);
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      _showSnackBar('Evaluation transmission failure: $e', Colors.red);
-      setState(() => _isLoading = false);
-    }
-  }
-
   void _resetFormState() {
     setState(() {
       _selectedTrip = null;
       _passengerCount = '';
-      _comments = '';
-      _rating = 5;
     });
   }
 
@@ -301,7 +243,7 @@ class _OicDashboardState extends State<OicDashboard> {
               ),
               const SizedBox(height: 8),
               Text(
-                'OIC Dispatch Management | Monitor rotations, dispatch fleets, and evaluate service logs.',
+                'OIC Dispatch Management | Monitor rotations, dispatch fleets, and review completed trips.',
                 style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 24),
@@ -340,9 +282,9 @@ class _OicDashboardState extends State<OicDashboard> {
                       Colors.teal.shade700,
                     ),
                     _buildTabButton(
-                      'give_feedback',
-                      'Feedback',
-                      Icons.rate_review,
+                      'completed',
+                      'Completed',
+                      Icons.check_circle,
                       Colors.purple.shade700,
                     ),
                   ],
@@ -357,14 +299,14 @@ class _OicDashboardState extends State<OicDashboard> {
                       child: Center(child: CircularProgressIndicator()),
                     )
                   : _currentPath == 'pending'
-                  ? _buildPendingView(isMobile)
-                  : _currentPath == 'approved'
-                  ? _buildApprovedView(isMobile)
-                  : _currentPath == 'dispatched'
-                  ? _buildDispatchedView(isMobile)
-                  : _currentPath == 'manage_trip'
-                  ? _buildManageTripView(isMobile)
-                  : _buildFeedbackView(isMobile),
+                      ? _buildPendingView(isMobile)
+                      : _currentPath == 'approved'
+                          ? _buildApprovedView(isMobile)
+                          : _currentPath == 'dispatched'
+                              ? _buildDispatchedView(isMobile)
+                              : _currentPath == 'manage_trip'
+                                  ? _buildManageTripView(isMobile)
+                                  : _buildCompletedView(isMobile),
             ],
           ),
         ),
@@ -897,236 +839,26 @@ class _OicDashboardState extends State<OicDashboard> {
     );
   }
 
-  // ─── TAB 5: FEEDBACK ───
-  Widget _buildFeedbackView(bool isMobile) {
-    final unevaluated = _allTrips.where((t) {
+  // ─── TAB 5: COMPLETED ───
+  Widget _buildCompletedView(bool isMobile) {
+    final filtered = _allTrips.where((t) {
       final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
-      final tripId = int.tryParse(t['trip_id'].toString()) ?? -1;
-      return status == 'completed' && !_evaluatedTripIds.contains(tripId);
+      return status == 'completed';
     }).toList();
 
-    Widget tripSelectionList = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Select Completed Trip for Evaluation',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 16),
-        if (unevaluated.isEmpty)
-          Text(
-            'All completed routes have been evaluated!',
-            style: TextStyle(
-              color: Colors.grey.shade500,
-              fontWeight: FontWeight.w500,
-            ),
-          )
-        else
-          Builder(
-            builder: (context) {
-              int totalPages = (unevaluated.length / _itemsPerPage).ceil();
-              int startIdx = _feedbackPage * _itemsPerPage;
-              int endIdx = min(startIdx + _itemsPerPage, unevaluated.length);
-              final pageItems = unevaluated.sublist(startIdx, endIdx);
-
-              return Column(
-                children: [
-                  ...pageItems.map((trip) {
-                    final tripId = trip['trip_id'];
-                    final isSelected = _selectedTrip?['trip_id'] == tripId;
-                    final driverName =
-                        (trip['user_account'] ?? {})['full_name'] ??
-                        'Unassigned';
-
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedTrip = trip),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? Colors.purple.shade50
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? Colors.purple.shade500
-                                : Colors.grey.shade300,
-                            width: 2,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'TRIP ID: $tripId',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  'Driver: $driverName | ${trip['route_name'] ?? ''}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Icon(
-                              Icons.stars,
-                              size: 18,
-                              color: isSelected
-                                  ? Colors.purple
-                                  : Colors.grey.shade400,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                  _buildPaginationControls(
-                    unevaluated.length,
-                    startIdx,
-                    endIdx,
-                    totalPages,
-                    _feedbackPage,
-                    (p) => setState(() => _feedbackPage = p),
-                  ),
-                ],
-              );
-            },
-          ),
-      ],
-    );
-
-    Widget actionPanel = _selectedTrip == null
-        ? Container(
-            padding: const EdgeInsets.all(32),
-            alignment: Alignment.center,
-            child: Text(
-              'Select a completed trip to open the evaluation form.',
-              style: TextStyle(color: Colors.grey.shade500),
-              textAlign: TextAlign.center,
-            ),
-          )
-        : Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Evaluate Trip #${_selectedTrip!['trip_id']}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'PERFORMANCE RATING',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade500,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  initialValue: _rating,
-                  decoration: InputDecoration(
-                    fillColor: const Color(0xFFF1F5F9),
-                    filled: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 5,
-                      child: Text('⭐⭐⭐⭐⭐  5 — Excellent'),
-                    ),
-                    DropdownMenuItem(value: 4, child: Text('⭐⭐⭐⭐  4 — Good')),
-                    DropdownMenuItem(value: 3, child: Text('⭐⭐⭐  3 — Average')),
-                    DropdownMenuItem(value: 1, child: Text('⭐  1 — Poor')),
-                  ],
-                  onChanged: (val) => setState(() => _rating = val!),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'COMMENTS & REMARKS',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade500,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  maxLines: 4,
-                  onChanged: (val) => _comments = val,
-                  decoration: InputDecoration(
-                    hintText:
-                        'Log service quality, driver compliance, or incident notes...',
-                    fillColor: const Color(0xFFF1F5F9),
-                    filled: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple.shade600,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      elevation: 0,
-                    ),
-                    onPressed: _submitOicEvaluation,
-                    child: const Text(
-                      'Submit Evaluation',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-
-    if (isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [tripSelectionList, const SizedBox(height: 32), actionPanel],
-      );
+    if (filtered.isEmpty) {
+      return _buildEmptyState('No completed trips found.');
     }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: tripSelectionList),
-        const SizedBox(width: 32),
-        Expanded(child: actionPanel),
-      ],
+
+    return _buildPaginatedGrid(
+      items: filtered,
+      isMobile: isMobile,
+      currentPage: _completedPage,
+      onPageChanged: (p) => setState(() => _completedPage = p),
+      itemBuilder: (trip) => _buildTripCard(
+        trip,
+        overrideStatus: 'Completed',
+      ),
     );
   }
 
@@ -1218,6 +950,8 @@ class _OicDashboardState extends State<OicDashboard> {
       statusColor = Colors.green.shade700;
     } else if (status.toLowerCase() == 'scheduled') {
       statusColor = Colors.blue.shade700;
+    } else if (status.toLowerCase() == 'completed') {
+      statusColor = Colors.purple.shade700;
     }
 
     return Container(
