@@ -1,18 +1,22 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 
-// 1. CHANGE THIS to your PC's actual Wi-Fi IP address
+// 1. Your PC's actual Wi-Fi IP address
 const String localIp = '192.168.1.11';
 
 String get backendUrl {
-  // 2. CHANGE THIS so the web browser generates the QR code correctly
-  if (kIsWeb) return 'http://$localIp:5000/api';
-
-  // For physical mobile devices on the same network, use the host machine IP.
-  if (Platform.isAndroid || Platform.isIOS) {
+  // 2. Web Check FIRST
+  if (kIsWeb) {
     return 'http://$localIp:5000/api';
   }
 
-  // Fallback for desktop or simulator running locally.
+  // 3. Mobile Check (Web-safe way, no dart:io needed!)
+  if (defaultTargetPlatform == TargetPlatform.android || 
+      defaultTargetPlatform == TargetPlatform.iOS) {
+    // If you are using a PHYSICAL phone, this works perfectly.
+    // (Note: If using an Android Emulator, you might need to change this to 'http://10.0.2.2:5000/api')
+    return 'http://$localIp:5000/api';
+  }
+
+  // Fallback for Windows/macOS desktop apps running locally
   return 'http://127.0.0.1:5000/api';
 }
