@@ -1,0 +1,138 @@
+import os
+from flask import Blueprint, request, jsonify
+
+# Create the Blueprint for vehicle routes
+vehicles_bp = Blueprint('vehicles', __name__)
+
+# This will be assigned dynamically in app.py
+supabase = None 
+
+@vehicles_bp.route('/api/vehicles', methods=['GET', 'POST'])
+def handle_vehicles():
+    """Handles fetching all vehicles (GET) and registering a new vehicle (POST)"""
+    try:
+        if request.method == 'POST':
+            data = request.get_json() or {}
+            def clean_field(val):
+                if val is None: return None
+                cleaned = str(val).strip()
+                return cleaned if cleaned != "" and cleaned.lower() != "n/a" else None
+
+            def to_int(val):
+                cleaned = clean_field(val)
+                return int(cleaned) if cleaned and cleaned.isdigit() else None
+
+            new_vehicle = {
+                "plate_number": clean_field(data.get('plate_number')),
+                "bus_type": clean_field(data.get('bus_type')) or 'Standard Shuttle',
+                "model_year": to_int(data.get('model_year')),
+                "engine_no": clean_field(data.get('engine_no')),
+                "insurance_policy_no": clean_field(data.get('insurance_policy_no')),
+                "insurance_expiry": clean_field(data.get('insurance_expiry')),
+                "franchise_no": clean_field(data.get('franchise_no')),
+                "franchise_expiry": clean_field(data.get('franchise_expiry')),
+                "cr_no": clean_field(data.get('cr_no')),
+                "cr_date": clean_field(data.get('cr_date')),
+                "or_no": clean_field(data.get('or_no')),
+                "or_expiry": clean_field(data.get('or_expiry')),
+                "health_status": "Excellent",
+                "is_available": True,
+                "last_maintenance_description": "No recent service entries registered."
+            }
+
+            if not new_vehicle["plate_number"]:
+                return jsonify({"success": False, "message": "Plate number is required."}), 400
+
+            query = supabase.table('vehicle').insert(new_vehicle).execute()
+            return jsonify({"success": True, "message": "Vehicle registered securely!", "data": query.data}), 201
+
+        query = supabase.table('vehicle').select('*').order('plate_number').execute()
+        return jsonify({"success": True, "data": query.data}), 200
+    except Exception as e:
+        print(f"❌ Exception: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@vehicles_bp.route('/api/vehicles/<string:vehicle_identifier>', methods=['DELETE'])
+def delete_vehicle(vehicle_identifier):
+    try:
+        is_numeric = vehicle_identifier.isdigit()
+        try:
+            if is_numeric:
+                supabase.table('maintenance_log').delete().eq('vehicle_id', int(vehicle_identifier)).execute()
+            else:
+                vehicle_data = supabase.table('vehicle').select('vehicle_id').eq('plate_number', vehicle_identifier).execute()
+                if vehicle_data.data:
+                    supabase.table('maintenance_log').delete().eq('vehicle_id', vehicle_data.data[0]['vehicle_id']).execute()
+        except Exception as log_err:
+            print(f"⚠️ Log clear warning: {log_err}")
+        
+        for table_name in ['schedules', 'schedule']:
+            try:
+                if is_numeric:
+                    supabase.table(table_name).update({"vehicle_id": None}).eq('vehicle_id', int(vehicle_identifier)).execute()
+                else:
+                    vehicle_data = supabase.table('vehicle').select('vehicle_id').eq('plate_number', vehicle_identifier).execute()
+                    if vehicle_data.data:
+                        supabase.table(table_name).update({"vehicle_id": None}).eq('vehicle_id', vehicle_data.data[0]['vehicle_id']).execute()
+            except Exception:
+                pass
+
+        if is_numeric:
+            supabase.table('vehicle').delete().eq('vehicle_id', int(vehicle_identifier)).execute()
+        else:
+            supabase.table('vehicle').delete().eq('plate_number', vehicle_identifier).execute()
+            
+        return jsonify({"success": True, "message": "Erased from fleet records."}), 200
+    except Exception as e:
+        print(f"❌ Deletion error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@vehicles_bp.route('/api/vehicles/maintenance', methods=['GET'])
+def get_maintenance_logs():
+    try:
+        query = supabase.table('maintenance_log').select('maintenance_id, repair_date, description, vehicle_id, user_id, vehicle(plate_number), user_account(full_name)').order('repair_date', desc=True).execute()
+        return jsonify({"success": True, "data": query.data}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ─────────── UPGRADED MAINTENANCE LOGGING (ROLLOVER LOGIC) ───────────
+
+@vehicles_bp.route('/api/vehicles/maintenance', methods=['POST'])
+def add_maintenance_log():
+    try:
+        data = request.get_json() or {}
+        target_vehicle_id = int(data.get('vehicle_id'))
+
+        new_log = {
+            "repair_date": data.get('repair_date'), 
+            "description": data.get('description', ''), 
+            "vehicle_id": target_vehicle_id, 
+            "user_id": data.get('user_id')
+        }
+
+        if not new_log["repair_date"] or not new_log["description"] or not new_log["vehicle_id"] or not new_log.get("user_id"):
+            return jsonify({"success": False, "message": "Missing required fields. user_id is required."}), 400
+
+        # ✅ STEP 1: Purge any older maintenance records for this specific vehicle layout
+        supabase.table('maintenance_log').delete().eq('vehicle_id', target_vehicle_id).execute()
+
+        # ✅ STEP 2: Insert the updated fresh maintenance record entry row context
+        supabase.table('maintenance_log').insert(new_log).execute()
+        
+        # ✅ STEP 3: Handle Status and Availability Changes cleanly based on criteria choices
+        updated_health = data.get('health_status', 'Excellent')
+        is_available = not any(k in updated_health.lower() for k in ["need", "maintenance", "poor", "bad", "duty"])
+
+        supabase.table('vehicle').update({
+            "health_status": updated_health, 
+            "is_available": is_available, 
+            "last_maintenance_description": new_log["description"]
+        }).eq('vehicle_id', target_vehicle_id).execute()
+
+        return jsonify({"success": True, "message": "Previous log wiped, new status committed smoothly!"}), 201
+    except Exception as e:
+        print(f"❌ Maintenance Logging failure: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
