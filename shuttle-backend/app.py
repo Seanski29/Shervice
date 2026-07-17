@@ -23,15 +23,8 @@ class TransportBackendApp:
         load_dotenv()
         self.app = Flask(__name__)
         
-        # 2. ENHANCED GLOBAL CORS HANDLER: Overrides incoming pipeline preflights
-        CORS(self.app, resources={
-            r"/api/*": {
-                "origins": "*",
-                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-                "allow_headers": ["Content-Type", "Authorization", "Accept"],
-                "expose_headers": ["Content-Type", "Authorization"]
-            }
-        })
+        # 2. GLOBAL CORS HANDLER: Let flask-cors manage everything automatically
+        CORS(self.app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
         
         # 3. Setup core unified database engine connection parameters
         self.supabase_url = os.getenv("SUPABASE_URL")
@@ -47,17 +40,7 @@ class TransportBackendApp:
         self._inject_dependencies_and_register_blueprints()
 
     def _register_hooks(self):
-        # GLOBAL OPTIONS HANDSHAKE CATCHER: Intercepts preflight checks cleanly
-        @self.app.before_request
-        def handle_preflight():
-            if request.method == "OPTIONS":
-                response = make_response()
-                response.headers.add("Access-Control-Allow-Origin", "*")
-                response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,Accept")
-                response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
-                return response, 200
-
-        # ADDED THIS NEW ROUTE HERE: A simple status check for the browser
+        # A simple status check for the browser
         @self.app.route('/')
         def system_status():
             return {"status": "online", "message": "Shervice Backend is LIVE!"}, 200
