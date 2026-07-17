@@ -23,8 +23,13 @@ class TransportBackendApp:
         load_dotenv()
         self.app = Flask(__name__)
         
-        # 2. GLOBAL CORS HANDLER: Let flask-cors manage everything automatically
-        CORS(self.app, resources={r"/*": {"origins": "*"}})
+        CORS(self.app, resources={
+            r"/*": {
+                "origins": "*",
+                "allow_headers": ["Content-Type", "Authorization", "Accept"],
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+            }
+        })
         
         # 3. Setup core unified database engine connection parameters
         self.supabase_url = os.getenv("SUPABASE_URL")
