@@ -1,9 +1,8 @@
 import os
-from flask import Flask, make_response, request  # Removed 'app' from this line
+from flask import Flask, make_response, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client, Client
-
 
 # Import your blueprint role modules from the folder structures
 import roles.auth as auth_module
@@ -15,8 +14,6 @@ import roles.staff as staff_module
 import roles.passenger as passenger_module
 import roles.vehicle as vehicles_module  
 import roles.schedules as schedules_module
-
-
 
 from gemeni import ai_bp  # Kept the import here cleanly
 
@@ -60,6 +57,11 @@ class TransportBackendApp:
                 response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
                 return response, 200
 
+        # ADDED THIS NEW ROUTE HERE: A simple status check for the browser
+        @self.app.route('/')
+        def system_status():
+            return {"status": "online", "message": "Shervice Backend is LIVE!"}, 200
+
     def _inject_dependencies_and_register_blueprints(self):
         """
         Injects the initialized single client connection into each role module 
@@ -94,6 +96,7 @@ class TransportBackendApp:
         # Disable the auto-reloader and debug mode for stability during testing
         # (the development reloader can cause transient connection resets)
         self.app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+
 
 # 1. Create the server instance globally so Gunicorn can find it
 backend_server = TransportBackendApp()
