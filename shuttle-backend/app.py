@@ -2,6 +2,7 @@ import os
 from flask import Flask, make_response, request  # Removed 'app' from this line
 from flask_cors import CORS
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 
 # Import your blueprint role modules from the folder structures
