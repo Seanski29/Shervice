@@ -95,6 +95,12 @@ class TransportBackendApp:
         # (the development reloader can cause transient connection resets)
         self.app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 
+# 1. Create the server instance globally so Gunicorn can find it
+backend_server = TransportBackendApp()
+
+# 2. Expose the actual Flask application to a global variable named 'app'
+app = backend_server.app
+
+# 3. Keep this for local testing on your PC
 if __name__ == '__main__':
-    server = TransportBackendApp()
-    server.run()
+    backend_server.run()
