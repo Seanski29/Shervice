@@ -463,24 +463,31 @@ def reject_trip_request():
 
 @schedules_bp.route('/api/schedules/edit', methods=['PUT'])
 def edit_trip_request():
-    """OIC edits an existing pending trip"""
+    """OIC edits an existing pending or rejected trip"""
     try:
         data = request.get_json() or {}
         trip_id = data.get('trip_id')
 
-        # 1. Verify trip is still pending
+        # 1. Verify trip is still editable (Pending or Rejected)
         check = supabase.table('trip_schedule').select('trip_status, staff_id').eq('trip_id', trip_id).execute()
-        if not check.data or check.data[0].get('trip_status') != 'Pending Staff Assignment':
-            return jsonify({"success": False, "message": "Cannot edit a trip that has already been processed."}), 400
+        if not check.data:
+            return jsonify({"success": False, "message": "Trip not found."}), 404
+        
+        current_status = check.data[0].get('trip_status')
+        if current_status not in ['Pending Staff Assignment', 'Rejected']:
+            return jsonify({"success": False, "message": "Cannot edit a trip that has already been scheduled or completed."}), 400
 
-        # 2. Update the record
+        # 2. Update the record (Reset to Pending, wipe previous assignments)
         update_data = {
             "route_name": data.get('destination'),
             "passenger_count": int(data.get('passenger_count', 0)),
             "route_distance": float(data.get('route_distance', 0.0)),
             "schedule_date": data.get('departure_date'),
             "departure_time": data.get('departure_time'),
-            "estimated_arrival_time": data.get('estimated_arrival_time')
+            "estimated_arrival_time": data.get('estimated_arrival_time'),
+            "trip_status": "Pending Staff Assignment", # Force re-approval
+            "user_id": None,    # Clear driver
+            "vehicle_id": None  # Clear vehicle
         }
 
         supabase.table('trip_schedule').update(update_data).eq('trip_id', trip_id).execute()
@@ -489,14 +496,14 @@ def edit_trip_request():
         staff_id = check.data[0].get('staff_id')
         if staff_id:
             _create_notification({
-                "title": "Trip Request Updated",
-                "message": f"An OIC updated the request details for {update_data['route_name']}.",
+                "title": "Trip Request Updated & Requires Re-approval",
+                "message": f"An OIC updated {update_data['route_name']}. Please review and assign assets.",
                 "target_user_id": staff_id,
                 "target_role": "staff",
                 "related_trip_id": trip_id
             })
 
-        return jsonify({"success": True, "message": "Trip updated successfully."}), 200
+        return jsonify({"success": True, "message": "Trip updated and sent for re-approval."}), 200
     except Exception as e:
         print(f"❌ Trip Edit Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500

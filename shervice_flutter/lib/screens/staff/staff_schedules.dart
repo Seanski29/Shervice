@@ -699,7 +699,7 @@ class _TripDetailsDialogState extends State<TripDetailsDialog> {
   }
 }
 
-// ─── TRIP CARD WIDGET ───
+// ─── TRIP CARD WIDGET (STAFF) ───
 class TripCard extends StatelessWidget {
   final Map<String, dynamic> trip;
   final String backendUrl;
@@ -716,20 +716,37 @@ class TripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
+    final isRejected = statusStr.toLowerCase().contains('rejected');
+    
+    // It only needs assignment if it's missing a driver AND hasn't been rejected yet
+    final bool requiresAction = needsAssignment && !isRejected;
+
+    Color cardBorder = requiresAction ? Colors.orange.shade200 : Colors.green.shade200;
+    Color cardBg = requiresAction ? Colors.orange.shade50 : Colors.green.shade50;
+    Color badgeColor = requiresAction ? Colors.orange : Colors.green;
+    String badgeText = requiresAction ? 'Action Required' : 'Scheduled';
+
+    if (isRejected) {
+      cardBorder = Colors.red.shade200;
+      cardBg = Colors.red.shade50;
+      badgeColor = Colors.red;
+      badgeText = 'Rejected';
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: needsAssignment ? Colors.orange.shade50 : Colors.green.shade50,
+        color: cardBg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: needsAssignment ? Colors.orange.shade200 : Colors.green.shade200,
-        ),
+        border: Border.all(color: cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
@@ -737,29 +754,15 @@ class TripCard extends StatelessWidget {
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
-              // 👇 NEW: Edit & Reject Buttons added directly to the header
-              IconButton(
-                icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
-                tooltip: 'Edit Schedule Details',
-                onPressed: () {
-                  Navigator.pop(context); // Close day details popup
-                  _showStaffEditModal(context);
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 20),
-                tooltip: 'Reject / Cancel Trip',
-                onPressed: () => _rejectTrip(context),
-              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: needsAssignment ? Colors.orange : Colors.green,
+                  color: badgeColor,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  needsAssignment ? 'Unassigned' : 'Scheduled',
-                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  badgeText,
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -768,6 +771,8 @@ class TripCard extends StatelessWidget {
           _buildInfoRow('Time', _formatTimeRange(trip['departure_time'], trip['estimated_arrival_time'])),
           const SizedBox(height: 8),
           _buildInfoRow('Route', trip['route_name'] ?? 'N/A'),
+          _buildInfoRow('Passengers', trip['passenger_count']?.toString() ?? '0'),
+          
           if (trip['driver_name'] != null) ...[
             const SizedBox(height: 8),
             _buildInfoRow('Driver', trip['driver_name']),
@@ -776,22 +781,39 @@ class TripCard extends StatelessWidget {
             const SizedBox(height: 8),
             _buildInfoRow('Vehicle', trip['vehicle_plate']),
           ],
-          if (needsAssignment) ...[
+          
+          // Only show Assign/Reject buttons if the trip hasn't been rejected yet
+          if (requiresAction) ...[
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showAssignModal(context);
-                },
-                icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 16),
-                label: const Text('Quick Assign Assets', style: TextStyle(color: Colors.white, fontSize: 12)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange.shade700,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showAssignModal(context);
+                    },
+                    icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 16),
+                    label: const Text('Assign', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade700,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _rejectTrip(context),
+                    icon: const Icon(Icons.cancel, color: Colors.red, size: 16),
+                    label: const Text('Reject', style: TextStyle(color: Colors.red, fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
@@ -800,12 +822,15 @@ class TripCard extends StatelessWidget {
   }
 
   Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
     );
   }
 
@@ -813,15 +838,11 @@ class TripCard extends StatelessWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AssignTripDialog(trip: trip, backendUrl: backendUrl, onSuccess: onAssign),
-    );
-  }
-
-  void _showStaffEditModal(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StaffEditTripDialog(trip: trip, backendUrl: backendUrl, onSuccess: onAssign),
+      builder: (context) => AssignTripDialog(
+        trip: trip,
+        backendUrl: backendUrl,
+        onSuccess: onAssign,
+      ),
     );
   }
 
@@ -830,10 +851,13 @@ class TripCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Reject Request?"),
-        content: const Text("Are you sure you want to reject this trip request?"),
+        content: const Text("Are you sure you want to reject this trip request? The OIC will be notified."),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Reject", style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text("Reject", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+          ),
         ],
       ),
     );
@@ -848,7 +872,7 @@ class TripCard extends StatelessWidget {
       );
       if (res.statusCode == 200) {
         Navigator.pop(context); // Close details modal
-        onAssign(); // Refresh dashboard
+        onAssign(); // Re-fetch the dashboard data to hide the rejected trip
       }
     } catch (e) {
       debugPrint("Reject Error: $e");

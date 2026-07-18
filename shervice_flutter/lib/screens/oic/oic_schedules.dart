@@ -156,9 +156,9 @@ class _OicSchedulesState extends State<OicSchedules> {
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final trip = schedules[index];
-              final isPending = trip['trip_status']?.toString().toLowerCase().contains('pending') ?? false;
-              final statusColor = isPending ? Colors.orange.shade700 : Colors.green.shade700;
-              final statusBg = isPending ? Colors.orange.shade50 : Colors.green.shade50;
+              final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
+              final isPending = statusStr.toLowerCase().contains('pending');
+              final isRejected = statusStr.toLowerCase().contains('rejected');
 
               return Container(
                 padding: const EdgeInsets.all(12),
@@ -193,7 +193,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                             ),
                           ),
                         ),
-                        if (isPending)
+                       if (isPending || isRejected)
                           IconButton(
                             icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 20),
                             onPressed: () {
@@ -223,7 +223,7 @@ class _OicSchedulesState extends State<OicSchedules> {
     );
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     final recentSchedules = _recentSchedules;
     final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
@@ -275,6 +275,8 @@ class _OicSchedulesState extends State<OicSchedules> {
             ],
           ),
           const SizedBox(height: 20),
+          
+          // ─── RECENT SCHEDULES SECTION ───
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -296,9 +298,21 @@ class _OicSchedulesState extends State<OicSchedules> {
                   const Text('No schedules recorded yet.', style: TextStyle(color: Colors.grey))
                 else
                   ...recentSchedules.map((trip) {
-                    final isPending = trip['trip_status']?.toString().toLowerCase().contains('pending') ?? false;
-                    final statusColor = isPending ? Colors.orange.shade700 : Colors.green.shade700;
-                    final statusBg = isPending ? Colors.orange.shade50 : Colors.green.shade50;
+                    final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
+                    final isPending = statusStr.toLowerCase().contains('pending');
+                    final isRejected = statusStr.toLowerCase().contains('rejected');
+
+                    Color statusColor = Colors.green.shade700;
+                    Color statusBg = Colors.green.shade50;
+
+                    if (isRejected) {
+                      statusColor = Colors.red.shade700;
+                      statusBg = Colors.red.shade50;
+                    } else if (isPending) {
+                      statusColor = Colors.orange.shade700;
+                      statusBg = Colors.orange.shade50;
+                    }
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
@@ -332,8 +346,12 @@ class _OicSchedulesState extends State<OicSchedules> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              trip['trip_status']?.toString() ?? 'Unknown',
-                              style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
+                              statusStr,
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -344,6 +362,8 @@ class _OicSchedulesState extends State<OicSchedules> {
             ),
           ),
           const SizedBox(height: 20),
+          
+          // ─── CALENDAR SECTION ───
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -470,8 +490,6 @@ class _OicSchedulesState extends State<OicSchedules> {
       ),
     );
   }
-}
-
 // ─── NEW TRIP REQUEST FORM DIALOG ───
 class CreateTripRequestDialog extends StatefulWidget {
   final String oicId; // ✅ Require the UUID here too
