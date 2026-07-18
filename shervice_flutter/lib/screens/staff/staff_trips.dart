@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
+import '../../constant.dart';
 
 class StaffTrips extends StatefulWidget {
   final String staffId; // 👈 Requires the specific Staff's UUID
@@ -18,11 +19,6 @@ class _StaffTripsState extends State<StaffTrips> {
   List<dynamic> _trips = [];
   bool _isLoading = true;
 
-  String get _backendUrl {
-  // Replace this with your actual Render project URL
-  return 'https://shervice.onrender.com/api';
-}
-
   @override
   void initState() {
     super.initState();
@@ -32,7 +28,7 @@ class _StaffTripsState extends State<StaffTrips> {
   Future<void> _fetchStaffLogs() async {
     try {
       final res = await http.get(
-        Uri.parse('$_backendUrl/schedules/staff/${widget.staffId}'),
+        Uri.parse('$backendUrl}/schedules/staff/${widget.staffId}'),
       );
 
       if (res.statusCode == 200) {

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../constant.dart';
 
 class VehicleFleetView extends StatefulWidget {
   final String userRole;
@@ -40,10 +41,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
 
   int _currentPage = 0;
   final int _itemsPerPage = 5;
-  String get _backendUrl {
-    
-  return 'https://shervice.onrender.com/api';
-  }
 
   bool get _isAdmin => widget.userRole.toLowerCase() == 'admin';
 
@@ -55,7 +52,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
 
   Future<void> _fetchLiveFleetData() async {
     try {
-      final response = await http.get(Uri.parse('$_backendUrl/vehicles'));
+      final response = await http.get(Uri.parse('$backendUrl/vehicles'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         _allVehicles = data['data'] ?? [];
@@ -155,7 +152,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
               setState(() => _isLoading = true);
               try {
                 final res = await http
-                    .delete(Uri.parse('$_backendUrl/vehicles/$rawId'))
+                    .delete(Uri.parse('$backendUrl/vehicles/$rawId'))
                     .timeout(const Duration(seconds: 10));
 
                 if (res.statusCode == 200) {
@@ -363,7 +360,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                   };
 
                   final response = await http.post(
-                    Uri.parse('$_backendUrl/vehicles/maintenance'),
+                    Uri.parse('$backendUrl/vehicles/maintenance'),
                     headers: {'Content-Type': 'application/json'},
                     body: jsonEncode(payload),
                   );
