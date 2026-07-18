@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../constant.dart';
 
 class OicSchedules extends StatefulWidget {
-  final String oicId;
+  final String oicId; 
 
   const OicSchedules({super.key, required this.oicId});
 
@@ -41,8 +41,6 @@ class _OicSchedulesState extends State<OicSchedules> {
           });
           return;
         }
-      } else {
-        debugPrint("Server Error: ${response.statusCode}");
       }
       if (mounted) setState(() => _isLoading = false);
     } catch (e) {
@@ -65,15 +63,12 @@ class _OicSchedulesState extends State<OicSchedules> {
     });
   }
 
-  void _showEditScheduleModal(
-    BuildContext context,
-    Map<String, dynamic> tripData,
-  ) {
+  void _showEditScheduleModal(BuildContext context, Map<String, dynamic> trip) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) =>
-          EditTripRequestDialog(oicId: widget.oicId, tripData: tripData),
+          EditTripRequestDialog(trip: trip, backendUrl: backendUrl),
     ).then((_) {
       if (mounted) {
         setState(() => _isLoading = true);
@@ -109,20 +104,7 @@ class _OicSchedulesState extends State<OicSchedules> {
   }
 
   String _formatDateLabel(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
@@ -206,7 +188,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                             ),
                           ),
                         ),
-                        // 👇 OIC CAN EDIT PENDING AND REJECTED TRIPS
+                        // 👇 EDIT BUTTON IN CALENDAR POPUP
                         if (isPending || isRejected)
                           IconButton(
                             icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 20),
@@ -240,17 +222,9 @@ class _OicSchedulesState extends State<OicSchedules> {
   @override
   Widget build(BuildContext context) {
     final recentSchedules = _recentSchedules;
-    final firstDayOfMonth = DateTime(
-      _focusedMonth.year,
-      _focusedMonth.month,
-      1,
-    );
+    final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysBefore = firstDayOfMonth.weekday % 7;
-    final daysInMonth = DateTime(
-      _focusedMonth.year,
-      _focusedMonth.month + 1,
-      0,
-    ).day;
+    final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
     final totalCells = ((daysBefore + daysInMonth) / 7).ceil() * 7;
     final now = DateTime.now();
 
@@ -277,10 +251,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                     const SizedBox(height: 4),
                     Text(
                       'A calendar view of your recent schedules and dispatches.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                     ),
                   ],
                 ),
@@ -290,17 +261,11 @@ class _OicSchedulesState extends State<OicSchedules> {
                 icon: const Icon(Icons.add, size: 18, color: Colors.white),
                 label: const Text(
                   'New Request',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade600,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 ),
               ),
             ],
@@ -324,102 +289,68 @@ class _OicSchedulesState extends State<OicSchedules> {
                 if (_isLoading)
                   const Center(child: CircularProgressIndicator())
                 else if (recentSchedules.isEmpty)
-                  const Text(
-                    'No schedules recorded yet.',
-                    style: TextStyle(color: Colors.grey),
-                  )
+                  const Text('No schedules recorded yet.', style: TextStyle(color: Colors.grey))
                 else
-                  // 👇 RECENT SCHEDULES: Now clickable with an InkWell!
                   ...recentSchedules.map((trip) {
-                    final isPending =
-                        trip['trip_status']?.toString().toLowerCase().contains(
-                          'pending',
-                        ) ??
-                        false;
-                    final statusColor = isPending
-                        ? Colors.orange.shade700
-                        : Colors.green.shade700;
-                    final statusBg = isPending
-                        ? Colors.orange.shade50
-                        : Colors.green.shade50;
+                    final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
+                    final isPending = statusStr.toLowerCase().contains('pending');
+                    final isRejected = statusStr.toLowerCase().contains('rejected');
 
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        if (isPending) {
-                          _showEditScheduleModal(context, trip);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Only pending requests can be edited. Contact staff for changes.',
-                              ),
-                              backgroundColor: Colors.orange,
-                            ),
-                          );
-                        }
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    trip['route_name'] ?? 'Unknown Route',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${trip['schedule_date'] ?? ''} • ${_formatTime(trip['departure_time'])} → ${_formatTime(trip['estimated_arrival_time'])}',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusBg,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                trip['trip_status']?.toString() ?? 'Unknown',
-                                style: TextStyle(
-                                  color: statusColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
+                    Color statusColor = Colors.green.shade700;
+                    Color statusBg = Colors.green.shade50;
+
+                    if (isRejected) {
+                      statusColor = Colors.red.shade700;
+                      statusBg = Colors.red.shade50;
+                    } else if (isPending) {
+                      statusColor = Colors.orange.shade700;
+                      statusBg = Colors.orange.shade50;
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  trip['route_name'] ?? 'Unknown Route',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
                                 ),
-                              ),
-                            ),
-                            // 👇 Show a little edit pencil if it's clickable
-                            if (isPending)
-                              const Padding(
-                                padding: EdgeInsets.only(left: 8.0),
-                                child: Icon(
-                                  Icons.edit,
-                                  color: Colors.blue,
-                                  size: 18,
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${trip['schedule_date'] ?? ''} • ${_formatTime(trip['departure_time'])} → ${_formatTime(trip['estimated_arrival_time'])}',
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                                 ),
-                              ),
-                          ],
-                        ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              statusStr,
+                              style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          // 👇 EDIT BUTTON IN RECENT SCHEDULES LIST
+                          if (isPending || isRejected)
+                            IconButton(
+                              icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 20),
+                              onPressed: () => _showEditScheduleModal(context, trip),
+                            ),
+                        ],
                       ),
                     );
                   }),
@@ -442,29 +373,16 @@ class _OicSchedulesState extends State<OicSchedules> {
                   children: [
                     Text(
                       '${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () => setState(
-                            () => _focusedMonth = DateTime(
-                              _focusedMonth.year,
-                              _focusedMonth.month - 1,
-                            ),
-                          ),
+                          onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
                           icon: const Icon(Icons.chevron_left),
                         ),
                         IconButton(
-                          onPressed: () => setState(
-                            () => _focusedMonth = DateTime(
-                              _focusedMonth.year,
-                              _focusedMonth.month + 1,
-                            ),
-                          ),
+                          onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
                           icon: const Icon(Icons.chevron_right),
                         ),
                       ],
@@ -479,10 +397,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                           child: Center(
                             child: Text(
                               day,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                             ),
                           ),
                         ),
@@ -501,23 +416,15 @@ class _OicSchedulesState extends State<OicSchedules> {
                   ),
                   itemCount: totalCells,
                   itemBuilder: (context, index) {
-                    final date = DateTime(
-                      _focusedMonth.year,
-                      _focusedMonth.month,
-                      index - daysBefore + 1,
-                    );
+                    final date = DateTime(_focusedMonth.year, _focusedMonth.month, index - daysBefore + 1);
                     final isCurrentMonth = date.month == _focusedMonth.month;
                     final schedules = _schedulesForDate(date);
                     final isOccupied = schedules.isNotEmpty;
-                    final isSelected =
-                        _selectedDate != null &&
+                    final isSelected = _selectedDate != null &&
                         _selectedDate!.year == date.year &&
                         _selectedDate!.month == date.month &&
                         _selectedDate!.day == date.day;
-                    final isToday =
-                        now.year == date.year &&
-                        now.month == date.month &&
-                        now.day == date.day;
+                    final isToday = now.year == date.year && now.month == date.month && now.day == date.day;
 
                     return InkWell(
                       onTap: isOccupied
@@ -531,13 +438,11 @@ class _OicSchedulesState extends State<OicSchedules> {
                           color: isSelected
                               ? Colors.blue.shade50
                               : isOccupied
-                              ? Colors.blue.shade50
-                              : Colors.grey.shade50,
+                                  ? Colors.blue.shade50
+                                  : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: isToday
-                                ? Colors.blue.shade300
-                                : Colors.transparent,
+                            color: isToday ? Colors.blue.shade300 : Colors.transparent,
                             width: isToday ? 1.5 : 1,
                           ),
                         ),
@@ -550,30 +455,20 @@ class _OicSchedulesState extends State<OicSchedules> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: isCurrentMonth
-                                    ? Colors.black87
-                                    : Colors.grey.shade400,
+                                color: isCurrentMonth ? Colors.black87 : Colors.grey.shade400,
                               ),
                             ),
                             const SizedBox(height: 4),
                             if (isOccupied)
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: Colors.blue.shade600,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  schedules.length > 1
-                                      ? '${schedules.length}'
-                                      : '1',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.white,
-                                  ),
+                                  schedules.length > 1 ? '${schedules.length}' : '1',
+                                  style: const TextStyle(fontSize: 10, color: Colors.white),
                                 ),
                               ),
                           ],
@@ -760,9 +655,8 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                   keyboardType: TextInputType.number,
                   validator: (val) {
                     if (val == null || val.isEmpty) return "Required";
-                    if (double.tryParse(val) == null) {
+                    if (double.tryParse(val) == null)
                       return "Must be a valid number";
-                    }
                     return null;
                   },
                   decoration: const InputDecoration(
@@ -778,9 +672,8 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                   keyboardType: TextInputType.number,
                   validator: (val) {
                     if (val == null || val.isEmpty) return "Required";
-                    if (int.tryParse(val) == null) {
+                    if (int.tryParse(val) == null)
                       return "Must be a valid number";
-                    }
                     return null;
                   },
                   decoration: const InputDecoration(
@@ -804,9 +697,8 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                             firstDate: DateTime.now(),
                             lastDate: DateTime(2030),
                           );
-                          if (picked != null) {
+                          if (picked != null)
                             setState(() => _selectedDate = picked);
-                          }
                         },
                         child: InputDecorator(
                           decoration: const InputDecoration(
@@ -829,9 +721,8 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                             context: context,
                             initialTime: const TimeOfDay(hour: 8, minute: 0),
                           );
-                          if (picked != null) {
+                          if (picked != null)
                             setState(() => _selectedTime = picked);
-                          }
                         },
                         child: InputDecorator(
                           decoration: const InputDecoration(
@@ -854,9 +745,8 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                             context: context,
                             initialTime: const TimeOfDay(hour: 17, minute: 0),
                           );
-                          if (picked != null) {
+                          if (picked != null)
                             setState(() => _selectedArrivalTime = picked);
-                          }
                         },
                         child: InputDecorator(
                           decoration: const InputDecoration(
@@ -906,14 +796,10 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
 
 // ─── EDIT TRIP REQUEST FORM DIALOG ───
 class EditTripRequestDialog extends StatefulWidget {
-  final String oicId;
-  final Map<String, dynamic> tripData;
+  final Map<String, dynamic> trip;
+  final String backendUrl;
 
-  const EditTripRequestDialog({
-    super.key,
-    required this.oicId,
-    required this.tripData,
-  });
+  const EditTripRequestDialog({super.key, required this.trip, required this.backendUrl});
 
   @override
   State<EditTripRequestDialog> createState() => _EditTripRequestDialogState();
@@ -922,10 +808,6 @@ class EditTripRequestDialog extends StatefulWidget {
 class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  bool _loadingStaff = true;
-
-  List<dynamic> _staffMembers = [];
-  String? _selectedStaffId;
 
   late TextEditingController _destinationController;
   late TextEditingController _passengerController;
@@ -938,92 +820,45 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
   @override
   void initState() {
     super.initState();
+    _destinationController = TextEditingController(text: widget.trip['route_name']);
+    _passengerController = TextEditingController(text: widget.trip['passenger_count'].toString());
+    _distanceController = TextEditingController(text: widget.trip['route_distance'].toString());
 
-    _destinationController = TextEditingController(
-      text: widget.tripData['route_name']?.toString(),
-    );
-    _passengerController = TextEditingController(
-      text: widget.tripData['passenger_count']?.toString(),
-    );
-    _distanceController = TextEditingController(
-      text: widget.tripData['route_distance']?.toString(),
-    );
-
-    _selectedStaffId = widget.tripData['staff_id']?.toString();
-
-    if (widget.tripData['schedule_date'] != null) {
-      _selectedDate = DateTime.tryParse(
-        widget.tripData['schedule_date'].toString(),
-      );
+    if (widget.trip['schedule_date'] != null) {
+      _selectedDate = DateTime.parse(widget.trip['schedule_date'].toString().split(' ').first);
     }
-    _selectedTime = _parseTimeString(
-      widget.tripData['departure_time']?.toString(),
-    );
-    _selectedArrivalTime = _parseTimeString(
-      widget.tripData['estimated_arrival_time']?.toString(),
-    );
-
-    _fetchStaff();
+    _selectedTime = _parseTimeOfDay(widget.trip['departure_time']);
+    _selectedArrivalTime = _parseTimeOfDay(widget.trip['estimated_arrival_time']);
   }
 
-  TimeOfDay? _parseTimeString(String? timeStr) {
-    if (timeStr == null || timeStr.isEmpty) return null;
-    final parts = timeStr.split(':');
+  TimeOfDay? _parseTimeOfDay(dynamic timeString) {
+    if (timeString == null) return null;
+    final parts = timeString.toString().split(':');
     if (parts.length >= 2) {
       return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
     }
     return null;
   }
 
-  Future<void> _fetchStaff() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$backendUrl/schedules/staff-options'),
-      );
-      final data = jsonDecode(response.body);
-      if (response.statusCode == 200 && data['success'] == true && mounted) {
-        setState(() {
-          _staffMembers = data['data'];
-          _loadingStaff = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _loadingStaff = false);
-    }
-  }
-
-  Future<void> _submitEditRequest() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedDate == null ||
-        _selectedTime == null ||
-        _selectedArrivalTime == null ||
-        _selectedStaffId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please complete all fields.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+  Future<void> _submitEdit() async {
+    if (!_formKey.currentState!.validate() || _selectedDate == null || _selectedTime == null || _selectedArrivalTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please complete all fields.'), backgroundColor: Colors.red));
       return;
     }
 
     setState(() => _isLoading = true);
 
-    final formattedDate =
-        "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
-    final formattedTime =
-        "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
-    final formattedETA =
-        "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
+    final formattedDate = "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
+    final formattedTime = "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
+    final formattedETA = "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
 
     try {
       final response = await http.put(
-        Uri.parse('$backendUrl/schedules/update-request'),
+        Uri.parse('${widget.backendUrl}/schedules/update-request'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          "trip_id": widget.tripData['trip_id'],
-          "oic_id": widget.oicId,
-          "staff_id": _selectedStaffId,
+          "trip_id": widget.trip['trip_id'],
+          "staff_id": widget.trip['staff_id'], // Passes the staff ID so they get notified!
           "destination": _destinationController.text.trim(),
           "passenger_count": _passengerController.text.trim(),
           "route_distance": _distanceController.text.trim(),
@@ -1034,24 +869,16 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
       );
 
       final data = jsonDecode(response.body);
-
       if (response.statusCode == 200 && data['success'] == true) {
         if (!mounted) return;
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Trip updated successfully!"),
-            backgroundColor: Colors.green,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Trip updated successfully!"), backgroundColor: Colors.green));
       } else {
         throw Exception(data['message'] ?? "Failed to update request.");
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1060,10 +887,7 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text(
-        "Edit Trip Request",
-        style: TextStyle(fontWeight: FontWeight.bold),
-      ),
+      title: const Text("Edit Schedule Request", style: TextStyle(fontWeight: FontWeight.bold)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       content: SizedBox(
         width: 450,
@@ -1073,67 +897,24 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_loadingStaff)
-                  const LinearProgressIndicator()
-                else
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: "Assign to Dispatch Staff",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.support_agent),
-                    ),
-                    value: _selectedStaffId,
-                    items: _staffMembers
-                        .map(
-                          (s) => DropdownMenuItem<String>(
-                            value: s['user_id'],
-                            child: Text(s['full_name'] ?? 'Staff'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (val) => setState(() => _selectedStaffId = val),
-                  ),
-                const SizedBox(height: 16),
                 TextFormField(
                   controller: _destinationController,
                   validator: (val) => val!.isEmpty ? "Required" : null,
-                  decoration: const InputDecoration(
-                    labelText: "Route / Destination",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.location_on),
-                  ),
+                  decoration: const InputDecoration(labelText: "Route / Destination", border: OutlineInputBorder(), prefixIcon: Icon(Icons.location_on)),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _distanceController,
                   keyboardType: TextInputType.number,
-                  validator: (val) {
-                    if (val == null || val.isEmpty) return "Required";
-                    if (double.tryParse(val) == null)
-                      return "Must be a valid number";
-                    return null;
-                  },
-                  decoration: const InputDecoration(
-                    labelText: "Distance (km)",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.map),
-                  ),
+                  validator: (val) => val == null || val.isEmpty ? "Required" : (double.tryParse(val) == null ? "Invalid number" : null),
+                  decoration: const InputDecoration(labelText: "Distance (km)", border: OutlineInputBorder(), prefixIcon: Icon(Icons.map)),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passengerController,
                   keyboardType: TextInputType.number,
-                  validator: (val) {
-                    if (val == null || val.isEmpty) return "Required";
-                    if (int.tryParse(val) == null)
-                      return "Must be a valid number";
-                    return null;
-                  },
-                  decoration: const InputDecoration(
-                    labelText: "Number of Passengers",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.people),
-                  ),
+                  validator: (val) => val == null || val.isEmpty ? "Required" : (int.tryParse(val) == null ? "Invalid number" : null),
+                  decoration: const InputDecoration(labelText: "Passengers", border: OutlineInputBorder(), prefixIcon: Icon(Icons.people)),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -1143,23 +924,32 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: context,
-                            initialDate: _selectedDate ?? DateTime.now(),
+                            initialDate: _selectedDate ?? DateTime.now().add(const Duration(days: 1)),
                             firstDate: DateTime.now(),
                             lastDate: DateTime(2030),
                           );
-                          if (picked != null)
-                            setState(() => _selectedDate = picked);
+                          if (picked != null) setState(() => _selectedDate = picked);
                         },
                         child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Date',
-                            border: OutlineInputBorder(),
-                          ),
-                          child: Text(
-                            _selectedDate == null
-                                ? "Select Date"
-                                : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}",
-                          ),
+                          decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder()),
+                          child: Text(_selectedDate == null ? "Select Date" : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}"),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showTimePicker(context: context, initialTime: _selectedTime ?? const TimeOfDay(hour: 8, minute: 0));
+                          if (picked != null) setState(() => _selectedTime = picked);
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(labelText: 'Departure', border: OutlineInputBorder()),
+                          child: Text(_selectedTime == null ? "Time" : _selectedTime!.format(context)),
                         ),
                       ),
                     ),
@@ -1167,51 +957,12 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime:
-                                _selectedTime ??
-                                const TimeOfDay(hour: 8, minute: 0),
-                          );
-                          if (picked != null)
-                            setState(() => _selectedTime = picked);
+                          final picked = await showTimePicker(context: context, initialTime: _selectedArrivalTime ?? const TimeOfDay(hour: 17, minute: 0));
+                          if (picked != null) setState(() => _selectedArrivalTime = picked);
                         },
                         child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Departure',
-                            border: OutlineInputBorder(),
-                          ),
-                          child: Text(
-                            _selectedTime == null
-                                ? "Time"
-                                : _selectedTime!.format(context),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime:
-                                _selectedArrivalTime ??
-                                const TimeOfDay(hour: 17, minute: 0),
-                          );
-                          if (picked != null)
-                            setState(() => _selectedArrivalTime = picked);
-                        },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'ETA',
-                            border: OutlineInputBorder(),
-                          ),
-                          child: Text(
-                            _selectedArrivalTime == null
-                                ? "Arrival"
-                                : _selectedArrivalTime!.format(context),
-                          ),
+                          decoration: const InputDecoration(labelText: 'ETA', border: OutlineInputBorder()),
+                          child: Text(_selectedArrivalTime == null ? "Arrival" : _selectedArrivalTime!.format(context)),
                         ),
                       ),
                     ),
@@ -1223,25 +974,11 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel"),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
         ElevatedButton(
-          onPressed: _isLoading ? null : _submitEditRequest,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue.shade600,
-          ),
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(color: Colors.white),
-                )
-              : const Text(
-                  "Update Request",
-                  style: TextStyle(color: Colors.white),
-                ),
+          onPressed: _isLoading ? null : _submitEdit,
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade600),
+          child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Text("Save Changes", style: TextStyle(color: Colors.white)),
         ),
       ],
     );
