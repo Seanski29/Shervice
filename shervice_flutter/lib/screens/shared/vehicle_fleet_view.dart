@@ -118,7 +118,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       _currentPage < _totalPages - 1 ? setState(() => _currentPage++) : null;
   void _prevPage() => _currentPage > 0 ? setState(() => _currentPage--) : null;
 
-  // ✅ FIXED: Completely decoupled confirmation sequence from other modal dependencies
   void _confirmPurgeVehicle(Map<String, dynamic> vehicle) {
     if (!_isAdmin) return;
 
@@ -194,6 +193,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
+  // 👇 FULLY UPGRADED MAINTENANCE DIALOG
   void _showAddMaintenanceDialog() {
     final validVehicles = _allVehicles.where((v) {
       return int.tryParse(v['vehicle_id']?.toString() ?? '') != null;
@@ -213,6 +213,13 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
     String description = '';
     String chosenHealthStatus = 'Excellent';
+    
+    // New Detailed Tracking Variables
+    String chosenCategory = 'General';
+    DateTime? incidentDate = DateTime.now();
+    TimeOfDay? incidentTime;
+    TimeOfDay? repairTime;
+    
     final DateTime today = DateTime.now();
 
     showDialog(
@@ -220,106 +227,143 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => AlertDialog(
           backgroundColor: const Color(0xFFF8FAFC),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           title: const Text(
             'Log Maintenance Event',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 22,
-              color: Color(0xFF0F172A),
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Color(0xFF0F172A)),
           ),
           content: Form(
             key: formKey,
             child: SizedBox(
-              width: 450,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<int>(
-                    value: selectedVehicleId,
-                    decoration: _inputFieldStyle(
-                      label: 'Target Vehicle Plate',
-                      icon: Icons.commute,
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<int>(
+                      value: selectedVehicleId,
+                      decoration: _inputFieldStyle(label: 'Target Vehicle Plate', icon: Icons.commute),
+                      dropdownColor: const Color(0xFFF8FAFC),
+                      items: validVehicles.map<DropdownMenuItem<int>>((v) {
+                        final id = int.parse(v['vehicle_id'].toString());
+                        return DropdownMenuItem<int>(
+                          value: id,
+                          child: Text("${v['plate_number'] ?? 'TBD'} - ${v['bus_type'] ?? 'Unit'}"),
+                        );
+                      }).toList(),
+                      onChanged: (val) => setModalState(() => selectedVehicleId = val),
+                      validator: (val) => val == null || val <= 0 ? 'Required' : null,
                     ),
-                    dropdownColor: const Color(0xFFF8FAFC),
-                    items: validVehicles.map<DropdownMenuItem<int>>((v) {
-                      final id = int.parse(v['vehicle_id'].toString());
-                      return DropdownMenuItem<int>(
-                        value: id,
-                        child: Text(
-                          "${v['plate_number'] ?? 'TBD'} - ${v['bus_type'] ?? 'Unit'}",
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) =>
-                        setModalState(() => selectedVehicleId = val),
-                    validator: (val) =>
-                        val == null || val <= 0 ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: chosenHealthStatus,
-                    decoration: _inputFieldStyle(
-                      label: 'Updated Condition Status',
-                      icon: Icons.health_and_safety_outlined,
-                    ),
-                    dropdownColor: const Color(0xFFF8FAFC),
-                    items: ['Excellent', 'Good', 'Needs Maintenance', 'On Duty']
-                        .map(
-                          (s) => DropdownMenuItem<String>(
-                            value: s,
-                            child: Text(s),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: chosenCategory,
+                            decoration: _inputFieldStyle(label: 'Issue Category', icon: Icons.category_outlined),
+                            dropdownColor: const Color(0xFFF8FAFC),
+                            items: ['General', 'Engine', 'Exterior', 'Interior', 'Electrical', 'Tires/Wheels']
+                                .map((s) => DropdownMenuItem<String>(value: s, child: Text(s))).toList(),
+                            onChanged: (val) => setModalState(() => chosenCategory = val ?? 'General'),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (val) => setModalState(
-                      () => chosenHealthStatus = val ?? 'Excellent',
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: chosenHealthStatus,
+                            decoration: _inputFieldStyle(label: 'Vehicle Status', icon: Icons.health_and_safety_outlined),
+                            dropdownColor: const Color(0xFFF8FAFC),
+                            items: ['Excellent', 'Good', 'Needs Maintenance', 'On Duty']
+                                .map((s) => DropdownMenuItem<String>(value: s, child: Text(s))).toList(),
+                            onChanged: (val) => setModalState(() => chosenHealthStatus = val ?? 'Excellent'),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    decoration: _inputFieldStyle(
-                      label: 'Repair Descriptions Logs Action',
-                      icon: Icons.description_outlined,
+                    const Divider(height: 32),
+                    const Align(alignment: Alignment.centerLeft, child: Text("Incident & Repair Timeline", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: incidentDate ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                              );
+                              if (picked != null) setModalState(() => incidentDate = picked);
+                            },
+                            child: InputDecorator(
+                              decoration: _inputFieldStyle(label: 'Incident Date', icon: Icons.event_note),
+                              child: Text(incidentDate != null ? "${incidentDate!.month}/${incidentDate!.day}/${incidentDate!.year}" : "Select Date"),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showTimePicker(context: context, initialTime: incidentTime ?? TimeOfDay.now());
+                              if (picked != null) setModalState(() => incidentTime = picked);
+                            },
+                            child: InputDecorator(
+                              decoration: _inputFieldStyle(label: 'Incident Time', icon: Icons.access_time),
+                              child: Text(incidentTime != null ? incidentTime!.format(context) : "Select Time"),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    maxLines: 2,
-                    validator: (val) =>
-                        (val == null || val.trim().isEmpty) ? 'Required' : null,
-                    onSaved: (val) => description = val ?? '',
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InputDecorator(
+                            decoration: _inputFieldStyle(label: 'Date Repaired', icon: Icons.event_available),
+                            child: Text("${today.month}/${today.day}/${today.year} (Today)"), // Defaulting repair date to today based on original logic
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showTimePicker(context: context, initialTime: repairTime ?? TimeOfDay.now());
+                              if (picked != null) setModalState(() => repairTime = picked);
+                            },
+                            child: InputDecorator(
+                              decoration: _inputFieldStyle(label: 'Time Repaired', icon: Icons.build_circle_outlined),
+                              child: Text(repairTime != null ? repairTime!.format(context) : "Select Time"),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      decoration: _inputFieldStyle(label: 'Short Description of Repair/Issue', icon: Icons.description_outlined),
+                      maxLines: 2,
+                      validator: (val) => (val == null || val.trim().isEmpty) ? 'Required' : null,
+                      onSaved: (val) => description = val ?? '',
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          actionsPadding: const EdgeInsets.only(
-            bottom: 24,
-            right: 24,
-            left: 24,
-          ),
+          actionsPadding: const EdgeInsets.only(bottom: 24, right: 24, left: 24),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1D83E4),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
               onPressed: () async {
@@ -327,10 +371,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                   formKey.currentState?.save();
                   final int vehicleId = selectedVehicleId ?? 0;
                   if (vehicleId <= 0) {
-                    _showSnackBar(
-                      'Please select a valid vehicle before saving.',
-                      Colors.red,
-                    );
+                    _showSnackBar('Please select a valid vehicle before saving.', Colors.red);
                     return;
                   }
 
@@ -343,20 +384,27 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                   }
 
                   if (currentUserId == null || currentUserId.isEmpty) {
-                    _showSnackBar(
-                      'You must sign in before logging maintenance.',
-                      Colors.red,
-                    );
+                    _showSnackBar('You must sign in before logging maintenance.', Colors.red);
                     return;
                   }
 
+                  // Format Times for Database (HH:MM:00)
+                  String? formatTime(TimeOfDay? time) {
+                    if (time == null) return null;
+                    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
+                  }
+
                   final payload = {
-                    'repair_date':
-                        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}',
+                    'repair_date': '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}',
                     'description': description,
                     'vehicle_id': vehicleId,
                     'health_status': chosenHealthStatus,
                     'user_id': currentUserId,
+                    // New Fields
+                    'category': chosenCategory,
+                    'incident_date': incidentDate != null ? '${incidentDate!.year}-${incidentDate!.month.toString().padLeft(2, '0')}-${incidentDate!.day.toString().padLeft(2, '0')}' : null,
+                    'incident_time': formatTime(incidentTime),
+                    'repair_time': formatTime(repairTime),
                   };
 
                   final response = await http.post(
@@ -365,39 +413,28 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                     body: jsonEncode(payload),
                   );
 
-                  final Map<String, dynamic> responseBody =
-                      response.body.isNotEmpty
+                  final Map<String, dynamic> responseBody = response.body.isNotEmpty
                       ? jsonDecode(response.body) as Map<String, dynamic>
                       : {};
 
-                  if (response.statusCode == 200 ||
-                      response.statusCode == 201) {
+                  if (response.statusCode == 200 || response.statusCode == 201) {
                     widget.onRefreshNeeded();
                     if (context.mounted) {
                       Navigator.pop(context);
                       _showSnackBar(
-                        responseBody['message'] ??
-                            'Maintenance record saved successfully.',
+                        responseBody['message'] ?? 'Maintenance record saved successfully.',
                         Colors.green,
                       );
                     }
                   } else {
-                    final String errorMessage =
-                        responseBody['message'] ??
-                        'Failed to log maintenance. (${response.statusCode})';
+                    final String errorMessage = responseBody['message'] ?? 'Failed to log maintenance. (${response.statusCode})';
                     if (context.mounted) {
                       _showSnackBar(errorMessage, Colors.red);
                     }
                   }
                 }
               },
-              child: const Text(
-                'Save Record',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: const Text('Save Record', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),

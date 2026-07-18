@@ -106,24 +106,31 @@ def add_maintenance_log():
         data = request.get_json() or {}
         target_vehicle_id = int(data.get('vehicle_id'))
 
+        # Prepare the new log entry
         new_log = {
             "repair_date": data.get('repair_date'), 
             "description": data.get('description', ''), 
             "vehicle_id": target_vehicle_id, 
-            "user_id": data.get('user_id')
+            "user_id": data.get('user_id'),
+            # New Fields
+            "category": data.get('category', 'General'),
+            "incident_date": data.get('incident_date'),
+            "incident_time": data.get('incident_time'),
+            "repair_time": data.get('repair_time')
         }
 
         if not new_log["repair_date"] or not new_log["description"] or not new_log["vehicle_id"] or not new_log.get("user_id"):
-            return jsonify({"success": False, "message": "Missing required fields. user_id is required."}), 400
+            return jsonify({"success": False, "message": "Missing required fields."}), 400
 
-        # ✅ STEP 1: Purge any older maintenance records for this specific vehicle layout
+        # ✅ STEP 1: Purge any older maintenance records for this specific vehicle
         supabase.table('maintenance_log').delete().eq('vehicle_id', target_vehicle_id).execute()
 
-        # ✅ STEP 2: Insert the updated fresh maintenance record entry row context
+        # ✅ STEP 2: Insert the updated fresh maintenance record
         supabase.table('maintenance_log').insert(new_log).execute()
         
-        # ✅ STEP 3: Handle Status and Availability Changes cleanly based on criteria choices
+        # ✅ STEP 3: Handle Status and Availability Changes
         updated_health = data.get('health_status', 'Excellent')
+        # Logic: Vehicle is NOT available if it's currently under maintenance or on duty
         is_available = not any(k in updated_health.lower() for k in ["need", "maintenance", "poor", "bad", "duty"])
 
         supabase.table('vehicle').update({
@@ -132,7 +139,7 @@ def add_maintenance_log():
             "last_maintenance_description": new_log["description"]
         }).eq('vehicle_id', target_vehicle_id).execute()
 
-        return jsonify({"success": True, "message": "Previous log wiped, new status committed smoothly!"}), 201
+        return jsonify({"success": True, "message": "Maintenance log updated successfully!"}), 201
     except Exception as e:
         print(f"❌ Maintenance Logging failure: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
