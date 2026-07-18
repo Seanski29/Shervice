@@ -436,3 +436,92 @@ def update_trip_request():
     except Exception as e:
         print(f"❌ Trip Update Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+    
+@schedules_bp.route('/api/schedules/reject', methods=['POST'])
+def reject_trip_request():
+    """Staff rejects a pending trip request and notifies the OIC"""
+    try:
+        data = request.get_json() or {}
+        trip_id = data.get('trip_id')
+
+        # 1. Update status to Rejected
+        supabase.table('trip_schedule').update({"trip_status": "Rejected"}).eq('trip_id', trip_id).execute()
+
+        # 2. Trigger Notification to the OIC
+        trip_info = supabase.table('trip_schedule').select('route_name, oic_id').eq('trip_id', trip_id).execute()
+        if trip_info.data:
+            route_name = trip_info.data[0].get('route_name')
+            oic_id = trip_info.data[0].get('oic_id')
+            
+            oic_profile = supabase.table('oic_profile').select('user_id, company_name').eq('oic_id', oic_id).execute()
+            if oic_profile.data:
+                _create_notification({
+                    "title": "Trip Request Rejected",
+                    "message": f"Your request for {route_name} was rejected by dispatch staff. Please edit and resubmit.",
+                    "target_user_id": oic_profile.data[0].get('user_id'),
+                    "target_role": "oic",
+                    "target_company": oic_profile.data[0].get('company_name'),
+                    "related_trip_id": trip_id
+                })
+
+        return jsonify({"success": True, "message": "Trip request rejected."}), 200
+    except Exception as e:
+        print(f"❌ Trip Reject Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@schedules_bp.route('/api/schedules/assign', methods=['POST'])
+def assign_trip_assets():
+    """Staff binds a driver and vehicle to the OIC's trip request and notifies both"""
+    try:
+        data = request.get_json() or {}
+        trip_id = data.get('trip_id')
+        driver_uuid = data.get('driver_uuid')
+        
+        # 1. Update the trip assignment
+        supabase.table('trip_schedule').update({
+            "user_id": driver_uuid,  
+            "vehicle_id": data.get('vehicle_id'), 
+            "trip_status": "Scheduled"
+        }).eq('trip_id', trip_id).execute()
+
+        # 2. Send notifications to the OIC and the Driver
+        trip_info = supabase.table('trip_schedule').select('route_name, schedule_date, oic_id').eq('trip_id', trip_id).execute()
+
+        if trip_info.data:
+            route_name = trip_info.data[0].get('route_name')
+            schedule_date = trip_info.data[0].get('schedule_date')
+            oic_id = trip_info.data[0].get('oic_id')
+
+            oic_profile = supabase.table('oic_profile').select('user_id, company_name').eq('oic_id', oic_id).execute()
+
+            company_name = None
+            if oic_profile.data:
+                oic_user_id = oic_profile.data[0].get('user_id')
+                company_name = oic_profile.data[0].get('company_name')
+                
+                # Notify OIC
+                _create_notification({
+                    "title": "Trip Assigned",
+                    "message": f"Assets have been assigned for your {route_name} trip on {schedule_date}.",
+                    "target_user_id": oic_user_id,
+                    "target_role": "oic",
+                    "target_company": company_name,
+                    "related_trip_id": trip_id,
+                })
+
+            # Notify Driver
+            if driver_uuid:
+                _create_notification({
+                    "title": "New Dispatch Assignment",
+                    "message": f"You have been assigned to drive to {route_name} on {schedule_date}.",
+                    "target_user_id": driver_uuid,
+                    "target_role": "driver",
+                    "target_company": company_name,
+                    "related_trip_id": trip_id,
+                })
+
+        return jsonify({"success": True, "message": "Trip successfully dispatched!"}), 200
+    except Exception as e:
+        print(f"❌ Dispatch Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
