@@ -396,3 +396,81 @@ def get_staff_assigned_trips(staff_uuid):
     except Exception as e:
         print(f"❌ Staff Fetch Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+
+@schedules_bp.route('/api/schedules/reject', methods=['POST'])
+def reject_trip_request():
+    """Staff rejects a pending trip request"""
+    try:
+        data = request.get_json() or {}
+        trip_id = data.get('trip_id')
+
+        # 1. Update status to Rejected
+        response = (
+            supabase.table('trip_schedule')
+            .update({"trip_status": "Rejected"})
+            .eq('trip_id', trip_id)
+            .execute()
+        )
+
+        # 2. Trigger Notification to the OIC
+        trip_info = supabase.table('trip_schedule').select('route_name, oic_id').eq('trip_id', trip_id).execute()
+        if trip_info.data:
+            route_name = trip_info.data[0].get('route_name')
+            oic_id = trip_info.data[0].get('oic_id')
+            
+            oic_profile = supabase.table('oic_profile').select('user_id, company_name').eq('oic_id', oic_id).execute()
+            if oic_profile.data:
+                _create_notification({
+                    "title": "Trip Request Rejected",
+                    "message": f"Your request for {route_name} was rejected by staff.",
+                    "target_user_id": oic_profile.data[0].get('user_id'),
+                    "target_role": "oic",
+                    "target_company": oic_profile.data[0].get('company_name'),
+                    "related_trip_id": trip_id
+                })
+
+        return jsonify({"success": True, "message": "Trip request rejected."}), 200
+    except Exception as e:
+        print(f"❌ Trip Reject Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@schedules_bp.route('/api/schedules/edit', methods=['PUT'])
+def edit_trip_request():
+    """OIC edits an existing pending trip"""
+    try:
+        data = request.get_json() or {}
+        trip_id = data.get('trip_id')
+
+        # 1. Verify trip is still pending
+        check = supabase.table('trip_schedule').select('trip_status, staff_id').eq('trip_id', trip_id).execute()
+        if not check.data or check.data[0].get('trip_status') != 'Pending Staff Assignment':
+            return jsonify({"success": False, "message": "Cannot edit a trip that has already been processed."}), 400
+
+        # 2. Update the record
+        update_data = {
+            "route_name": data.get('destination'),
+            "passenger_count": int(data.get('passenger_count', 0)),
+            "route_distance": float(data.get('route_distance', 0.0)),
+            "schedule_date": data.get('departure_date'),
+            "departure_time": data.get('departure_time'),
+            "estimated_arrival_time": data.get('estimated_arrival_time')
+        }
+
+        supabase.table('trip_schedule').update(update_data).eq('trip_id', trip_id).execute()
+
+        # 3. Trigger Notification to the Assigned Staff
+        staff_id = check.data[0].get('staff_id')
+        if staff_id:
+            _create_notification({
+                "title": "Trip Request Updated",
+                "message": f"An OIC updated the request details for {update_data['route_name']}.",
+                "target_user_id": staff_id,
+                "target_role": "staff",
+                "related_trip_id": trip_id
+            })
+
+        return jsonify({"success": True, "message": "Trip updated successfully."}), 200
+    except Exception as e:
+        print(f"❌ Trip Edit Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500

@@ -783,26 +783,35 @@ class TripCard extends StatelessWidget {
           ],
           if (needsAssignment) ...[
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showAssignModal(context);
-                },
-                icon: const Icon(
-                  Icons.assignment_ind,
-                  color: Colors.white,
-                  size: 18,
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showAssignModal(context);
+                    },
+                    icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 16),
+                    label: const Text('Assign Assets', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade700,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
                 ),
-                label: const Text(
-                  'Assign Assets',
-                  style: TextStyle(color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _rejectTrip(context),
+                    icon: const Icon(Icons.cancel, color: Colors.red, size: 16),
+                    label: const Text('Reject', style: TextStyle(color: Colors.red, fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange.shade700,
-                ),
-              ),
+              ],
             ),
           ],
         ],
@@ -836,6 +845,36 @@ class TripCard extends StatelessWidget {
         onSuccess: onAssign,
       ),
     );
+  }
+
+  Future<void> _rejectTrip(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Reject Request?"),
+        content: const Text("Are you sure you want to reject this trip request? The OIC will be notified."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Reject", style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final res = await http.post(
+        Uri.parse('$backendUrl/schedules/reject'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"trip_id": trip['trip_id']}),
+      );
+      if (res.statusCode == 200) {
+        Navigator.pop(context); // Close details modal
+        onAssign(); // Re-fetch the dashboard data
+      }
+    } catch (e) {
+      debugPrint("Reject Error: $e");
+    }
   }
 }
 
