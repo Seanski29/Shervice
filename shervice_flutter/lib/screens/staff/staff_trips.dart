@@ -6,7 +6,7 @@ import 'dart:io';
 import '../../constant.dart';
 
 class StaffTrips extends StatefulWidget {
-  final String staffId; // 👈 Requires the specific Staff's UUID
+  final String staffId;
 
   const StaffTrips({super.key, required this.staffId});
 
@@ -17,7 +17,7 @@ class StaffTrips extends StatefulWidget {
 class _StaffTripsState extends State<StaffTrips> {
   String _searchTerm = '';
   List<dynamic> _trips = [];
-  bool _isLoading = true;
+  bool _isLoading = true; //[cite: 6]
 
   @override
   void initState() {
@@ -28,7 +28,7 @@ class _StaffTripsState extends State<StaffTrips> {
   Future<void> _fetchStaffLogs() async {
     try {
       final res = await http.get(
-        Uri.parse('$backendUrl}/schedules/staff/${widget.staffId}'),
+        Uri.parse('$backendUrl/schedules/staff/${widget.staffId}'),
       );
 
       if (res.statusCode == 200) {
@@ -59,7 +59,7 @@ class _StaffTripsState extends State<StaffTrips> {
       return route.contains(search) ||
           driver.contains(search) ||
           client.contains(search);
-    }).toList();
+    }).toList(); //[cite: 6]
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -165,7 +165,7 @@ class _StaffTripsState extends State<StaffTrips> {
                     child: Center(
                       child: Text("You have not dispatched any trips yet."),
                     ),
-                  )
+                  ) //[cite: 6]
                 else
                   ListView.separated(
                     shrinkWrap: true,
@@ -181,7 +181,7 @@ class _StaffTripsState extends State<StaffTrips> {
                       if (status == 'Completed')
                         statusColor = Colors.green;
                       else if (status == 'Ongoing' || status == 'Scheduled')
-                        statusColor = Colors.blue;
+                        statusColor = Colors.blue; //[cite: 6]
 
                       return Padding(
                         padding: const EdgeInsets.all(16),
@@ -207,8 +207,44 @@ class _StaffTripsState extends State<StaffTrips> {
                                         color: Colors.blue,
                                       ),
                                       const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          trip['route_name'] ?? 'Unknown Route',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  // Added a quick overview of Passengers & Distance right below the route name
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.people,
+                                        size: 14,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
                                       Text(
-                                        trip['route_name'] ?? 'Unknown Route',
+                                        '${trip['passenger_count'] ?? 0} Pax',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(
+                                        Icons.map,
+                                        size: 14,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${trip['route_distance'] ?? 0} km',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey.shade600,
@@ -308,7 +344,7 @@ class _StaffTripsState extends State<StaffTrips> {
                                       fontWeight: FontWeight.bold,
                                       color: statusColor,
                                     ),
-                                  ),
+                                  ), //[cite: 6]
                                 ),
                               ),
                             ),
