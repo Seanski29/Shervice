@@ -40,12 +40,9 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
 
   int _currentPage = 0;
   final int _itemsPerPage = 5;
-
   String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
+    
+  return 'https://shervice.onrender.com/api';
   }
 
   bool get _isAdmin => widget.userRole.toLowerCase() == 'admin';
