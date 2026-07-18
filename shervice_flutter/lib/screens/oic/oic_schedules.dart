@@ -157,17 +157,21 @@ class _OicSchedulesState extends State<OicSchedules> {
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final trip = schedules[index];
-              final isPending =
-                  trip['trip_status']?.toString().toLowerCase().contains(
-                    'pending',
-                  ) ??
-                  false;
-              final statusColor = isPending
-                  ? Colors.orange.shade700
-                  : Colors.green.shade700;
-              final statusBg = isPending
-                  ? Colors.orange.shade50
-                  : Colors.green.shade50;
+              final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
+              
+              final isPending = statusStr.toLowerCase().contains('pending');
+              final isRejected = statusStr.toLowerCase().contains('rejected');
+              
+              Color statusColor = Colors.green.shade700;
+              Color statusBg = Colors.green.shade50;
+              
+              if (isRejected) {
+                statusColor = Colors.red.shade700;
+                statusBg = Colors.red.shade50;
+              } else if (isPending) {
+                statusColor = Colors.orange.shade700;
+                statusBg = Colors.orange.shade50;
+              }
 
               return Container(
                 padding: const EdgeInsets.all(12),
@@ -188,16 +192,13 @@ class _OicSchedulesState extends State<OicSchedules> {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: statusBg,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            trip['trip_status']?.toString() ?? 'Unknown',
+                            statusStr,
                             style: TextStyle(
                               color: statusColor,
                               fontSize: 11,
@@ -205,30 +206,21 @@ class _OicSchedulesState extends State<OicSchedules> {
                             ),
                           ),
                         ),
-                        if (isPending)
+                        // 👇 OIC CAN EDIT PENDING AND REJECTED TRIPS
+                        if (isPending || isRejected)
                           IconButton(
-                            icon: const Icon(
-                              Icons.edit,
-                              color: Colors.blue,
-                              size: 20,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                            icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 20),
                             onPressed: () {
-                              Navigator.pop(context);
+                              Navigator.pop(context); // close current dialog
                               _showEditScheduleModal(context, trip);
                             },
                           ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'Departure: ${_formatTime(trip['departure_time'])}  •  ETA: ${_formatTime(trip['estimated_arrival_time'])}',
-                    ),
+                    Text('Departure: ${_formatTime(trip['departure_time'])}  •  ETA: ${_formatTime(trip['estimated_arrival_time'])}'),
                     const SizedBox(height: 4),
-                    Text(
-                      'Passengers: ${trip['passenger_count'] ?? 0}  •  Distance: ${trip['route_distance'] ?? 0} km',
-                    ),
+                    Text('Passengers: ${trip['passenger_count'] ?? 0}  •  Distance: ${trip['route_distance'] ?? 0} km'),
                   ],
                 ),
               );

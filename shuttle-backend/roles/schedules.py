@@ -332,15 +332,19 @@ def get_staff_assigned_trips(staff_uuid):
     
 @schedules_bp.route('/api/schedules/update-request', methods=['PUT'])
 def update_trip_request():
-    """OIC updates an existing pending trip request"""
+    """OIC updates an existing pending or rejected trip request"""
     try:
         data = request.get_json() or {}
         trip_id = data.get('trip_id')
         
-        # 1. Security Check: Ensure the trip is still pending
+        # 1. Security Check: Ensure the trip is still pending OR rejected
         check = supabase.table('trip_schedule').select('trip_status').eq('trip_id', trip_id).execute()
-        if not check.data or check.data[0].get('trip_status') != 'Pending Staff Assignment':
-            return jsonify({"success": False, "message": "You can only edit pending requests. Contact staff for changes."}), 400
+        if not check.data:
+            return jsonify({"success": False, "message": "Trip not found."}), 404
+            
+        current_status = check.data[0].get('trip_status')
+        if current_status not in ['Pending Staff Assignment', 'Rejected']:
+            return jsonify({"success": False, "message": "You can only edit pending or rejected requests."}), 400
 
         # 2. Safely parse numbers
         try: p_count = int(data.get('passenger_count', 0))
@@ -349,23 +353,52 @@ def update_trip_request():
         try: r_distance = float(data.get('route_distance', 0.0)) 
         except (ValueError, TypeError): r_distance = 0.0
 
-        # 3. Update the database
+        # 3. Update the database (Reset status and clear old assignments)
+        staff_id = data.get('staff_id')
+        
         response = (
             supabase.table('trip_schedule')
             .update({
-                "staff_id": data.get('staff_id'),
+                "staff_id": staff_id,
                 "route_name": data.get('destination'),
                 "route_distance": r_distance,
                 "passenger_count": p_count,
                 "schedule_date": data.get('departure_date'),
                 "departure_time": data.get('departure_time'),
-                "estimated_arrival_time": data.get('estimated_arrival_time')
+                "estimated_arrival_time": data.get('estimated_arrival_time'),
+                "trip_status": "Pending Staff Assignment", # Force re-approval
+                "user_id": None,    # Clear driver
+                "vehicle_id": None  # Clear vehicle
             })
             .eq('trip_id', trip_id)
             .execute()
         )
 
-        return jsonify({"success": True, "message": "Trip updated successfully!"}), 200
+        # 4. Trigger Notification to the Staff
+        route_name = data.get('destination', 'A trip')
+        if staff_id:
+            # Notify specific assigned staff
+            _create_notification({
+                "title": "Trip Request Resubmitted",
+                "message": f"An OIC updated {route_name}. Please review and assign assets.",
+                "target_user_id": staff_id,
+                "target_role": "staff",
+                "related_trip_id": trip_id
+            })
+        else:
+            # Fallback: Notify ALL staff if no specific staff was assigned
+            staff_members = supabase.table('user_account').select('user_id').eq('role', 'staff').execute()
+            if staff_members.data:
+                for staff in staff_members.data:
+                    _create_notification({
+                        "title": "Trip Request Resubmitted",
+                        "message": f"An OIC updated {route_name}. Please review and assign assets.",
+                        "target_user_id": staff.get('user_id'),
+                        "target_role": "staff",
+                        "related_trip_id": trip_id
+                    })
+
+        return jsonify({"success": True, "message": "Trip updated and sent for re-approval!"}), 200
     except Exception as e:
         print(f"❌ Trip Update Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500

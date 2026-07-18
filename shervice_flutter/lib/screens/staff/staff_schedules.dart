@@ -735,21 +735,28 @@ class TripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Check if the trip was already rejected so we can color it red
     final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
     final isRejected = statusStr.toLowerCase().contains('rejected');
-    final bool requiresAction = needsAssignment && !isRejected;
+    final isPending = statusStr.toLowerCase().contains('pending');
+    
+    // 👇 STRICT FIX: Only allow actions if it is actively Pending!
+    final bool requiresAction = isPending;
 
-    Color cardBorder = requiresAction ? Colors.orange.shade200 : Colors.green.shade200;
-    Color cardBg = requiresAction ? Colors.orange.shade50 : Colors.green.shade50;
-    Color badgeColor = requiresAction ? Colors.orange : Colors.green;
-    String badgeText = requiresAction ? 'Action Required' : 'Scheduled';
+    Color cardBorder = Colors.green.shade200;
+    Color cardBg = Colors.green.shade50;
+    Color badgeColor = Colors.green;
+    String badgeText = 'Scheduled';
 
     if (isRejected) {
       cardBorder = Colors.red.shade200;
       cardBg = Colors.red.shade50;
       badgeColor = Colors.red;
       badgeText = 'Rejected';
+    } else if (isPending) {
+      cardBorder = Colors.orange.shade200;
+      cardBg = Colors.orange.shade50;
+      badgeColor = Colors.orange;
+      badgeText = 'Action Required';
     }
 
     return Container(
@@ -769,37 +776,18 @@ class TripCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   trip['route_name'] ?? 'Unspecified Route',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  badgeText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(20)),
+                child: Text(badgeText, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          _buildInfoRow(
-            'Time',
-            _formatTimeRange(
-              trip['departure_time'],
-              trip['estimated_arrival_time'],
-            ),
-          ),
+          _buildInfoRow('Time', _formatTimeRange(trip['departure_time'], trip['estimated_arrival_time'])),
           const SizedBox(height: 8),
           _buildInfoRow('Route', trip['route_name'] ?? 'N/A'),
           const SizedBox(height: 8),
@@ -818,7 +806,6 @@ class TripCard extends StatelessWidget {
             _buildInfoRow('Vehicle', trip['vehicle_plate']),
           ],
           
-          // 👇 ADDED: Assign and Reject Buttons side-by-side
           if (requiresAction) ...[
             const SizedBox(height: 16),
             Row(
@@ -868,18 +855,9 @@ class TripCard extends StatelessWidget {
   }
 
   void _showAssignModal(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AssignTripDialog(
-        trip: trip,
-        backendUrl: backendUrl,
-        onSuccess: onAssign,
-      ),
-    );
+    showDialog(context: context, barrierDismissible: false, builder: (context) => AssignTripDialog(trip: trip, backendUrl: backendUrl, onSuccess: onAssign));
   }
 
-  // 👇 ADDED: Reject function with confirmation dialog
   Future<void> _rejectTrip(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -888,10 +866,7 @@ class TripCard extends StatelessWidget {
         content: const Text("Are you sure you want to reject this trip request? The OIC will be notified immediately."),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Reject", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Reject", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
         ],
       ),
     );
@@ -904,14 +879,9 @@ class TripCard extends StatelessWidget {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({"trip_id": trip['trip_id']}),
       );
-      if (res.statusCode == 200) {
-        if (context.mounted) {
-          Navigator.pop(context); // Close details modal
-          onAssign(); // Re-fetch the dashboard data to update UI
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Trip rejected and OIC notified."), backgroundColor: Colors.red),
-          );
-        }
+      if (res.statusCode == 200 && context.mounted) {
+        Navigator.pop(context);
+        onAssign();
       }
     } catch (e) {
       debugPrint("Reject Error: $e");
