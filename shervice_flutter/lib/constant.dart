@@ -1,4 +1,4 @@
 import 'package:flutter/foundation.dart';
 
-// Replace 'shervice-backend' with whatever your actual Render project name is
-const String backendUrl = 'https://shervice-backend.onrender.com/api';
+const String localIp = 'https://shervice.onrender.com';
+const String backendUrl = 'https://shervice.onrender.com/api';
