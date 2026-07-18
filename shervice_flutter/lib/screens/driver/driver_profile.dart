@@ -128,69 +128,68 @@ class _DriverProfileState extends State<DriverProfile> {
   }
 
   Future<void> _linkFacebookAccount() async {
-  if (_profileData == null) {
-    _showSnackBar("Profile not loaded yet.", Colors.red);
-    return;
-  }
-
-  setState(() => _isLinkingFacebook = true);
-
-  try {
-    // REMOVED: Redundant webAndDesktopInitialize block
-    // The SDK is already initialized globally in main.dart
-
-    final LoginResult result = await FacebookAuth.instance.login(
-      permissions: ['email', 'public_profile'],
-    );
-
-    if (result.status == LoginStatus.success) {
-      final fbUser = await FacebookAuth.instance.getUserData(
-        fields: "name,email",
-      );
-      
-      final String facebookEmail = (fbUser['email'] ?? '')
-          .toString()
-          .trim()
-          .toLowerCase();
-
-      if (facebookEmail.isEmpty) {
-        _showSnackBar("Facebook did not return an email address.", Colors.red);
-        return;
-      }
-
-      final response = await http.post(
-        Uri.parse('$backendUrl/auth/link-facebook'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': _profileData!['user_id'],
-          'facebook_email': facebookEmail,
-        }),
-      );
-
-      final responseData = jsonDecode(response.body);
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        setState(() {
-          _profileData!['facebook_email'] = facebookEmail;
-        });
-        _showSnackBar("Facebook account linked successfully.", Colors.green);
-      } else {
-        _showSnackBar(
-          responseData['message'] ?? "Failed to link Facebook account.",
-          Colors.red,
-        );
-      }
-    } else if (result.status == LoginStatus.cancelled) {
-      _showSnackBar("Facebook linking cancelled.", Colors.orange);
-    } else {
-      _showSnackBar("Facebook login failed: ${result.message}", Colors.red);
+    if (_profileData == null) {
+      _showSnackBar("Profile not loaded yet.", Colors.red);
+      return;
     }
-  } catch (e) {
-    _showSnackBar("Unable to link Facebook account. $e", Colors.red);
-    debugPrint("Facebook link error: $e");
-  } finally {
-    if (mounted) setState(() => _isLinkingFacebook = false);
+
+    setState(() => _isLinkingFacebook = true);
+
+    try {
+      final LoginResult result = await FacebookAuth.instance.login(
+        permissions: ['email', 'public_profile'],
+      );
+
+      if (result.status == LoginStatus.success) {
+        final fbUser = await FacebookAuth.instance.getUserData(
+          fields: "name,email",
+        );
+        final String facebookEmail = (fbUser['email'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+
+        if (facebookEmail.isEmpty) {
+          _showSnackBar(
+            "Facebook did not return an email address.",
+            Colors.red,
+          );
+          return;
+        }
+
+        final response = await http.post(
+          Uri.parse('$backendUrl/auth/link-facebook'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'user_id': _profileData!['user_id'],
+            'facebook_email': facebookEmail,
+          }),
+        );
+
+        final responseData = jsonDecode(response.body);
+        if (response.statusCode == 200 && responseData['success'] == true) {
+          setState(() {
+            _profileData!['facebook_email'] = facebookEmail;
+          });
+          _showSnackBar("Facebook account linked successfully.", Colors.green);
+        } else {
+          _showSnackBar(
+            responseData['message'] ?? "Failed to link Facebook account.",
+            Colors.red,
+          );
+        }
+      } else if (result.status == LoginStatus.cancelled) {
+        _showSnackBar("Facebook linking cancelled.", Colors.orange);
+      } else {
+        _showSnackBar("Facebook login failed: ${result.message}", Colors.red);
+      }
+    } catch (e) {
+      _showSnackBar("Unable to link Facebook account. $e", Colors.red);
+      debugPrint("Facebook link error: $e");
+    } finally {
+      setState(() => _isLinkingFacebook = false);
+    }
   }
-}
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(

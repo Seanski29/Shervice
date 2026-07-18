@@ -1,34 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
-import 'session_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'utils/tab_sync_stub.dart'
     if (dart.library.html) 'utils/tab_sync_web.dart';
 
-// Import layouts and login
+// Import your Session Manager
+import 'session_manager.dart';
+
 import 'layouts/admin/admin_layout.dart';
 import 'layouts/driver/driver_layout.dart';
 import 'layouts/oic/oic_layout.dart';
 import 'layouts/staff/staff_layout.dart';
 import 'login/login.dart';
 
-// Global navigator key for cross-app navigation
-final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
+// 1. CREATE A GLOBAL NAVIGATOR KEY
+final GlobalKey<NavigatorState> globalNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 void main() async {
-  // 1. Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
-
-  if (kIsWeb) {
-    await FacebookAuth.instance.webAndDesktopInitialize(
-      appId: '2455846521593896',
-      cookie: true,
-      xfbml: true,
-      version: 'v17.0', 
-    );
-  }
 
   bool loggedIn = await SessionManager.isLoggedIn();
   Map<String, String?> userData = {};
@@ -120,7 +111,9 @@ class _SherviceAppState extends State<SherviceApp> {
     }
 
     return MaterialApp(
+      // 4. ATTACH THE GLOBAL KEY HERE
       navigatorKey: globalNavigatorKey,
+
       title: 'Shervice Portal',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

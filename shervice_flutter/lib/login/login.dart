@@ -39,7 +39,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final navigator = Navigator.of(context);
 
     try {
-      // The webAndDesktopInitialize block has been moved to main.dart!
+      if (kIsWeb) {
+        await FacebookAuth.instance.webAndDesktopInitialize(
+          appId: '2455846521593896',
+          cookie: true,
+          xfbml: true,
+          version: 'v17.0',
+        );
+      }
 
       final LoginResult result = await FacebookAuth.instance.login(
         permissions: ['email', 'public_profile'],
