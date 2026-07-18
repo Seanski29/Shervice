@@ -1,9 +1,8 @@
 import os
-from flask import Flask, make_response, request  # Removed 'app' from this line
+from flask import Flask, make_response, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client, Client
-
 
 # Import your blueprint role modules from the folder structures
 import roles.auth as auth_module
@@ -16,8 +15,6 @@ import roles.passenger as passenger_module
 import roles.vehicle as vehicles_module  
 import roles.schedules as schedules_module
 
-
-
 from gemeni import ai_bp  # Kept the import here cleanly
 
 class TransportBackendApp:
@@ -26,13 +23,11 @@ class TransportBackendApp:
         load_dotenv()
         self.app = Flask(__name__)
         
-        # 2. ENHANCED GLOBAL CORS HANDLER: Overrides incoming pipeline preflights
         CORS(self.app, resources={
-            r"/api/*": {
+            r"/*": {
                 "origins": "*",
-                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                 "allow_headers": ["Content-Type", "Authorization", "Accept"],
-                "expose_headers": ["Content-Type", "Authorization"]
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
             }
         })
         
@@ -50,15 +45,10 @@ class TransportBackendApp:
         self._inject_dependencies_and_register_blueprints()
 
     def _register_hooks(self):
-        # GLOBAL OPTIONS HANDSHAKE CATCHER: Intercepts preflight checks cleanly
-        @self.app.before_request
-        def handle_preflight():
-            if request.method == "OPTIONS":
-                response = make_response()
-                response.headers.add("Access-Control-Allow-Origin", "*")
-                response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,Accept")
-                response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
-                return response, 200
+        # A simple status check for the browser
+        @self.app.route('/')
+        def system_status():
+            return {"status": "online", "message": "Shervice Backend is LIVE!"}, 200
 
     def _inject_dependencies_and_register_blueprints(self):
         """
@@ -95,6 +85,13 @@ class TransportBackendApp:
         # (the development reloader can cause transient connection resets)
         self.app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 
+
+# 1. Create the server instance globally so Gunicorn can find it
+backend_server = TransportBackendApp()
+
+# 2. Expose the actual Flask application to a global variable named 'app'
+app = backend_server.app
+
+# 3. Keep this for local testing on your PC
 if __name__ == '__main__':
-    server = TransportBackendApp()
-    server.run()
+    backend_server.run()

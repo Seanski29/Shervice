@@ -19,11 +19,9 @@ class _StaffTripsState extends State<StaffTrips> {
   bool _isLoading = true;
 
   String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
+  // Replace this with your actual Render project URL
+  return 'https://shervice.onrender.com/api';
+}
 
   @override
   void initState() {

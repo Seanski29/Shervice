@@ -699,7 +699,7 @@ class _TripDetailsDialogState extends State<TripDetailsDialog> {
   }
 }
 
-// ─── TRIP CARD WIDGET ───
+// ─── TRIP CARD WIDGET (STAFF) ───
 class TripCard extends StatelessWidget {
   final Map<String, dynamic> trip;
   final String backendUrl;
@@ -716,17 +716,31 @@ class TripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
+    final isRejected = statusStr.toLowerCase().contains('rejected');
+    
+    // It only needs assignment if it's missing a driver AND hasn't been rejected yet
+    final bool requiresAction = needsAssignment && !isRejected;
+
+    Color cardBorder = requiresAction ? Colors.orange.shade200 : Colors.green.shade200;
+    Color cardBg = requiresAction ? Colors.orange.shade50 : Colors.green.shade50;
+    Color badgeColor = requiresAction ? Colors.orange : Colors.green;
+    String badgeText = requiresAction ? 'Action Required' : 'Scheduled';
+
+    if (isRejected) {
+      cardBorder = Colors.red.shade200;
+      cardBg = Colors.red.shade50;
+      badgeColor = Colors.red;
+      badgeText = 'Rejected';
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: needsAssignment ? Colors.orange.shade50 : Colors.green.shade50,
+        color: cardBg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: needsAssignment
-              ? Colors.orange.shade200
-              : Colors.green.shade200,
-        ),
+        border: Border.all(color: cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -737,42 +751,28 @@ class TripCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   trip['route_name'] ?? 'Unspecified Route',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: needsAssignment ? Colors.orange : Colors.green,
+                  color: badgeColor,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  needsAssignment ? 'Unassigned' : 'Scheduled',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  badgeText,
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          _buildInfoRow(
-            'Time',
-            _formatTimeRange(
-              trip['departure_time'],
-              trip['estimated_arrival_time'],
-            ),
-          ),
+          _buildInfoRow('Time', _formatTimeRange(trip['departure_time'], trip['estimated_arrival_time'])),
           const SizedBox(height: 8),
           _buildInfoRow('Route', trip['route_name'] ?? 'N/A'),
+          _buildInfoRow('Passengers', trip['passenger_count']?.toString() ?? '0'),
+          
           if (trip['driver_name'] != null) ...[
             const SizedBox(height: 8),
             _buildInfoRow('Driver', trip['driver_name']),
@@ -781,7 +781,9 @@ class TripCard extends StatelessWidget {
             const SizedBox(height: 8),
             _buildInfoRow('Vehicle', trip['vehicle_plate']),
           ],
-          if (needsAssignment) ...[
+          
+          // Only show Assign/Reject buttons if the trip hasn't been rejected yet
+          if (requiresAction) ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -811,18 +813,15 @@ class TripCard extends StatelessWidget {
   }
 
   Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
     );
   }
 
