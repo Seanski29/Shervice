@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
+import '../../constant.dart';
 
 class StaffTrips extends StatefulWidget {
   final String staffId; // 👈 Requires the specific Staff's UUID
@@ -18,13 +19,6 @@ class _StaffTripsState extends State<StaffTrips> {
   List<dynamic> _trips = [];
   bool _isLoading = true;
 
-  String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
-
   @override
   void initState() {
     super.initState();
@@ -34,7 +28,7 @@ class _StaffTripsState extends State<StaffTrips> {
   Future<void> _fetchStaffLogs() async {
     try {
       final res = await http.get(
-        Uri.parse('$_backendUrl/schedules/staff/${widget.staffId}'),
+        Uri.parse('$backendUrl}/schedules/staff/${widget.staffId}'),
       );
 
       if (res.statusCode == 200) {

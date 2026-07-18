@@ -1,20 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart'; // Required for kIsWeb flag
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:http/http.dart' as http;
 import '../constant.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart'; // Added Facebook Auth
-import '../constant.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
-// Imports for your layouts and the forgot password screen
+// 1. ADD IMPORT FOR SESSION MANAGER
+import '../session_manager.dart';
+
+// Imports for your layouts
 import '../layouts/admin/admin_layout.dart';
 import '../layouts/driver/driver_layout.dart';
-// TODO: Adjust these two import paths to match exactly what you named your responsive wrapper files
 import '../layouts/oic/oic_layout.dart';
 import '../layouts/staff/staff_layout.dart';
-// import 'forgot_password.dart'; // Removed since the button is replaced
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,22 +31,15 @@ class _LoginScreenState extends State<LoginScreen> {
   double _bgAlignX = 0.0;
   double _bgAlignY = 0.0;
 
-  bool _isFacebookLoading = false; // Added state for Facebook button loading
+  bool _isFacebookLoading = false;
 
-  // --- NEW FACEBOOK LOGIN FUNCTION ---
+  // --- FACEBOOK LOGIN FUNCTION ---
   Future<void> _loginWithFacebook() async {
     setState(() => _isFacebookLoading = true);
     final navigator = Navigator.of(context);
 
     try {
-      if (kIsWeb) {
-        await FacebookAuth.instance.webAndDesktopInitialize(
-          appId: '2455846521593896',
-          cookie: true,
-          xfbml: true,
-          version: 'v17.0',
-        );
-      }
+      // The webAndDesktopInitialize block has been moved to main.dart!
 
       final LoginResult result = await FacebookAuth.instance.login(
         permissions: ['email', 'public_profile'],
@@ -73,12 +66,18 @@ class _LoginScreenState extends State<LoginScreen> {
           final userDataResponse = responseData['data'];
           final String role = userDataResponse['role'];
 
-          // Copied your exact routing logic from below so everything matches perfectly
           if (role == 'admin') {
+            final String realAdminId =
+                (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
+                    .toString();
+            // 👇 SAVE ADMIN SESSION
+            await SessionManager.saveUserSession(
+              'admin',
+              realAdminId,
+              'Admin',
+              'GT LANTIN',
+            );
             if (mounted) {
-              // 👇 Extract the ID and pass it to AdminLayout
-              final String realAdminId =
-                  (userData['user_id'] ?? userData['id'] ?? '').toString();
               navigator.pushReplacement(
                 MaterialPageRoute(
                   builder: (context) => AdminLayout(adminId: realAdminId),
@@ -86,17 +85,25 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             }
           } else if (role == 'oic') {
+            final String realUserId =
+                (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
+                    .toString();
+            final String oicDisplayName =
+                (userDataResponse['name'] ??
+                        userDataResponse['full_name'] ??
+                        'OIC')
+                    .toString();
+            final String oicCompany =
+                (userDataResponse['company'] ?? 'Internal').toString();
+
+            // 👇 SAVE OIC SESSION
+            await SessionManager.saveUserSession(
+              'oic',
+              realUserId,
+              oicDisplayName,
+              oicCompany,
+            );
             if (mounted) {
-              final String realUserId =
-                  (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
-                      .toString();
-              final String oicDisplayName =
-                  (userDataResponse['name'] ??
-                          userDataResponse['full_name'] ??
-                          'OIC')
-                      .toString();
-              final String oicCompany =
-                  (userDataResponse['company'] ?? 'Internal').toString();
               navigator.pushReplacement(
                 MaterialPageRoute(
                   builder: (context) => OicLayout(
@@ -108,17 +115,25 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             }
           } else if (role == 'staff') {
+            final String realUserId =
+                (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
+                    .toString();
+            final String staffDisplayName =
+                (userDataResponse['name'] ??
+                        userDataResponse['full_name'] ??
+                        'Staff Member')
+                    .toString();
+            final String staffCompany =
+                (userDataResponse['company'] ?? 'Internal').toString();
+
+            // 👇 SAVE STAFF SESSION
+            await SessionManager.saveUserSession(
+              'staff',
+              realUserId,
+              staffDisplayName,
+              staffCompany,
+            );
             if (mounted) {
-              final String realUserId =
-                  (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
-                      .toString();
-              final String staffDisplayName =
-                  (userDataResponse['name'] ??
-                          userDataResponse['full_name'] ??
-                          'Staff Member')
-                      .toString();
-              final String staffCompany =
-                  (userDataResponse['company'] ?? 'Internal').toString();
               navigator.pushReplacement(
                 MaterialPageRoute(
                   builder: (context) => StaffLayout(
@@ -130,17 +145,25 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             }
           } else if (role == 'driver') {
+            final String realUserId =
+                (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
+                    .toString();
+            final String driverDisplayName =
+                (userDataResponse['name'] ??
+                        userDataResponse['full_name'] ??
+                        'Driver')
+                    .toString();
+            final String driverCompany =
+                (userDataResponse['company'] ?? 'Internal').toString();
+
+            // 👇 SAVE DRIVER SESSION
+            await SessionManager.saveUserSession(
+              'driver',
+              realUserId,
+              driverDisplayName,
+              driverCompany,
+            );
             if (mounted) {
-              final String realUserId =
-                  (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
-                      .toString();
-              final String driverDisplayName =
-                  (userDataResponse['name'] ??
-                          userDataResponse['full_name'] ??
-                          'Driver')
-                      .toString();
-              final String driverCompany =
-                  (userDataResponse['company'] ?? 'Internal').toString();
               navigator.pushReplacement(
                 MaterialPageRoute(
                   builder: (context) => DriverLayout(
@@ -174,14 +197,11 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       _showSnackBar("Facebook authentication error: $e", Colors.red.shade600);
     } finally {
-      if (mounted) {
-        setState(() => _isFacebookLoading = false);
-      }
+      if (mounted) setState(() => _isFacebookLoading = false);
     }
   }
-  // -----------------------------------
 
-  // Dynamic Login Logic Function linking straight to Python API
+  // --- DYNAMIC LOGIN LOGIC FUNCTION ---
   Future<void> _handleLogin() async {
     final String email = _emailController.text.trim();
     final String password = _passwordController.text;
@@ -191,14 +211,12 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Display a loading indicator during backend network verification
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    // Capture the navigator state BEFORE the async network gap to satisfy compiler lints
     final navigator = Navigator.of(context);
     bool isLoadingDismissed = false;
 
@@ -209,7 +227,6 @@ class _LoginScreenState extends State<LoginScreen> {
         body: jsonEncode({'email': email, 'password': password}),
       );
 
-      // Dismiss the loading indicator safely right after network return
       if (mounted) {
         navigator.pop();
         isLoadingDismissed = true;
@@ -217,18 +234,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
-      // ─── UPDATED: Checking for 'success' == true instead of 'status' ───
       if (response.statusCode == 200 && responseData['success'] == true) {
         final userData = responseData['data'];
         final String role = userData['role'];
 
-        // Navigates based on the role payload returned by Supabase via Flask
-        // Navigates based on the role payload returned by Supabase via Flask
         if (role == 'admin') {
+          final String realAdminId =
+              (userData['user_id'] ?? userData['id'] ?? '').toString();
+
+          // 👇 SAVE ADMIN SESSION
+          await SessionManager.saveUserSession(
+            'admin',
+            realAdminId,
+            'Admin',
+            'GT LANTIN',
+          );
+
           if (mounted) {
-            // 👇 Extract the ID and pass it to AdminLayout
-            final String realAdminId =
-                (userData['user_id'] ?? userData['id'] ?? '').toString();
             navigator.pushReplacement(
               MaterialPageRoute(
                 builder: (context) => AdminLayout(adminId: realAdminId),
@@ -236,18 +258,26 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else if (role == 'oic') {
-          if (mounted) {
-            final String realUserId =
-                (userData['user_id'] ?? userData['id'] ?? '').toString();
-            final String oicDisplayName =
-                (userData['name'] ?? userData['full_name'] ?? 'OIC').toString();
-            final String oicCompany = (userData['company'] ?? 'Internal')
-                .toString();
+          final String realUserId =
+              (userData['user_id'] ?? userData['id'] ?? '').toString();
+          final String oicDisplayName =
+              (userData['name'] ?? userData['full_name'] ?? 'OIC').toString();
+          final String oicCompany = (userData['company'] ?? 'Internal')
+              .toString();
 
+          // 👇 SAVE OIC SESSION
+          await SessionManager.saveUserSession(
+            'oic',
+            realUserId,
+            oicDisplayName,
+            oicCompany,
+          );
+
+          if (mounted) {
             navigator.pushReplacement(
               MaterialPageRoute(
                 builder: (context) => OicLayout(
-                  oicId: realUserId, // 👈 Start the baton pass here
+                  oicId: realUserId,
                   oicName: oicDisplayName,
                   companyName: oicCompany,
                 ),
@@ -255,17 +285,23 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else if (role == 'staff') {
-          if (mounted) {
-            // ─── BULLETPROOF DATA EXTRACTION ───
-            // Checks multiple possible database keys and safely converts to String
-            final String realUserId =
-                (userData['user_id'] ?? userData['id'] ?? '').toString();
-            final String staffDisplayName =
-                (userData['name'] ?? userData['full_name'] ?? 'Staff Member')
-                    .toString();
-            final String staffCompany = (userData['company'] ?? 'Internal')
-                .toString();
+          final String realUserId =
+              (userData['user_id'] ?? userData['id'] ?? '').toString();
+          final String staffDisplayName =
+              (userData['name'] ?? userData['full_name'] ?? 'Staff Member')
+                  .toString();
+          final String staffCompany = (userData['company'] ?? 'Internal')
+              .toString();
 
+          // 👇 SAVE STAFF SESSION
+          await SessionManager.saveUserSession(
+            'staff',
+            realUserId,
+            staffDisplayName,
+            staffCompany,
+          );
+
+          if (mounted) {
             navigator.pushReplacement(
               MaterialPageRoute(
                 builder: (context) => StaffLayout(
@@ -277,22 +313,29 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else if (role == 'driver') {
-          if (mounted) {
-            // Safely extract all three pieces of data from the database
-            final String realUserId =
-                (userData['user_id'] ?? userData['id'] ?? '').toString();
-            final String driverDisplayName =
-                (userData['name'] ?? userData['full_name'] ?? 'Driver')
-                    .toString();
-            final String driverCompany = (userData['company'] ?? 'Internal')
-                .toString();
+          final String realUserId =
+              (userData['user_id'] ?? userData['id'] ?? '').toString();
+          final String driverDisplayName =
+              (userData['name'] ?? userData['full_name'] ?? 'Driver')
+                  .toString();
+          final String driverCompany = (userData['company'] ?? 'Internal')
+              .toString();
 
+          // 👇 SAVE DRIVER SESSION
+          await SessionManager.saveUserSession(
+            'driver',
+            realUserId,
+            driverDisplayName,
+            driverCompany,
+          );
+
+          if (mounted) {
             navigator.pushReplacement(
               MaterialPageRoute(
                 builder: (context) => DriverLayout(
-                  driverId: realUserId, // ✅ Added missing parameter
+                  driverId: realUserId,
                   driverName: driverDisplayName,
-                  companyName: driverCompany, // ✅ Added missing parameter
+                  companyName: driverCompany,
                 ),
               ),
             );
@@ -304,15 +347,11 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
-        // Displays exact authentication or user mismatch errors from server
         final errorMsg = responseData['message'] ?? 'Authentication failed.';
         _showSnackBar(errorMsg, Colors.red.shade600);
       }
     } catch (e) {
-      // ONLY pop if the loading indicator wasn't dismissed yet to prevent popping the main screen
-      if (mounted && !isLoadingDismissed) {
-        navigator.pop();
-      }
+      if (mounted && !isLoadingDismissed) navigator.pop();
       _showSnackBar(
         'Unable to connect to the backend server.',
         Colors.red.shade600,
@@ -385,7 +424,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Top Logo
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
@@ -406,22 +444,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Shervice Logo Text
                     Image.asset(
                       './assets/shervice.jpg',
                       height: 80,
                       fit: BoxFit.contain,
                     ),
-
                     const SizedBox(height: 8),
                     const Text(
                       "Sign in to continue",
                       style: TextStyle(color: Colors.grey),
                     ),
                     const SizedBox(height: 30),
-
-                    // Email Field
                     TextField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -433,8 +466,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Password Field
                     TextField(
                       controller: _passwordController,
                       obscureText: !_showPassword,
@@ -455,8 +486,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Login Button Triggering Async Flask Network Validation
                     SizedBox(
                       width: double.infinity,
                       height: 45,
@@ -476,8 +505,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-
-                    // Facebook Login Button Replacing Forgot Password
                     SizedBox(
                       width: double.infinity,
                       height: 42,
@@ -511,22 +538,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // // Forgot Password Link
-                    // Align(
-                    //   alignment: Alignment.centerRight,
-                    //   child: TextButton(
-                    //     onPressed: () {
-                    //       Navigator.push(
-                    //         context,
-                    //         MaterialPageRoute(
-                    //           builder: (context) =>
-                    //               const ForgotPasswordScreen(),
-                    //         ),
-                    //       );
-                    //     },
-                    //     child: const Text("Forgot Password?"),
-                    //   ),
-                    // ),
                     const Text(
                       "GT LANTIN SHUTTLE SERVICES",
                       style: TextStyle(fontSize: 10, color: Colors.grey),

@@ -13,6 +13,7 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.0
+  shared_preferences: ^2.2.2
   # The web plugin must be indented exactly like this
   flutter_web_plugins:
     sdk: flutter

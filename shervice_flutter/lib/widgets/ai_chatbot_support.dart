@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../constant.dart';
+import '../constant.dart'; // Make sure this path is correct for your project
 
 class AiChatbotSupport extends StatefulWidget {
   final String userRole; // 'Admin', 'Staff', 'OIC', or 'Driver'
   final String userName;
-  final String localIp; // Passed from layout (e.g., '192.168.43.15')
+  final String localIp; // Passed from layout (e.g., '192.168.1.11')
 
   const AiChatbotSupport({
     super.key,
@@ -26,6 +26,7 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  // Uses the global backendUrl from constant.dart safely
   String get _backendUrl {
     return '$backendUrl/ai/chat';
   }
@@ -228,8 +229,8 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
                                 color: isEmergency
                                     ? Colors.red.shade100
                                     : (isUser
-                                          ? Colors.blue.shade600
-                                          : Colors.grey.shade100),
+                                        ? Colors.blue.shade600
+                                        : Colors.grey.shade100),
                                 border: isEmergency
                                     ? Border.all(
                                         color: Colors.red.shade400,
@@ -344,7 +345,7 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Input Box
+                    // Input Box with AI Disclaimer
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -352,30 +353,46 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
                           top: BorderSide(color: Colors.grey.shade200),
                         ),
                       ),
-                      child: Row(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min, // Prevents stretching
                         children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _inputController,
-                              decoration: InputDecoration(
-                                hintText: 'Type a message...',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                  borderSide: BorderSide.none,
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey.shade100,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _inputController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Type a message...',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.grey.shade100,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                  ),
+                                  onSubmitted: _sendMessage,
                                 ),
                               ),
-                              onSubmitted: _sendMessage,
-                            ),
+                              IconButton(
+                                icon: const Icon(Icons.send, color: Colors.blue),
+                                onPressed: () =>
+                                    _sendMessage(_inputController.text),
+                              ),
+                            ],
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.send, color: Colors.blue),
-                            onPressed: () =>
-                                _sendMessage(_inputController.text),
+                          const SizedBox(height: 8), // Gap before disclaimer
+                          
+                          // THE AI DISCLAIMER
+                          const Text(
+                            'Shervice Copilot is an AI and can make mistakes. Please verify important logistics.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),
