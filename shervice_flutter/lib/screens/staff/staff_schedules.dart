@@ -785,35 +785,26 @@ class TripCard extends StatelessWidget {
           // Only show Assign/Reject buttons if the trip hasn't been rejected yet
           if (requiresAction) ...[
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _showAssignModal(context);
-                    },
-                    icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 16),
-                    label: const Text('Assign', style: TextStyle(color: Colors.white, fontSize: 12)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange.shade700,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showAssignModal(context);
+                },
+                icon: const Icon(
+                  Icons.assignment_ind,
+                  color: Colors.white,
+                  size: 18,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _rejectTrip(context),
-                    icon: const Icon(Icons.cancel, color: Colors.red, size: 16),
-                    label: const Text('Reject', style: TextStyle(color: Colors.red, fontSize: 12)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
+                label: const Text(
+                  'Assign Assets',
+                  style: TextStyle(color: Colors.white),
                 ),
-              ],
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade700,
+                ),
+              ),
             ),
           ],
         ],
@@ -844,39 +835,6 @@ class TripCard extends StatelessWidget {
         onSuccess: onAssign,
       ),
     );
-  }
-
-  Future<void> _rejectTrip(BuildContext context) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Reject Request?"),
-        content: const Text("Are you sure you want to reject this trip request? The OIC will be notified."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true), 
-            child: const Text("Reject", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    try {
-      final res = await http.post(
-        Uri.parse('$backendUrl/schedules/reject'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({"trip_id": trip['trip_id']}),
-      );
-      if (res.statusCode == 200) {
-        Navigator.pop(context); // Close details modal
-        onAssign(); // Re-fetch the dashboard data to hide the rejected trip
-      }
-    } catch (e) {
-      debugPrint("Reject Error: $e");
-    }
   }
 }
 
@@ -1073,258 +1031,6 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                   "Confirm Schedule",
                   style: TextStyle(color: Colors.white),
                 ),
-        ),
-      ],
-    );
-  }
-}
-// ─── STAFF FULL EDIT MODAL ───
-class StaffEditTripDialog extends StatefulWidget {
-  final Map<String, dynamic> trip;
-  final String backendUrl;
-  final VoidCallback onSuccess;
-
-  const StaffEditTripDialog({super.key, required this.trip, required this.backendUrl, required this.onSuccess});
-
-  @override
-  State<StaffEditTripDialog> createState() => _StaffEditTripDialogState();
-}
-
-class _StaffEditTripDialogState extends State<StaffEditTripDialog> {
-  final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
-  bool _isLoadingOptions = true;
-
-  late TextEditingController _destinationController;
-  late TextEditingController _passengerController;
-  late TextEditingController _distanceController;
-
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
-  TimeOfDay? _selectedArrivalTime;
-
-  String? _selectedDriverUuid;
-  String? _selectedVehicleId;
-  List<dynamic> _drivers = [];
-  List<dynamic> _vehicles = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _destinationController = TextEditingController(text: widget.trip['route_name']);
-    _passengerController = TextEditingController(text: widget.trip['passenger_count'].toString());
-    _distanceController = TextEditingController(text: widget.trip['route_distance'].toString());
-
-    if (widget.trip['schedule_date'] != null) {
-      _selectedDate = DateTime.parse(widget.trip['schedule_date'].toString().split(' ').first);
-    }
-    _selectedTime = _parseTimeOfDay(widget.trip['departure_time']);
-    _selectedArrivalTime = _parseTimeOfDay(widget.trip['estimated_arrival_time']);
-    
-    _selectedDriverUuid = widget.trip['user_id'];
-    _selectedVehicleId = widget.trip['vehicle_id']?.toString();
-
-    _fetchAvailability();
-  }
-
-  TimeOfDay? _parseTimeOfDay(dynamic timeString) {
-    if (timeString == null) return null;
-    final parts = timeString.toString().split(':');
-    if (parts.length >= 2) return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-    return null;
-  }
-
-  Future<void> _fetchAvailability() async {
-    setState(() => _isLoadingOptions = true);
-    try {
-      final dateStr = "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
-      final res = await http.get(
-        Uri.parse('${widget.backendUrl}/schedules/dispatch-options?date=$dateStr&ignore_trip_id=${widget.trip['trip_id']}'),
-      );
-      if (res.statusCode == 200 && mounted) {
-        final data = jsonDecode(res.body);
-        setState(() {
-          _drivers = data['drivers'] ?? [];
-          _vehicles = data['vehicles'] ?? [];
-          
-          // Clear selections if the driver/vehicle isn't available on the newly selected date
-          if (_selectedDriverUuid != null && !_drivers.any((d) => d['user_id'] == _selectedDriverUuid)) {
-            _selectedDriverUuid = null;
-          }
-          if (_selectedVehicleId != null && !_vehicles.any((v) => v['vehicle_id'].toString() == _selectedVehicleId)) {
-            _selectedVehicleId = null;
-          }
-          _isLoadingOptions = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingOptions = false);
-    }
-  }
-
-  Future<void> _submitEdit() async {
-    if (!_formKey.currentState!.validate() || _selectedDate == null || _selectedTime == null || _selectedArrivalTime == null) return;
-    setState(() => _isLoading = true);
-
-    final dateStr = "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
-    final timeStr = "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
-    final etaStr = "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
-
-    try {
-      final res = await http.put(
-        Uri.parse('${widget.backendUrl}/schedules/staff-edit'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "trip_id": widget.trip['trip_id'],
-          "destination": _destinationController.text,
-          "passenger_count": _passengerController.text,
-          "route_distance": _distanceController.text,
-          "departure_date": dateStr,
-          "departure_time": timeStr,
-          "estimated_arrival_time": etaStr,
-          "driver_uuid": _selectedDriverUuid,
-          "vehicle_id": _selectedVehicleId != null ? int.parse(_selectedVehicleId!) : null,
-        }),
-      );
-      if (res.statusCode == 200 && mounted) {
-        Navigator.pop(context);
-        widget.onSuccess();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Trip updated successfully!"), backgroundColor: Colors.green));
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("Edit Trip & Assignments", style: TextStyle(fontWeight: FontWeight.bold)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      content: SizedBox(
-        width: 450,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _destinationController,
-                  validator: (val) => val!.isEmpty ? "Required" : null,
-                  decoration: const InputDecoration(labelText: "Route / Destination", border: OutlineInputBorder(), prefixIcon: Icon(Icons.location_on)),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _distanceController,
-                        keyboardType: TextInputType.number,
-                        validator: (val) => val == null || val.isEmpty ? "Required" : null,
-                        decoration: const InputDecoration(labelText: "Distance (km)", border: OutlineInputBorder(), prefixIcon: Icon(Icons.map)),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _passengerController,
-                        keyboardType: TextInputType.number,
-                        validator: (val) => val == null || val.isEmpty ? "Required" : null,
-                        decoration: const InputDecoration(labelText: "Passengers", border: OutlineInputBorder(), prefixIcon: Icon(Icons.people)),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showDatePicker(context: context, initialDate: _selectedDate ?? DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime(2030));
-                          if (picked != null) {
-                            setState(() => _selectedDate = picked);
-                            _fetchAvailability(); // Re-fetch drivers for new date
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder()),
-                          child: Text(_selectedDate == null ? "Select Date" : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}"),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showTimePicker(context: context, initialTime: _selectedTime ?? const TimeOfDay(hour: 8, minute: 0));
-                          if (picked != null) setState(() => _selectedTime = picked);
-                        },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(labelText: 'Departure', border: OutlineInputBorder()),
-                          child: Text(_selectedTime == null ? "Time" : _selectedTime!.format(context)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showTimePicker(context: context, initialTime: _selectedArrivalTime ?? const TimeOfDay(hour: 17, minute: 0));
-                          if (picked != null) setState(() => _selectedArrivalTime = picked);
-                        },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(labelText: 'ETA', border: OutlineInputBorder()),
-                          child: Text(_selectedArrivalTime == null ? "Arrival" : _selectedArrivalTime!.format(context)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 32),
-                const Text("Asset Assignment", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 12),
-                if (_isLoadingOptions)
-                  const CircularProgressIndicator()
-                else ...[
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: "Assign Driver (Optional)", border: OutlineInputBorder()),
-                    value: _selectedDriverUuid,
-                    items: [
-                      const DropdownMenuItem<String>(value: null, child: Text("Leave Unassigned")),
-                      ..._drivers.map((d) => DropdownMenuItem<String>(value: d['user_id'], child: Text(d['full_name'])))
-                    ],
-                    onChanged: (val) => setState(() => _selectedDriverUuid = val),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: "Assign Vehicle (Optional)", border: OutlineInputBorder()),
-                    value: _selectedVehicleId,
-                    items: [
-                      const DropdownMenuItem<String>(value: null, child: Text("Leave Unassigned")),
-                      ..._vehicles.map((v) => DropdownMenuItem<String>(value: v['vehicle_id'].toString(), child: Text("${v['plate_number']} (${v['bus_type']})")))
-                    ],
-                    onChanged: (val) => setState(() => _selectedVehicleId = val),
-                  ),
-                ]
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _submitEdit,
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade600),
-          child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Text("Save Changes", style: TextStyle(color: Colors.white)),
         ),
       ],
     );
