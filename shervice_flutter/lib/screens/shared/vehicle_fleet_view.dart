@@ -67,6 +67,21 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     }
   }
 
+  // 👇 ADDED: Fetch History function
+  Future<List<dynamic>> _fetchVehicleLogHistory(int vehicleId) async {
+    try {
+      final res = await http.get(Uri.parse('$backendUrl/vehicles/maintenance'));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body)['data'] ?? [];
+        // Filter logs strictly for the requested vehicle
+        return data.where((log) => log['vehicle_id'] == vehicleId).toList();
+      }
+    } catch (e) {
+      debugPrint("Error fetching log history: $e");
+    }
+    return [];
+  }
+
   void _applyFiltersAndSort() {
     List<dynamic> temp = _allVehicles.where((v) {
       final plate = (v['plate_number'] ?? '').toString().toLowerCase();
@@ -193,7 +208,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
-  // 👇 FULLY UPGRADED MAINTENANCE DIALOG
   void _showAddMaintenanceDialog() {
     final validVehicles = _allVehicles.where((v) {
       return int.tryParse(v['vehicle_id']?.toString() ?? '') != null;
@@ -214,7 +228,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     String description = '';
     String chosenHealthStatus = 'Excellent';
     
-    // New Detailed Tracking Variables
     String chosenCategory = 'General';
     DateTime? incidentDate = DateTime.now();
     TimeOfDay? incidentTime;
@@ -323,7 +336,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                         Expanded(
                           child: InputDecorator(
                             decoration: _inputFieldStyle(label: 'Date Repaired', icon: Icons.event_available),
-                            child: Text("${today.month}/${today.day}/${today.year} (Today)"), // Defaulting repair date to today based on original logic
+                            child: Text("${today.month}/${today.day}/${today.year} (Today)"), 
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -388,7 +401,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                     return;
                   }
 
-                  // Format Times for Database (HH:MM:00)
                   String? formatTime(TimeOfDay? time) {
                     if (time == null) return null;
                     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
@@ -400,7 +412,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                     'vehicle_id': vehicleId,
                     'health_status': chosenHealthStatus,
                     'user_id': currentUserId,
-                    // New Fields
                     'category': chosenCategory,
                     'incident_date': incidentDate != null ? '${incidentDate!.year}-${incidentDate!.month.toString().padLeft(2, '0')}-${incidentDate!.day.toString().padLeft(2, '0')}' : null,
                     'incident_time': formatTime(incidentTime),
@@ -439,6 +450,101 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
           ],
         ),
       ),
+    );
+  }
+
+  // 👇 ADDED: Modal to display the fetched log history
+  void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> logs) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFF8FAFC),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Maintenance History: $plateNumber', 
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF0F172A))
+            ),
+            IconButton(
+              icon: const Icon(Icons.close), 
+              onPressed: () => Navigator.pop(context)
+            ),
+          ]
+        ),
+        content: SizedBox(
+          width: 600,
+          height: 450,
+          child: logs.isEmpty
+              ? const Center(
+                  child: Text(
+                    "No maintenance history found for this vehicle.",
+                    style: TextStyle(color: Colors.grey, fontSize: 16)
+                  )
+                )
+              : ListView.separated(
+                  itemCount: logs.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final log = logs[index];
+                    final category = log['category'] ?? 'General Repair';
+                    final repairDate = log['repair_date'] ?? 'N/A';
+                    final description = log['description'] ?? 'No description provided';
+                    final incidentDate = log['incident_date'] ?? 'N/A';
+                    final incidentTime = log['incident_time'] ?? 'N/A';
+                    final repairTime = log['repair_time'] ?? 'N/A';
+
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200)
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  category, 
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700, fontSize: 12)
+                                ),
+                              ),
+                              Text(
+                                "Repaired: $repairDate ${repairTime != 'N/A' ? 'at $repairTime' : ''}", 
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600)
+                              ),
+                            ]
+                          ),
+                          const SizedBox(height: 12),
+                          Text(description, style: const TextStyle(fontSize: 14)),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange),
+                              const SizedBox(width: 6),
+                              Text(
+                                "Incident Occurred: $incidentDate ${incidentTime != 'N/A' ? 'at $incidentTime' : ''}", 
+                                style: const TextStyle(fontSize: 12, color: Colors.orange)
+                              ),
+                            ],
+                          ),
+                        ]
+                      )
+                    );
+                  }
+                )
+        )
+      )
     );
   }
 
@@ -767,6 +873,33 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                                         ),
                                       ),
                                     ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  // 👇 ADDED: Button to View Maintenance History
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: () async {
+                                        final int vId = int.tryParse(v['vehicle_id'].toString()) ?? 0;
+                                        if (vId > 0) {
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (c) => const Center(child: CircularProgressIndicator()),
+                                          );
+                                          final logs = await _fetchVehicleLogHistory(vId);
+                                          if (context.mounted) {
+                                            Navigator.pop(context); // Close loading indicator
+                                            _showHistoryModal(context, v['plate_number'] ?? 'Unknown', logs);
+                                          }
+                                        }
+                                      },
+                                      icon: const Icon(Icons.history, size: 18),
+                                      label: const Text("View Maintenance History"),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Colors.blue.shade700,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
