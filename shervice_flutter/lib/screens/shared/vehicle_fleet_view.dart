@@ -494,7 +494,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
   }
 
   // 👇 ADDED: Modal to display the fetched log history WITH SORTING
-  void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> logs) {
+void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> logs) {
     String currentSort = 'Newest First';
 
     showDialog(
@@ -504,18 +504,12 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
           
           List<dynamic> sortedLogs = List.from(logs);
           sortedLogs.sort((a, b) {
+            // Helper to parse dates for sorting
             DateTime dateA = DateTime.tryParse(a['incident_date']?.toString() ?? a['repair_date']?.toString() ?? '') ?? DateTime(2000);
             DateTime dateB = DateTime.tryParse(b['incident_date']?.toString() ?? b['repair_date']?.toString() ?? '') ?? DateTime(2000);
             
             if (currentSort == 'Newest First') return dateB.compareTo(dateA);
-            if (currentSort == 'Oldest First') return dateA.compareTo(dateB);
-            if (currentSort == 'Ongoing First') {
-              bool aResolved = a['is_resolved'] == true && a['repair_date'] != null;
-              bool bResolved = b['is_resolved'] == true && b['repair_date'] != null;
-              if (aResolved == bResolved) return dateB.compareTo(dateA);
-              return aResolved ? 1 : -1; // Ongoing (false) rises to the top
-            }
-            return 0;
+            return dateA.compareTo(dateB);
           });
 
           return AlertDialog(
@@ -524,14 +518,8 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Maintenance History: $plateNumber', 
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF0F172A))
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close), 
-                  onPressed: () => Navigator.pop(context)
-                ),
+                Text('History: $plateNumber', style: const TextStyle(fontWeight: FontWeight.bold)),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
               ]
             ),
             content: SizedBox(
@@ -541,93 +529,44 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                 children: [
                   Align(
                     alignment: Alignment.centerRight,
-                    child: Container(
-                      width: 180,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: currentSort,
-                          isExpanded: true,
-                          items: ['Newest First', 'Oldest First', 'Ongoing First'].map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(),
-                          onChanged: (val) => setModalState(() => currentSort = val ?? 'Newest First'),
-                        ),
-                      ),
+                    child: DropdownButton<String>(
+                      value: currentSort,
+                      items: ['Newest First', 'Oldest First'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                      onChanged: (val) => setModalState(() => currentSort = val ?? 'Newest First'),
                     ),
                   ),
-                  const SizedBox(height: 12),
                   Expanded(
-                    child: sortedLogs.isEmpty
-                      ? const Center(child: Text("No maintenance history found.", style: TextStyle(color: Colors.grey, fontSize: 16)))
-                      : ListView.separated(
-                          itemCount: sortedLogs.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final log = sortedLogs[index];
-                            final category = log['category'] ?? 'General';
-                            final repairDate = log['repair_date'];
-                            final description = log['description'] ?? 'No description provided';
-                            final incidentDate = log['incident_date'] ?? 'N/A';
-                            final incidentTime = log['incident_time'] ?? 'N/A';
-                            final repairTime = log['repair_time'] ?? 'N/A';
-                            
-                            // BULLETPROOF ONGOING CHECK
-                            final bool isResolved = (log['is_resolved'] == true) && repairDate != null;
+                    child: ListView.separated(
+                      itemCount: sortedLogs.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final log = sortedLogs[index];
+                        // Force check: if is_resolved is false or repair_date is missing, it's ongoing
+                        final bool isResolved = (log['is_resolved'] == true) && log['repair_date'] != null;
 
-                            return Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: isResolved ? Colors.grey.shade200 : Colors.orange.shade300, width: isResolved ? 1 : 2)
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: isResolved ? Colors.grey.shade200 : Colors.orange.shade300)
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                            decoration: BoxDecoration(color: isResolved ? Colors.blue.shade50 : Colors.orange.shade50, borderRadius: BorderRadius.circular(20)),
-                                            child: Text(category, style: TextStyle(fontWeight: FontWeight.bold, color: isResolved ? Colors.blue.shade700 : Colors.orange.shade700, fontSize: 12)),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          if (!isResolved)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                              decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(20)),
-                                              child: const Text("ONGOING", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 11)),
-                                            )
-                                          else
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                              decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(20)),
-                                              child: const Text("FIXED", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 11)),
-                                            ),
-                                        ],
-                                      ),
-                                      if (isResolved)
-                                        Text("Repaired: $repairDate ${repairTime != 'N/A' ? 'at $repairTime' : ''}", style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600))
-                                    ]
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(description, style: const TextStyle(fontSize: 14)),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange),
-                                      const SizedBox(width: 6),
-                                      Text("Incident Occurred: $incidentDate ${incidentTime != 'N/A' ? 'at $incidentTime' : ''}", style: const TextStyle(fontSize: 12, color: Colors.orange)),
-                                    ],
-                                  ),
+                                  Text(log['category'] ?? 'General', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(isResolved ? "FIXED" : "ONGOING", style: TextStyle(color: isResolved ? Colors.green : Colors.orange, fontWeight: FontWeight.bold))
                                 ]
-                              )
-                            );
-                          }
-                        )
+                              ),
+                              Text(log['description'] ?? ''),
+                              Text("Incident: ${log['incident_date'] ?? 'N/A'}", style: const TextStyle(color: Colors.orange, fontSize: 12)),
+                            ]
+                          )
+                        );
+                      }
+                    )
                   ),
                 ],
               ),
