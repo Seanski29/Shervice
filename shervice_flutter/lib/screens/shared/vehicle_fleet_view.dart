@@ -503,13 +503,35 @@ void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> l
         builder: (context, setModalState) {
           
           List<dynamic> sortedLogs = List.from(logs);
+          
           sortedLogs.sort((a, b) {
-            // Helper to parse dates for sorting
-            DateTime dateA = DateTime.tryParse(a['incident_date']?.toString() ?? a['repair_date']?.toString() ?? '') ?? DateTime(2000);
-            DateTime dateB = DateTime.tryParse(b['incident_date']?.toString() ?? b['repair_date']?.toString() ?? '') ?? DateTime(2000);
-            
+            // Helper to extract a sortable value
+            DateTime getDate(dynamic item) {
+              final dateStr = item['incident_date']?.toString() ?? item['repair_date']?.toString() ?? '';
+              return DateTime.tryParse(dateStr) ?? DateTime(2000);
+            }
+
+            DateTime dateA = getDate(a);
+            DateTime dateB = getDate(b);
+
             if (currentSort == 'Newest First') return dateB.compareTo(dateA);
-            return dateA.compareTo(dateB);
+            if (currentSort == 'Oldest First') return dateA.compareTo(dateB);
+            
+            // For 'Ongoing First' (Ongoing = false/null)
+            if (currentSort == 'Ongoing First') {
+              bool aResolved = a['is_resolved'] == true;
+              bool bResolved = b['is_resolved'] == true;
+              if (aResolved != bResolved) return aResolved ? 1 : -1;
+            }
+            
+            // For 'Fixed First'
+            if (currentSort == 'Fixed First') {
+              bool aResolved = a['is_resolved'] == true;
+              bool bResolved = b['is_resolved'] == true;
+              if (aResolved != bResolved) return aResolved ? -1 : 1;
+            }
+
+            return dateB.compareTo(dateA); // Default fallback
           });
 
           return AlertDialog(
@@ -529,26 +551,38 @@ void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> l
                 children: [
                   Align(
                     alignment: Alignment.centerRight,
-                    child: DropdownButton<String>(
-                      value: currentSort,
-                      items: ['Newest First', 'Oldest First'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                      onChanged: (val) => setModalState(() => currentSort = val ?? 'Newest First'),
+                    child: Container(
+                      width: 180,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: currentSort,
+                          isExpanded: true,
+                          items: ['Newest First', 'Oldest First', 'Ongoing First', 'Fixed First']
+                              .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14))))
+                              .toList(),
+                          onChanged: (val) => setModalState(() => currentSort = val ?? 'Newest First'),
+                        ),
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 12),
                   Expanded(
                     child: ListView.separated(
                       itemCount: sortedLogs.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final log = sortedLogs[index];
-                        // Force check: if is_resolved is false or repair_date is missing, it's ongoing
-                        final bool isResolved = (log['is_resolved'] == true) && log['repair_date'] != null;
+                        // Ensure is_resolved boolean is checked properly
+                        final bool isResolved = log['is_resolved'] == true;
 
                         return Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            border: Border.all(color: isResolved ? Colors.grey.shade200 : Colors.orange.shade300)
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isResolved ? Colors.green.shade200 : Colors.orange.shade300, width: 2)
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,11 +591,17 @@ void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> l
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(log['category'] ?? 'General', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  Text(isResolved ? "FIXED" : "ONGOING", style: TextStyle(color: isResolved ? Colors.green : Colors.orange, fontWeight: FontWeight.bold))
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(color: isResolved ? Colors.green : Colors.orange, borderRadius: BorderRadius.circular(20)),
+                                    child: Text(isResolved ? "FIXED" : "ONGOING", style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  )
                                 ]
                               ),
+                              const SizedBox(height: 8),
                               Text(log['description'] ?? ''),
-                              Text("Incident: ${log['incident_date'] ?? 'N/A'}", style: const TextStyle(color: Colors.orange, fontSize: 12)),
+                              const SizedBox(height: 8),
+                              Text("Incident: ${log['incident_date'] ?? 'N/A'}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
                             ]
                           )
                         );
