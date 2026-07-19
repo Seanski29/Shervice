@@ -67,13 +67,11 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     }
   }
 
-  // 👇 ADDED: Fetch History function
   Future<List<dynamic>> _fetchVehicleLogHistory(int vehicleId) async {
     try {
       final res = await http.get(Uri.parse('$backendUrl/vehicles/maintenance'));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body)['data'] ?? [];
-        // Filter logs strictly for the requested vehicle
         return data.where((log) => log['vehicle_id'] == vehicleId).toList();
       }
     } catch (e) {
@@ -208,7 +206,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
-// 👇 FULLY UPGRADED MAINTENANCE DIALOG (SYNCED LOGIC)
+  // 👇 FULLY SYNCHRONIZED LOGIC
   void _showAddMaintenanceDialog() {
     final validVehicles = _allVehicles.where((v) {
       return int.tryParse(v['vehicle_id']?.toString() ?? '') != null;
@@ -281,29 +279,61 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
+                          // 👇 LOCKED DROPDOWN (Controlled purely by the checkbox)
                           child: DropdownButtonFormField<String>(
                             value: chosenHealthStatus,
-                            decoration: _inputFieldStyle(label: 'Vehicle Status', icon: Icons.health_and_safety_outlined),
-                            dropdownColor: const Color(0xFFF8FAFC),
-                            // 👇 REMOVED "ON DUTY"
-                            items: ['Excellent', 'Good', 'Needs Maintenance']
-                                .map((s) => DropdownMenuItem<String>(value: s, child: Text(s))).toList(),
-                            onChanged: (val) {
-                              setModalState(() {
-                                chosenHealthStatus = val ?? 'Good';
-                                // 👇 LOGIC: If they select Needs Maintenance, force the checkbox off
-                                if (chosenHealthStatus == 'Needs Maintenance') {
-                                  isRepaired = false;
-                                } else {
-                                  isRepaired = true;
-                                }
-                              });
-                            },
+                            decoration: InputDecoration(
+                              labelText: 'Vehicle Status (Auto-Locked)',
+                              prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF475569)),
+                              filled: true,
+                              fillColor: Colors.grey.shade300,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                            ),
+                            items: [
+                              DropdownMenuItem(
+                                value: chosenHealthStatus, 
+                                child: Text(
+                                  chosenHealthStatus, 
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: isRepaired ? Colors.green.shade700 : Colors.orange.shade700)
+                                )
+                              )
+                            ],
+                            onChanged: null, 
                           ),
                         ),
                       ],
                     ),
                     const Divider(height: 32),
+                    
+                    // 👇 SYNCED CHECKBOX
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isRepaired ? Colors.green.shade50 : Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isRepaired ? Colors.green.shade300 : Colors.orange.shade300)
+                      ),
+                      child: CheckboxListTile(
+                        title: const Text("Repair Completed", style: TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(
+                          isRepaired ? "Vehicle is fixed. Status set to 'Good'." : "Vehicle is broken. Status set to 'Needs Maintenance'.",
+                          style: TextStyle(fontSize: 12, color: isRepaired ? Colors.green.shade700 : Colors.orange.shade800),
+                        ),
+                        value: isRepaired,
+                        activeColor: Colors.green,
+                        checkColor: Colors.white,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        onChanged: (val) {
+                          setModalState(() {
+                            isRepaired = val ?? false;
+                            // FORCE THE STATUS TO CHANGE
+                            chosenHealthStatus = isRepaired ? 'Good' : 'Needs Maintenance';
+                          });
+                        },
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
                     const Align(
                       alignment: Alignment.centerLeft, 
                       child: Text("Incident & Repair Timeline", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))
@@ -344,42 +374,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                       ],
                     ),
                     
-                    const SizedBox(height: 16),
-                    
-                    // 👇 THE SYNCED CHECKBOX CONTAINER
-                    Container(
-                      decoration: BoxDecoration(
-                        color: isRepaired ? Colors.green.shade50 : Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: isRepaired ? Colors.green.shade300 : Colors.orange.shade300)
-                      ),
-                      child: CheckboxListTile(
-                        title: const Text("Repair Completed", style: TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(
-                          isRepaired ? "Vehicle is fixed. Please log the repair time below." : "Vehicle is still broken/under repair.",
-                          style: TextStyle(fontSize: 12, color: isRepaired ? Colors.green.shade700 : Colors.orange.shade800),
-                        ),
-                        value: isRepaired,
-                        activeColor: Colors.green,
-                        checkColor: Colors.white,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        onChanged: (val) {
-                          setModalState(() {
-                            isRepaired = val ?? false;
-                            // 👇 LOGIC: If they uncheck the box, force status to Needs Maintenance
-                            if (!isRepaired) {
-                              chosenHealthStatus = 'Needs Maintenance';
-                            } else if (chosenHealthStatus == 'Needs Maintenance') {
-                              // If they check the box and it was previously "Needs Maintenance", default to Good
-                              chosenHealthStatus = 'Good'; 
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                    
-                    // ONLY SHOW REPAIR INPUTS IF THE CHECKBOX IS CHECKED
                     if (isRepaired) ...[
                       const SizedBox(height: 16),
                       Row(
@@ -452,15 +446,11 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                   String? currentUserId = widget.userId;
                   if (currentUserId == null || currentUserId.isEmpty) {
                     try {
-                      final supabaseClient = Supabase.instance.client;
-                      currentUserId = supabaseClient.auth.currentUser?.id;
+                      currentUserId = Supabase.instance.client.auth.currentUser?.id;
                     } catch (_) {}
                   }
 
-                  if (currentUserId == null || currentUserId.isEmpty) {
-                    _showSnackBar('You must sign in before logging maintenance.', Colors.red);
-                    return;
-                  }
+                  if (currentUserId == null || currentUserId.isEmpty) return;
 
                   String? formatTime(TimeOfDay? time) {
                     if (time == null) return null;
@@ -486,16 +476,12 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                     body: jsonEncode(payload),
                   );
 
-                  final Map<String, dynamic> responseBody = response.body.isNotEmpty ? jsonDecode(response.body) as Map<String, dynamic> : {};
-
                   if (response.statusCode == 200 || response.statusCode == 201) {
                     widget.onRefreshNeeded();
                     if (context.mounted) {
                       Navigator.pop(context);
-                      _showSnackBar(responseBody['message'] ?? 'Maintenance record saved successfully.', Colors.green);
+                      _showSnackBar('Maintenance record saved successfully.', Colors.green);
                     }
-                  } else {
-                    if (context.mounted) _showSnackBar(responseBody['message'] ?? 'Failed to log maintenance.', Colors.red);
                   }
                 }
               },
@@ -507,97 +493,147 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
-  // 👇 ADDED: Modal to display the fetched log history
+  // 👇 ADDED: Modal to display the fetched log history WITH SORTING
   void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> logs) {
+    String currentSort = 'Newest First';
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFFF8FAFC),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Maintenance History: $plateNumber', 
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF0F172A))
-            ),
-            IconButton(
-              icon: const Icon(Icons.close), 
-              onPressed: () => Navigator.pop(context)
-            ),
-          ]
-        ),
-        content: SizedBox(
-          width: 600,
-          height: 450,
-          child: logs.isEmpty
-              ? const Center(
-                  child: Text(
-                    "No maintenance history found for this vehicle.",
-                    style: TextStyle(color: Colors.grey, fontSize: 16)
-                  )
-                )
-              : ListView.separated(
-                  itemCount: logs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final log = logs[index];
-                    final category = log['category'] ?? 'General Repair';
-                    final repairDate = log['repair_date'] ?? 'N/A';
-                    final description = log['description'] ?? 'No description provided';
-                    final incidentDate = log['incident_date'] ?? 'N/A';
-                    final incidentTime = log['incident_time'] ?? 'N/A';
-                    final repairTime = log['repair_time'] ?? 'N/A';
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          
+          List<dynamic> sortedLogs = List.from(logs);
+          sortedLogs.sort((a, b) {
+            DateTime dateA = DateTime.tryParse(a['incident_date']?.toString() ?? a['repair_date']?.toString() ?? '') ?? DateTime(2000);
+            DateTime dateB = DateTime.tryParse(b['incident_date']?.toString() ?? b['repair_date']?.toString() ?? '') ?? DateTime(2000);
+            
+            if (currentSort == 'Newest First') return dateB.compareTo(dateA);
+            if (currentSort == 'Oldest First') return dateA.compareTo(dateB);
+            if (currentSort == 'Ongoing First') {
+              bool aResolved = a['is_resolved'] == true && a['repair_date'] != null;
+              bool bResolved = b['is_resolved'] == true && b['repair_date'] != null;
+              if (aResolved == bResolved) return dateB.compareTo(dateA);
+              return aResolved ? 1 : -1; // Ongoing (false) rises to the top
+            }
+            return 0;
+          });
 
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200)
+          return AlertDialog(
+            backgroundColor: const Color(0xFFF8FAFC),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Maintenance History: $plateNumber', 
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF0F172A))
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close), 
+                  onPressed: () => Navigator.pop(context)
+                ),
+              ]
+            ),
+            content: SizedBox(
+              width: 600,
+              height: 500,
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      width: 180,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: currentSort,
+                          isExpanded: true,
+                          items: ['Newest First', 'Oldest First', 'Ongoing First'].map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(),
+                          onChanged: (val) => setModalState(() => currentSort = val ?? 'Newest First'),
+                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.shade50,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  category, 
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700, fontSize: 12)
-                                ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: sortedLogs.isEmpty
+                      ? const Center(child: Text("No maintenance history found.", style: TextStyle(color: Colors.grey, fontSize: 16)))
+                      : ListView.separated(
+                          itemCount: sortedLogs.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final log = sortedLogs[index];
+                            final category = log['category'] ?? 'General';
+                            final repairDate = log['repair_date'];
+                            final description = log['description'] ?? 'No description provided';
+                            final incidentDate = log['incident_date'] ?? 'N/A';
+                            final incidentTime = log['incident_time'] ?? 'N/A';
+                            final repairTime = log['repair_time'] ?? 'N/A';
+                            
+                            // BULLETPROOF ONGOING CHECK
+                            final bool isResolved = (log['is_resolved'] == true) && repairDate != null;
+
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: isResolved ? Colors.grey.shade200 : Colors.orange.shade300, width: isResolved ? 1 : 2)
                               ),
-                              Text(
-                                "Repaired: $repairDate ${repairTime != 'N/A' ? 'at $repairTime' : ''}", 
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600)
-                              ),
-                            ]
-                          ),
-                          const SizedBox(height: 12),
-                          Text(description, style: const TextStyle(fontSize: 14)),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange),
-                              const SizedBox(width: 6),
-                              Text(
-                                "Incident Occurred: $incidentDate ${incidentTime != 'N/A' ? 'at $incidentTime' : ''}", 
-                                style: const TextStyle(fontSize: 12, color: Colors.orange)
-                              ),
-                            ],
-                          ),
-                        ]
-                      )
-                    );
-                  }
-                )
-        )
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(color: isResolved ? Colors.blue.shade50 : Colors.orange.shade50, borderRadius: BorderRadius.circular(20)),
+                                            child: Text(category, style: TextStyle(fontWeight: FontWeight.bold, color: isResolved ? Colors.blue.shade700 : Colors.orange.shade700, fontSize: 12)),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          if (!isResolved)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(20)),
+                                              child: const Text("ONGOING", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 11)),
+                                            )
+                                          else
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(20)),
+                                              child: const Text("FIXED", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 11)),
+                                            ),
+                                        ],
+                                      ),
+                                      if (isResolved)
+                                        Text("Repaired: $repairDate ${repairTime != 'N/A' ? 'at $repairTime' : ''}", style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600))
+                                    ]
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(description, style: const TextStyle(fontSize: 14)),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange),
+                                      const SizedBox(width: 6),
+                                      Text("Incident Occurred: $incidentDate ${incidentTime != 'N/A' ? 'at $incidentTime' : ''}", style: const TextStyle(fontSize: 12, color: Colors.orange)),
+                                    ],
+                                  ),
+                                ]
+                              )
+                            );
+                          }
+                        )
+                  ),
+                ],
+              ),
+            )
+          );
+        }
       )
     );
   }
@@ -786,7 +822,8 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
 
                       final bool isUnderMaintenance =
                           health.toLowerCase().contains('need') ||
-                          health.toLowerCase().contains('maintenance');
+                          health.toLowerCase().contains('maintenance') ||
+                          health.toLowerCase().contains('repair');
                       final bool isOnDuty = health.toLowerCase() == 'on duty';
 
                       Color statusColor = Colors.green;
@@ -929,7 +966,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  // 👇 ADDED: Button to View Maintenance History
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: TextButton.icon(
@@ -943,7 +979,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                                           );
                                           final logs = await _fetchVehicleLogHistory(vId);
                                           if (context.mounted) {
-                                            Navigator.pop(context); // Close loading indicator
+                                            Navigator.pop(context); 
                                             _showHistoryModal(context, v['plate_number'] ?? 'Unknown', logs);
                                           }
                                         }

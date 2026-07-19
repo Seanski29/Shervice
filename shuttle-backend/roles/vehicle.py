@@ -35,7 +35,7 @@ def handle_vehicles():
                 "cr_date": clean_field(data.get('cr_date')),
                 "or_no": clean_field(data.get('or_no')),
                 "or_expiry": clean_field(data.get('or_expiry')),
-                "health_status": "Excellent",
+                "health_status": "Good",
                 "is_available": True,
                 "last_maintenance_description": "No recent service entries registered."
             }
@@ -129,17 +129,15 @@ def add_maintenance_log():
         if not new_log["description"] or not new_log["vehicle_id"] or not new_log.get("user_id"):
             return jsonify({"success": False, "message": "Missing required fields."}), 400
 
-        # ❌ I DELETED THE PURGE LINE HERE SO YOUR HISTORY IS KEPT! ❌
-
         # ✅ Insert the updated fresh maintenance record to the history
         supabase.table('maintenance_log').insert(new_log).execute()
         
         # ✅ Handle Status and Availability Changes based on the Toggle
         if is_resolved:
-            updated_health = data.get('health_status', 'Excellent')
-            is_available = not any(k in updated_health.lower() for k in ["need", "maintenance", "poor", "bad", "duty"])
+            updated_health = 'Good'
+            is_available = True
         else:
-            updated_health = 'Under Repair'
+            updated_health = 'Needs Maintenance'
             is_available = False
 
         supabase.table('vehicle').update({
