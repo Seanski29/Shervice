@@ -425,131 +425,21 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                 final trip = filteredTrips[i];
                 final bool needsAssignment =
                     trip['user_id'] == null || trip['vehicle_id'] == null;
-                final time = _formatTimeRange(
-                  trip['departure_time'],
-                  trip['estimated_arrival_time'],
-                );
-                final statusColor = needsAssignment
-                    ? Colors.orange
-                    : Colors.green;
-
+                
                 return Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              trip['route_name'] ?? 'Unspecified Route',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              needsAssignment ? 'Unassigned' : 'Scheduled',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: statusColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 16,
-                        runSpacing: 4,
-                        children: [
-                          // 👇 ADDED: Company Name directly to the list
-                          if (trip['client_company'] != null)
-                            _tripInfoChip('Company', trip['client_company']),
-                          _tripInfoChip('Departure', time),
-                          if (trip['passenger_count'] != null)
-                            _tripInfoChip(
-                              'Passengers',
-                              trip['passenger_count'].toString(),
-                            ),
-                          if (trip['route_distance'] != null)
-                            _tripInfoChip(
-                              'Distance',
-                              '${trip['route_distance']} km',
-                            ),
-                          if (trip['driver_name'] != null)
-                            _tripInfoChip('Driver', trip['driver_name']),
-                          if (trip['vehicle_plate'] != null)
-                            _tripInfoChip('Vehicle', trip['vehicle_plate']),
-                        ],
-                      ),
-                      if (needsAssignment) ...[
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () =>
-                                _showTripDetailsModal(DateTime.now(), [trip]),
-                            icon: const Icon(
-                              Icons.assignment_ind,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                            label: const Text(
-                              'Assign Assets',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange.shade700,
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                  child: TripCard(
+                    trip: trip,
+                    backendUrl: backendUrl,
+                    needsAssignment: needsAssignment,
+                    onAssign: () {
+                      setState(() => _isLoading = true);
+                      _fetchStaffDashboardData();
+                    },
                   ),
                 );
               },
             ),
-    );
-  }
-
-  Widget _tripInfoChip(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
     );
   }
 
@@ -682,11 +572,14 @@ class _TripDetailsDialogState extends State<TripDetailsDialog> {
                         final bool needsAssignment =
                             trip['user_id'] == null ||
                             trip['vehicle_id'] == null;
-                        return TripCard(
-                          trip: trip,
-                          backendUrl: widget.backendUrl,
-                          needsAssignment: needsAssignment,
-                          onAssign: widget.onAssign,
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: TripCard(
+                            trip: trip,
+                            backendUrl: widget.backendUrl,
+                            needsAssignment: needsAssignment,
+                            onAssign: widget.onAssign,
+                          ),
                         );
                       }).toList(),
                     ),
@@ -735,107 +628,107 @@ class TripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: needsAssignment ? Colors.orange.shade50 : Colors.green.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: needsAssignment
-              ? Colors.orange.shade200
-              : Colors.green.shade200,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
+    final isRejected = statusStr.toLowerCase().contains('rejected');
+    final isPending = statusStr.toLowerCase().contains('pending');
+    
+    // Buttons are only shown if the trip is pending AND needs assignment, and NOT rejected
+    final bool showActions = isPending && needsAssignment && !isRejected;
+
+    Color cardBorder = Colors.green.shade200;
+    Color cardBg = Colors.green.shade50;
+    Color badgeColor = Colors.green;
+    String badgeText = 'Scheduled';
+
+    if (isRejected) {
+      cardBorder = Colors.red.shade300;
+      cardBg = Colors.red.shade50;
+      badgeColor = Colors.red;
+      badgeText = 'Rejected';
+    } else if (isPending && needsAssignment) {
+      cardBorder = Colors.orange.shade200;
+      cardBg = Colors.orange.shade50;
+      badgeColor = Colors.orange;
+      badgeText = 'Action Required';
+    } else if (isPending && !needsAssignment) {
+       cardBorder = Colors.orange.shade200;
+       cardBg = Colors.orange.shade50;
+       badgeColor = Colors.orange;
+       badgeText = 'Pending';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 8), 
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: cardBorder, width: isRejected ? 2 : 1), 
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  trip['route_name'] ?? 'Unspecified Route',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      trip['route_name'] ?? 'Unspecified Route',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: needsAssignment ? Colors.orange : Colors.green,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  needsAssignment ? 'Unassigned' : 'Scheduled',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(20)),
+                    child: Text(badgeText, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
-                ),
+                ],
               ),
+              const SizedBox(height: 12),
+              _buildInfoRow('Time', _formatTimeRange(trip['departure_time'], trip['estimated_arrival_time'])),
+              const SizedBox(height: 8),
+              _buildInfoRow('Company', trip['client_company'] ?? 'Unknown Company'),
             ],
           ),
-          const SizedBox(height: 12),
-          _buildInfoRow(
-            'Time',
-            _formatTimeRange(
-              trip['departure_time'],
-              trip['estimated_arrival_time'],
+        ),
+        
+        if (showActions)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showAssignModal(context), // ✅ FIXED
+                    icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 16),
+                    label: const Text('Assign', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade700,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _rejectTrip(context),
+                    icon: const Icon(Icons.cancel, color: Colors.red, size: 16),
+                    label: const Text('Reject', style: TextStyle(color: Colors.red, fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
+          )
+        else
           const SizedBox(height: 8),
-          _buildInfoRow('Route', trip['route_name'] ?? 'N/A'),
-
-          // 👇 ADDED: Company Name in the Assignment Modal
-          const SizedBox(height: 8),
-          _buildInfoRow('Company', trip['client_company'] ?? 'Unknown Company'),
-
-          const SizedBox(height: 8),
-          _buildInfoRow('Passengers', '${trip['passenger_count'] ?? 0}'),
-          const SizedBox(height: 8),
-          _buildInfoRow('Distance', '${trip['route_distance'] ?? 0} km'),
-
-          if (trip['driver_name'] != null) ...[
-            const SizedBox(height: 8),
-            _buildInfoRow('Driver', trip['driver_name']),
-          ],
-          if (trip['vehicle_plate'] != null) ...[
-            const SizedBox(height: 8),
-            _buildInfoRow('Vehicle', trip['vehicle_plate']),
-          ],
-          if (needsAssignment) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showAssignModal(context);
-                },
-                icon: const Icon(
-                  Icons.assignment_ind,
-                  color: Colors.white,
-                  size: 18,
-                ),
-                label: const Text(
-                  'Assign Assets',
-                  style: TextStyle(color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange.shade700,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+      ],
     );
   }
 
@@ -843,28 +736,43 @@ class TripCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
       ],
     );
   }
 
   void _showAssignModal(BuildContext context) {
-    showDialog(
+    showDialog(context: context, barrierDismissible: false, builder: (context) => AssignTripDialog(trip: trip, backendUrl: backendUrl, onSuccess: onAssign));
+  }
+
+  Future<void> _rejectTrip(BuildContext context) async {
+    final confirm = await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AssignTripDialog(
-        trip: trip,
-        backendUrl: backendUrl,
-        onSuccess: onAssign,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Reject Request?"),
+        content: const Text("Are you sure you want to reject this trip request?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Reject", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
+        ],
       ),
     );
+
+    if (confirm != true) return;
+
+    try {
+      final res = await http.post(
+        Uri.parse('$backendUrl/schedules/reject'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"trip_id": trip['trip_id']}),
+      );
+      if (res.statusCode == 200 && context.mounted) {
+        onAssign(); // Refresh list
+      }
+    } catch (e) {
+      debugPrint("Reject Error: $e");
+    }
   }
 }
 

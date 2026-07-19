@@ -67,6 +67,19 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     }
   }
 
+  Future<List<dynamic>> _fetchVehicleLogHistory(int vehicleId) async {
+    try {
+      final res = await http.get(Uri.parse('$backendUrl/vehicles/maintenance'));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body)['data'] ?? [];
+        return data.where((log) => log['vehicle_id'] == vehicleId).toList();
+      }
+    } catch (e) {
+      debugPrint("Error fetching log history: $e");
+    }
+    return [];
+  }
+
   void _applyFiltersAndSort() {
     List<dynamic> temp = _allVehicles.where((v) {
       final plate = (v['plate_number'] ?? '').toString().toLowerCase();
@@ -118,7 +131,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       _currentPage < _totalPages - 1 ? setState(() => _currentPage++) : null;
   void _prevPage() => _currentPage > 0 ? setState(() => _currentPage--) : null;
 
-  // ✅ FIXED: Completely decoupled confirmation sequence from other modal dependencies
   void _confirmPurgeVehicle(Map<String, dynamic> vehicle) {
     if (!_isAdmin) return;
 
@@ -194,38 +206,27 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
-  void _showAddMaintenanceDialog() {
-    final validVehicles = _allVehicles.where((v) {
-      return int.tryParse(v['vehicle_id']?.toString() ?? '') != null;
-    }).toList();
-
-    if (validVehicles.isEmpty) {
-      _showSnackBar(
-        'No vehicles are available for maintenance logging.',
-        Colors.orange,
-      );
-      return;
-    }
-
+  // 👇 1. THE NEW "LOG ISSUE" DIALOG (Asset-Centric)
+  void _showLogIssueDialog(Map<String, dynamic> vehicle) {
     final formKey = GlobalKey<FormState>();
-    int? selectedVehicleId = int.tryParse(
-      validVehicles.first['vehicle_id'].toString(),
-    );
     String description = '';
-    String chosenHealthStatus = 'Excellent';
-    final DateTime today = DateTime.now();
+    String chosenCategory = 'General';
+    DateTime? incidentDate = DateTime.now();
+    TimeOfDay? incidentTime = TimeOfDay.now();
+    bool isSaving = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => AlertDialog(
           backgroundColor: const Color(0xFFF8FAFC),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          title: const Text(
-            'Log Maintenance Event',
-            style: TextStyle(
+          title: Text(
+            'Log Issue: ${vehicle['plate_number']}',
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,
               color: Color(0xFF0F172A),
@@ -234,63 +235,135 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
           content: Form(
             key: formKey,
             child: SizedBox(
-              width: 450,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<int>(
-                    value: selectedVehicleId,
-                    decoration: _inputFieldStyle(
-                      label: 'Target Vehicle Plate',
-                      icon: Icons.commute,
-                    ),
-                    dropdownColor: const Color(0xFFF8FAFC),
-                    items: validVehicles.map<DropdownMenuItem<int>>((v) {
-                      final id = int.parse(v['vehicle_id'].toString());
-                      return DropdownMenuItem<int>(
-                        value: id,
-                        child: Text(
-                          "${v['plate_number'] ?? 'TBD'} - ${v['bus_type'] ?? 'Unit'}",
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) =>
-                        setModalState(() => selectedVehicleId = val),
-                    validator: (val) =>
-                        val == null || val <= 0 ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: chosenHealthStatus,
-                    decoration: _inputFieldStyle(
-                      label: 'Updated Condition Status',
-                      icon: Icons.health_and_safety_outlined,
-                    ),
-                    dropdownColor: const Color(0xFFF8FAFC),
-                    items: ['Excellent', 'Good', 'Needs Maintenance', 'On Duty']
-                        .map(
-                          (s) => DropdownMenuItem<String>(
-                            value: s,
-                            child: Text(s),
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.orange.shade700,
                           ),
-                        )
-                        .toList(),
-                    onChanged: (val) => setModalState(
-                      () => chosenHealthStatus = val ?? 'Excellent',
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              "Logging this issue will change the vehicle status to 'Needs Maintenance' and mark it as 'Ongoing'.",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    decoration: _inputFieldStyle(
-                      label: 'Repair Descriptions Logs Action',
-                      icon: Icons.description_outlined,
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: chosenCategory,
+                      decoration: _inputFieldStyle(
+                        label: 'Issue Category',
+                        icon: Icons.category_outlined,
+                      ),
+                      dropdownColor: const Color(0xFFF8FAFC),
+                      items:
+                          [
+                                'General',
+                                'Engine',
+                                'Exterior',
+                                'Interior',
+                                'Electrical',
+                                'Tires/Wheels',
+                              ]
+                              .map(
+                                (s) => DropdownMenuItem<String>(
+                                  value: s,
+                                  child: Text(s),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (val) => setModalState(
+                        () => chosenCategory = val ?? 'General',
+                      ),
                     ),
-                    maxLines: 2,
-                    validator: (val) =>
-                        (val == null || val.trim().isEmpty) ? 'Required' : null,
-                    onSaved: (val) => description = val ?? '',
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: incidentDate ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 365),
+                                ),
+                              );
+                              if (picked != null)
+                                setModalState(() => incidentDate = picked);
+                            },
+                            child: InputDecorator(
+                              decoration: _inputFieldStyle(
+                                label: 'Incident Date',
+                                icon: Icons.event_note,
+                              ),
+                              child: Text(
+                                incidentDate != null
+                                    ? "${incidentDate!.month}/${incidentDate!.day}/${incidentDate!.year}"
+                                    : "Select Date",
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showTimePicker(
+                                context: context,
+                                initialTime: incidentTime ?? TimeOfDay.now(),
+                              );
+                              if (picked != null)
+                                setModalState(() => incidentTime = picked);
+                            },
+                            child: InputDecorator(
+                              decoration: _inputFieldStyle(
+                                label: 'Incident Time',
+                                icon: Icons.access_time,
+                              ),
+                              child: Text(
+                                incidentTime != null
+                                    ? incidentTime!.format(context)
+                                    : "Select Time",
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      decoration: _inputFieldStyle(
+                        label: 'Short Description of the Issue',
+                        icon: Icons.description_outlined,
+                      ),
+                      maxLines: 2,
+                      validator: (val) => (val == null || val.trim().isEmpty)
+                          ? 'Required'
+                          : null,
+                      onSaved: (val) => description = val ?? '',
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -312,7 +385,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1D83E4),
+                backgroundColor: Colors.orange.shade700,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 16,
@@ -322,85 +395,561 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                 ),
                 elevation: 0,
               ),
-              onPressed: () async {
-                if (formKey.currentState?.validate() ?? false) {
-                  formKey.currentState?.save();
-                  final int vehicleId = selectedVehicleId ?? 0;
-                  if (vehicleId <= 0) {
-                    _showSnackBar(
-                      'Please select a valid vehicle before saving.',
-                      Colors.red,
-                    );
-                    return;
-                  }
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (formKey.currentState?.validate() ?? false) {
+                        formKey.currentState?.save();
+                        setModalState(() => isSaving = true);
 
-                  String? currentUserId = widget.userId;
-                  if (currentUserId == null || currentUserId.isEmpty) {
-                    try {
-                      final supabaseClient = Supabase.instance.client;
-                      currentUserId = supabaseClient.auth.currentUser?.id;
-                    } catch (_) {}
-                  }
+                        String? currentUserId = widget.userId;
+                        if (currentUserId == null || currentUserId.isEmpty) {
+                          try {
+                            currentUserId =
+                                Supabase.instance.client.auth.currentUser?.id;
+                          } catch (_) {}
+                        }
 
-                  if (currentUserId == null || currentUserId.isEmpty) {
-                    _showSnackBar(
-                      'You must sign in before logging maintenance.',
-                      Colors.red,
-                    );
-                    return;
-                  }
+                        String? formatTime(TimeOfDay? time) {
+                          if (time == null) return null;
+                          return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
+                        }
 
-                  final payload = {
-                    'repair_date':
-                        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}',
-                    'description': description,
-                    'vehicle_id': vehicleId,
-                    'health_status': chosenHealthStatus,
-                    'user_id': currentUserId,
-                  };
+                        final payload = {
+                          'description': description,
+                          'vehicle_id': vehicle['vehicle_id'],
+                          'user_id': currentUserId,
+                          'category': chosenCategory,
+                          'incident_date': incidentDate != null
+                              ? '${incidentDate!.year}-${incidentDate!.month.toString().padLeft(2, '0')}-${incidentDate!.day.toString().padLeft(2, '0')}'
+                              : null,
+                          'incident_time': formatTime(incidentTime),
+                          'is_resolved': false, // Hardcoded to Ongoing!
+                        };
 
-                  final response = await http.post(
-                    Uri.parse('$backendUrl/vehicles/maintenance'),
-                    headers: {'Content-Type': 'application/json'},
-                    body: jsonEncode(payload),
-                  );
+                        try {
+                          final response = await http.post(
+                            Uri.parse('$backendUrl/vehicles/maintenance'),
+                            headers: {'Content-Type': 'application/json'},
+                            body: jsonEncode(payload),
+                          );
 
-                  final Map<String, dynamic> responseBody =
-                      response.body.isNotEmpty
-                      ? jsonDecode(response.body) as Map<String, dynamic>
-                      : {};
-
-                  if (response.statusCode == 200 ||
-                      response.statusCode == 201) {
-                    widget.onRefreshNeeded();
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      _showSnackBar(
-                        responseBody['message'] ??
-                            'Maintenance record saved successfully.',
-                        Colors.green,
-                      );
-                    }
-                  } else {
-                    final String errorMessage =
-                        responseBody['message'] ??
-                        'Failed to log maintenance. (${response.statusCode})';
-                    if (context.mounted) {
-                      _showSnackBar(errorMessage, Colors.red);
-                    }
-                  }
-                }
-              },
-              child: const Text(
-                'Save Record',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+                          if (response.statusCode == 200 ||
+                              response.statusCode == 201) {
+                            widget.onRefreshNeeded();
+                            _fetchLiveFleetData();
+                            if (context.mounted) {
+                              Navigator.pop(context); // Close Log Modal
+                              Navigator.pop(
+                                context,
+                              ); // Close Manager Modal to force refresh
+                              _showSnackBar(
+                                'New issue logged. Vehicle status updated.',
+                                Colors.orange,
+                              );
+                            }
+                          } else {
+                            if (context.mounted)
+                              _showSnackBar('Failed to log issue.', Colors.red);
+                          }
+                        } catch (e) {
+                          if (context.mounted)
+                            _showSnackBar('Network error.', Colors.red);
+                        } finally {
+                          setModalState(() => isSaving = false);
+                        }
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Log Incident',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // 👇 2. THE NEW "MARK REPAIRED" DIALOG (PUT Route)
+  void _showMarkRepairedDialog(Map<String, dynamic> log, int vehicleId) {
+    DateTime? repairDate = DateTime.now();
+    TimeOfDay? repairTime = TimeOfDay.now();
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          backgroundColor: const Color(0xFFF8FAFC),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text(
+            'Mark Issue as Repaired',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Resolving this issue will update the vehicle's status back to 'Good' and release it for dispatch.",
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: repairDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365),
+                            ),
+                          );
+                          if (picked != null)
+                            setModalState(() => repairDate = picked);
+                        },
+                        child: InputDecorator(
+                          decoration: _inputFieldStyle(
+                            label: 'Date Repaired',
+                            icon: Icons.event_available,
+                          ),
+                          child: Text(
+                            repairDate != null
+                                ? "${repairDate!.month}/${repairDate!.day}/${repairDate!.year}"
+                                : "Select Date",
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: repairTime ?? TimeOfDay.now(),
+                          );
+                          if (picked != null)
+                            setModalState(() => repairTime = picked);
+                        },
+                        child: InputDecorator(
+                          decoration: _inputFieldStyle(
+                            label: 'Time Repaired',
+                            icon: Icons.build_circle_outlined,
+                          ),
+                          child: Text(
+                            repairTime != null
+                                ? repairTime!.format(context)
+                                : "Select Time",
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actionsPadding: const EdgeInsets.only(
+            bottom: 24,
+            right: 24,
+            left: 24,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade600,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      setModalState(() => isSaving = true);
+
+                      String? formatTime(TimeOfDay? time) {
+                        if (time == null) return null;
+                        return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
+                      }
+
+                      final payload = {
+                        'maintenance_id': log['maintenance_id'],
+                        'vehicle_id': vehicleId,
+                        'repair_date': repairDate != null
+                            ? '${repairDate!.year}-${repairDate!.month.toString().padLeft(2, '0')}-${repairDate!.day.toString().padLeft(2, '0')}'
+                            : null,
+                        'repair_time': formatTime(repairTime),
+                      };
+
+                      try {
+                        final response = await http.put(
+                          Uri.parse('$backendUrl/vehicles/maintenance'),
+                          headers: {'Content-Type': 'application/json'},
+                          body: jsonEncode(payload),
+                        );
+
+                        if (response.statusCode == 200) {
+                          widget.onRefreshNeeded();
+                          _fetchLiveFleetData();
+                          if (context.mounted) {
+                            Navigator.pop(context); // Close Repair Modal
+                            Navigator.pop(
+                              context,
+                            ); // Close Manager Modal to force refresh
+                            _showSnackBar(
+                              'Vehicle marked as repaired!',
+                              Colors.green,
+                            );
+                          }
+                        } else {
+                          if (context.mounted)
+                            _showSnackBar('Failed to update log.', Colors.red);
+                        }
+                      } catch (e) {
+                        if (context.mounted)
+                          _showSnackBar('Network error.', Colors.red);
+                      } finally {
+                        setModalState(() => isSaving = false);
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Confirm Repair',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 👇 3. THE NEW MANAGER MODAL
+  void _showMaintenanceManagerModal(
+    BuildContext context,
+    Map<String, dynamic> vehicle,
+    List<dynamic> logs,
+  ) {
+    String currentSort = 'Ongoing First';
+    final int vehicleId = int.tryParse(vehicle['vehicle_id'].toString()) ?? 0;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          List<dynamic> sortedLogs = List.from(logs);
+
+          sortedLogs.sort((a, b) {
+            DateTime parseDateTime(dynamic item) {
+              final date = item['incident_date']?.toString() ?? '';
+              final time = item['incident_time']?.toString() ?? '00:00:00';
+              return DateTime.tryParse("$date $time") ?? DateTime(2000);
+            }
+
+            DateTime dateA = parseDateTime(a);
+            DateTime dateB = parseDateTime(b);
+
+            bool aResolved = a['is_resolved'] == true;
+            bool bResolved = b['is_resolved'] == true;
+
+            if (currentSort == 'Newest First') return dateB.compareTo(dateA);
+            if (currentSort == 'Oldest First') return dateA.compareTo(dateB);
+
+            if (currentSort == 'Ongoing First') {
+              if (aResolved != bResolved) return aResolved ? 1 : -1;
+            }
+            if (currentSort == 'Fixed First') {
+              if (aResolved != bResolved) return aResolved ? -1 : 1;
+            }
+
+            return dateB.compareTo(dateA);
+          });
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFFF8FAFC),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Maintenance: ${vehicle['plate_number']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 700,
+              height: 500,
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => _showLogIssueDialog(vehicle),
+                        icon: const Icon(
+                          Icons.add_alert,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          "Log New Issue",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade700,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 180,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: currentSort,
+                            isExpanded: true,
+                            items:
+                                [
+                                      'Newest First',
+                                      'Oldest First',
+                                      'Ongoing First',
+                                      'Fixed First',
+                                    ]
+                                    .map(
+                                      (s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(
+                                          s,
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: (val) => setModalState(
+                              () => currentSort = val ?? 'Ongoing First',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: sortedLogs.isEmpty
+                        ? const Center(
+                            child: Text(
+                              "No maintenance records found for this vehicle.",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: sortedLogs.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final log = sortedLogs[index];
+                              final bool isResolved =
+                                  log['is_resolved'] == true;
+
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isResolved
+                                        ? Colors.green.shade200
+                                        : Colors.orange.shade300,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Text(
+                                                log['category'] ?? 'General',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: isResolved
+                                                      ? Colors.green
+                                                      : Colors.orange,
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  isResolved
+                                                      ? "FIXED"
+                                                      : "ONGOING",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            log['description'] ?? 'No details',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            "Incident: ${log['incident_date'] ?? 'N/A'} at ${log['incident_time'] ?? 'N/A'}",
+                                            style: TextStyle(
+                                              color: Colors.grey.shade700,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          if (isResolved)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 4.0,
+                                              ),
+                                              child: Text(
+                                                "Repaired: ${log['repair_date'] ?? 'N/A'} at ${log['repair_time'] ?? 'N/A'}",
+                                                style: TextStyle(
+                                                  color: Colors.green.shade700,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (!isResolved)
+                                      ElevatedButton.icon(
+                                        onPressed: () =>
+                                            _showMarkRepairedDialog(
+                                              log,
+                                              vehicleId,
+                                            ),
+                                        icon: const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          "Mark Repaired",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              Colors.green.shade600,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -461,25 +1010,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
               Wrap(
                 spacing: 12,
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _showAddMaintenanceDialog,
-                    icon: const Icon(Icons.build_circle_outlined, size: 20),
-                    label: const Text(
-                      'Log Maintenance',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue.shade700,
-                      side: BorderSide(color: Colors.blue.shade600),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
+                  // 👇 REMOVED the generic "Log Maintenance" button from here!
                   if (_isAdmin)
                     ElevatedButton.icon(
                       onPressed: () => _showUserModal(context, user: null),
@@ -589,7 +1120,8 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
 
                       final bool isUnderMaintenance =
                           health.toLowerCase().contains('need') ||
-                          health.toLowerCase().contains('maintenance');
+                          health.toLowerCase().contains('maintenance') ||
+                          health.toLowerCase().contains('repair');
                       final bool isOnDuty = health.toLowerCase() == 'on duty';
 
                       Color statusColor = Colors.green;
@@ -731,6 +1263,62 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                                       ),
                                     ],
                                   ),
+                                  const SizedBox(height: 12),
+                                  // 👇 UPDATED: Action Button for Maintenance
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        final int vId =
+                                            int.tryParse(
+                                              v['vehicle_id'].toString(),
+                                            ) ??
+                                            0;
+                                        if (vId > 0) {
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (c) => const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            ),
+                                          );
+                                          final logs =
+                                              await _fetchVehicleLogHistory(
+                                                vId,
+                                              );
+                                          if (context.mounted) {
+                                            Navigator.pop(context);
+                                            _showMaintenanceManagerModal(
+                                              context,
+                                              Map<String, dynamic>.from(v),
+                                              logs,
+                                            );
+                                          }
+                                        }
+                                      },
+                                      icon: const Icon(
+                                        Icons.build_circle,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                      label: const Text(
+                                        "Manage Maintenance",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue.shade700,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -818,13 +1406,6 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
   late TextEditingController _crDateController;
   late TextEditingController _orController;
   late TextEditingController _orExpiryController;
-
-  String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
-  }
 
   @override
   void initState() {
@@ -963,7 +1544,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
         response = await http
             .put(
               Uri.parse(
-                '$_backendUrl/vehicles/update/${widget.vehicle!['vehicle_id']}',
+                '$backendUrl/vehicles/update/${widget.vehicle!['vehicle_id']}', // 👇 UPDATED to global backendUrl
               ),
               headers: {'Content-Type': 'application/json'},
               body: bodyData,
@@ -972,7 +1553,9 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
       } else {
         response = await http
             .post(
-              Uri.parse('$_backendUrl/vehicles'),
+              Uri.parse(
+                '$backendUrl/vehicles',
+              ), // 👇 UPDATED to global backendUrl
               headers: {'Content-Type': 'application/json'},
               body: bodyData,
             )

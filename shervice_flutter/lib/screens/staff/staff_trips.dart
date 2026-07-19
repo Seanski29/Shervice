@@ -17,7 +17,7 @@ class StaffTrips extends StatefulWidget {
 class _StaffTripsState extends State<StaffTrips> {
   String _searchTerm = '';
   List<dynamic> _trips = [];
-  bool _isLoading = true;
+  bool _isLoading = true; //[cite: 6]
 
   @override
   void initState() {
@@ -59,7 +59,7 @@ class _StaffTripsState extends State<StaffTrips> {
       return route.contains(search) ||
           driver.contains(search) ||
           client.contains(search);
-    }).toList();
+    }).toList(); //[cite: 6]
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -165,7 +165,7 @@ class _StaffTripsState extends State<StaffTrips> {
                     child: Center(
                       child: Text("You have not dispatched any trips yet."),
                     ),
-                  )
+                  ) //[cite: 6]
                 else
                   ListView.separated(
                     shrinkWrap: true,
@@ -181,7 +181,7 @@ class _StaffTripsState extends State<StaffTrips> {
                       if (status == 'Completed') {
                         statusColor = Colors.green;
                       } else if (status == 'Ongoing' || status == 'Scheduled') {
-                        statusColor = Colors.blue;
+                        statusColor = const Color.fromARGB(255, 24, 128, 214); //[cite: 6]
                       }
 
                       return Padding(
@@ -344,7 +344,7 @@ class _StaffTripsState extends State<StaffTrips> {
                                       fontWeight: FontWeight.bold,
                                       color: statusColor,
                                     ),
-                                  ),
+                                  ), //[cite: 6]
                                 ),
                               ),
                             ),
