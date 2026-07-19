@@ -169,137 +169,44 @@ def get_pending_schedules():
 def get_dispatch_options():
     """Fetches drivers and vehicles. If 'date' is provided, filters out busy assets."""
     try:
-        all_vehicles = supabase.table('vehicle').select('vehicle_id, plate_number, bus_type').eq('health_status', 'Excellent').execute()
+        # 1. Fetch ALL active assets first
+        # 👇 THE FIX: We now check the true maintenance lock ('is_available' == True)
+        all_vehicles = supabase.table('vehicle').select('vehicle_id, plate_number, bus_type').eq('is_available', True).execute()
         all_drivers = supabase.table('driver_profile').select('user_id, full_name').execute()
 
+        # 2. Grab the date we are checking from the request URL
         target_date = request.args.get('date')
-        ignore_trip_id = request.args.get('ignore_trip_id') # NEW: Ignore the trip we are currently editing
         
         if not target_date:
-            return jsonify({"success": True, "vehicles": all_vehicles.data, "drivers": all_drivers.data}), 200
+            return jsonify({
+                "success": True,
+                "vehicles": all_vehicles.data,
+                "drivers": all_drivers.data
+            }), 200
 
-        # Find busy assets
-        busy_query = supabase.table('trip_schedule').select('vehicle_id, user_id, trip_id').eq('schedule_date', target_date).in_('trip_status', ['Scheduled', 'In Progress', 'Ongoing'])
-        
-        # If we are editing a trip, don't count its currently assigned driver/vehicle as "busy"
-        if ignore_trip_id:
-            busy_query = busy_query.neq('trip_id', ignore_trip_id)
+        # 3. Find vehicles and drivers already scheduled for this specific date
+        busy_query = (
+            supabase.table('trip_schedule')
+            .select('vehicle_id, user_id')
+            .eq('schedule_date', target_date)
+            .in_('trip_status', ['Scheduled', 'In Progress', 'Ongoing'])
+            .execute()
+        )
             
-        busy_data = busy_query.execute()
-            
-        busy_vehicle_ids = [t['vehicle_id'] for t in busy_data.data if t.get('vehicle_id')]
-        busy_driver_uuids = [t['user_id'] for t in busy_data.data if t.get('user_id')]
+        busy_vehicle_ids = [t['vehicle_id'] for t in busy_query.data if t.get('vehicle_id')]
+        busy_driver_uuids = [t['user_id'] for t in busy_query.data if t.get('user_id')]
 
+        # 4. Filter out the busy ones
         available_vehicles = [v for v in all_vehicles.data if v['vehicle_id'] not in busy_vehicle_ids]
         available_drivers = [d for d in all_drivers.data if d['user_id'] not in busy_driver_uuids]
 
-        return jsonify({"success": True, "vehicles": available_vehicles, "drivers": available_drivers}), 200
+        return jsonify({
+            "success": True,
+            "vehicles": available_vehicles,
+            "drivers": available_drivers
+        }), 200
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@schedules_bp.route('/api/schedules/staff-edit', methods=['PUT'])
-def staff_edit_trip():
-    """Staff edits a trip, including route details and asset assignments"""
-    try:
-        data = request.get_json() or {}
-        trip_id = data.get('trip_id')
-
-        update_data = {
-            "route_name": data.get('destination'),
-            "passenger_count": int(data.get('passenger_count', 0)),
-            "route_distance": float(data.get('route_distance', 0.0)),
-            "schedule_date": data.get('departure_date'),
-            "departure_time": data.get('departure_time'),
-            "estimated_arrival_time": data.get('estimated_arrival_time')
-        }
-
-        # If staff assigned a driver/vehicle during the edit
-        driver_uuid = data.get('driver_uuid')
-        vehicle_id = data.get('vehicle_id')
-        
-        if driver_uuid and vehicle_id:
-            update_data['user_id'] = driver_uuid
-            update_data['vehicle_id'] = vehicle_id
-            
-            # Automatically upgrade status if it was pending
-            check = supabase.table('trip_schedule').select('trip_status').eq('trip_id', trip_id).execute()
-            if check.data and check.data[0].get('trip_status') == 'Pending Staff Assignment':
-                update_data['trip_status'] = 'Scheduled'
-
-        supabase.table('trip_schedule').update(update_data).eq('trip_id', trip_id).execute()
-
-        return jsonify({"success": True, "message": "Trip updated successfully."}), 200
-    except Exception as e:
-        print(f"❌ Staff Edit Error: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@schedules_bp.route('/api/schedules/assign', methods=['POST'])
-def assign_trip_assets():
-    """Staff binds a driver and vehicle to the OIC's trip request"""
-    try:
-        data = request.get_json() or {}
-        trip_id = data.get('trip_id')
-        driver_uuid = data.get('driver_uuid')
-        
-        response = (
-            supabase.table('trip_schedule')
-            .update({
-                "user_id": driver_uuid,  
-                "vehicle_id": data.get('vehicle_id'), 
-                "trip_status": "Scheduled"
-            })
-            .eq('trip_id', trip_id)
-            .execute()
-        )
-
-        # Send a notification to the assigned OIC and optionally the assigned driver
-        trip_info = (
-            supabase.table('trip_schedule')
-            .select('route_name, schedule_date, oic_id')
-            .eq('trip_id', trip_id)
-            .execute()
-        )
-
-        if trip_info.data:
-            route_name = trip_info.data[0].get('route_name')
-            schedule_date = trip_info.data[0].get('schedule_date')
-            oic_id = trip_info.data[0].get('oic_id')
-
-            oic_profile = (
-                supabase.table('oic_profile')
-                .select('user_id, company_name')
-                .eq('oic_id', oic_id)
-                .execute()
-            )
-
-            company_name = None
-            if oic_profile.data:
-                oic_user_id = oic_profile.data[0].get('user_id')
-                company_name = oic_profile.data[0].get('company_name')
-                _create_notification({
-                    "title": "Trip assigned",
-                    "message": f"{route_name} is scheduled for {schedule_date}",
-                    "target_user_id": oic_user_id,
-                    "target_role": "oic",
-                    "target_company": company_name,
-                    "related_trip_id": trip_id,
-                })
-
-            if driver_uuid:
-                _create_notification({
-                    "title": "You were assigned a trip",
-                    "message": f"{route_name} is scheduled for {schedule_date}",
-                    "target_user_id": driver_uuid,
-                    "target_role": "driver",
-                    "target_company": company_name,
-                    "related_trip_id": trip_id,
-                })
-
-        return jsonify({"success": True, "message": "Trip successfully dispatched!"}), 200
-    except Exception as e:
-        print(f"❌ Dispatch Error: {e}")
+        print(f"❌ Dispatch Options Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
     
 @schedules_bp.route('/api/schedules/complete', methods=['POST'])
@@ -421,4 +328,166 @@ def get_staff_assigned_trips(staff_uuid):
         return jsonify({"success": True, "data": formatted_trips}), 200
     except Exception as e:
         print(f"❌ Staff Fetch Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+    
+@schedules_bp.route('/api/schedules/update-request', methods=['PUT'])
+def update_trip_request():
+    """OIC updates an existing pending or rejected trip request"""
+    try:
+        data = request.get_json() or {}
+        trip_id = data.get('trip_id')
+        
+        # 1. Security Check: Ensure the trip is still pending OR rejected
+        check = supabase.table('trip_schedule').select('trip_status').eq('trip_id', trip_id).execute()
+        if not check.data:
+            return jsonify({"success": False, "message": "Trip not found."}), 404
+            
+        current_status = check.data[0].get('trip_status')
+        if current_status not in ['Pending Staff Assignment', 'Rejected']:
+            return jsonify({"success": False, "message": "You can only edit pending or rejected requests."}), 400
+
+        # 2. Safely parse numbers
+        try: p_count = int(data.get('passenger_count', 0))
+        except (ValueError, TypeError): p_count = 0 
+            
+        try: r_distance = float(data.get('route_distance', 0.0)) 
+        except (ValueError, TypeError): r_distance = 0.0
+
+        # 3. Update the database (Reset status and clear old assignments)
+        staff_id = data.get('staff_id')
+        
+        response = (
+            supabase.table('trip_schedule')
+            .update({
+                "staff_id": staff_id,
+                "route_name": data.get('destination'),
+                "route_distance": r_distance,
+                "passenger_count": p_count,
+                "schedule_date": data.get('departure_date'),
+                "departure_time": data.get('departure_time'),
+                "estimated_arrival_time": data.get('estimated_arrival_time'),
+                "trip_status": "Pending Staff Assignment", # Force re-approval
+                "user_id": None,    # Clear driver
+                "vehicle_id": None  # Clear vehicle
+            })
+            .eq('trip_id', trip_id)
+            .execute()
+        )
+
+        # 4. Trigger Notification to the Staff
+        route_name = data.get('destination', 'A trip')
+        if staff_id:
+            # Notify specific assigned staff
+            _create_notification({
+                "title": "Trip Request Resubmitted",
+                "message": f"An OIC updated {route_name}. Please review and assign assets.",
+                "target_user_id": staff_id,
+                "target_role": "staff",
+                "related_trip_id": trip_id
+            })
+        else:
+            # Fallback: Notify ALL staff if no specific staff was assigned
+            staff_members = supabase.table('user_account').select('user_id').eq('role', 'staff').execute()
+            if staff_members.data:
+                for staff in staff_members.data:
+                    _create_notification({
+                        "title": "Trip Request Resubmitted",
+                        "message": f"An OIC updated {route_name}. Please review and assign assets.",
+                        "target_user_id": staff.get('user_id'),
+                        "target_role": "staff",
+                        "related_trip_id": trip_id
+                    })
+
+        return jsonify({"success": True, "message": "Trip updated and sent for re-approval!"}), 200
+    except Exception as e:
+        print(f"❌ Trip Update Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+    
+@schedules_bp.route('/api/schedules/reject', methods=['POST'])
+def reject_trip_request():
+    """Staff rejects a pending trip request and notifies the OIC"""
+    try:
+        data = request.get_json() or {}
+        trip_id = data.get('trip_id')
+
+        # 1. Update status to Rejected
+        supabase.table('trip_schedule').update({"trip_status": "Rejected"}).eq('trip_id', trip_id).execute()
+
+        # 2. Trigger Notification to the OIC
+        trip_info = supabase.table('trip_schedule').select('route_name, oic_id').eq('trip_id', trip_id).execute()
+        if trip_info.data:
+            route_name = trip_info.data[0].get('route_name')
+            oic_id = trip_info.data[0].get('oic_id')
+            
+            oic_profile = supabase.table('oic_profile').select('user_id, company_name').eq('oic_id', oic_id).execute()
+            if oic_profile.data:
+                _create_notification({
+                    "title": "Trip Request Rejected",
+                    "message": f"Your request for {route_name} was rejected by dispatch staff. Please edit and resubmit.",
+                    "target_user_id": oic_profile.data[0].get('user_id'),
+                    "target_role": "oic",
+                    "target_company": oic_profile.data[0].get('company_name'),
+                    "related_trip_id": trip_id
+                })
+
+        return jsonify({"success": True, "message": "Trip request rejected."}), 200
+    except Exception as e:
+        print(f"❌ Trip Reject Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@schedules_bp.route('/api/schedules/assign', methods=['POST'])
+def assign_trip_assets():
+    """Staff binds a driver and vehicle to the OIC's trip request and notifies both"""
+    try:
+        data = request.get_json() or {}
+        trip_id = data.get('trip_id')
+        driver_uuid = data.get('driver_uuid')
+        
+        # 1. Update the trip assignment
+        supabase.table('trip_schedule').update({
+            "user_id": driver_uuid,  
+            "vehicle_id": data.get('vehicle_id'), 
+            "trip_status": "Scheduled"
+        }).eq('trip_id', trip_id).execute()
+
+        # 2. Send notifications to the OIC and the Driver
+        trip_info = supabase.table('trip_schedule').select('route_name, schedule_date, oic_id').eq('trip_id', trip_id).execute()
+
+        if trip_info.data:
+            route_name = trip_info.data[0].get('route_name')
+            schedule_date = trip_info.data[0].get('schedule_date')
+            oic_id = trip_info.data[0].get('oic_id')
+
+            oic_profile = supabase.table('oic_profile').select('user_id, company_name').eq('oic_id', oic_id).execute()
+
+            company_name = None
+            if oic_profile.data:
+                oic_user_id = oic_profile.data[0].get('user_id')
+                company_name = oic_profile.data[0].get('company_name')
+                
+                # Notify OIC
+                _create_notification({
+                    "title": "Trip Assigned",
+                    "message": f"Assets have been assigned for your {route_name} trip on {schedule_date}.",
+                    "target_user_id": oic_user_id,
+                    "target_role": "oic",
+                    "target_company": company_name,
+                    "related_trip_id": trip_id,
+                })
+
+            # Notify Driver
+            if driver_uuid:
+                _create_notification({
+                    "title": "New Dispatch Assignment",
+                    "message": f"You have been assigned to drive to {route_name} on {schedule_date}.",
+                    "target_user_id": driver_uuid,
+                    "target_role": "driver",
+                    "target_company": company_name,
+                    "related_trip_id": trip_id,
+                })
+
+        return jsonify({"success": True, "message": "Trip successfully dispatched!"}), 200
+    except Exception as e:
+        print(f"❌ Dispatch Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
