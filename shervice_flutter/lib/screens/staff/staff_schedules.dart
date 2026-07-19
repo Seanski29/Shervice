@@ -702,10 +702,7 @@ class TripCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _showAssignModal(context);
-                    },
+                    onPressed: () => _showAssignModal(context), // ✅ FIXED
                     icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 16),
                     label: const Text('Assign', style: TextStyle(color: Colors.white, fontSize: 12)),
                     style: ElevatedButton.styleFrom(
