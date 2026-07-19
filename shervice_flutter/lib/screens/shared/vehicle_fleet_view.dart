@@ -208,7 +208,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
-  void _showAddMaintenanceDialog() {
+ void _showAddMaintenanceDialog() {
     final validVehicles = _allVehicles.where((v) {
       return int.tryParse(v['vehicle_id']?.toString() ?? '') != null;
     }).toList();
@@ -222,18 +222,18 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     }
 
     final formKey = GlobalKey<FormState>();
-    int? selectedVehicleId = int.tryParse(
-      validVehicles.first['vehicle_id'].toString(),
-    );
+    int? selectedVehicleId = int.tryParse(validVehicles.first['vehicle_id'].toString());
     String description = '';
     String chosenHealthStatus = 'Excellent';
     
     String chosenCategory = 'General';
     DateTime? incidentDate = DateTime.now();
     TimeOfDay? incidentTime;
-    TimeOfDay? repairTime;
     
-    final DateTime today = DateTime.now();
+    // 👇 NEW VARIABLES FOR THE CHECKBOX AND REPAIR TIMELINE
+    bool isRepaired = false; 
+    DateTime? repairDate = DateTime.now();
+    TimeOfDay? repairTime;
 
     showDialog(
       context: context,
@@ -284,7 +284,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                         Expanded(
                           child: DropdownButtonFormField<String>(
                             value: chosenHealthStatus,
-                            decoration: _inputFieldStyle(label: 'Vehicle Status', icon: Icons.health_and_safety_outlined),
+                            decoration: _inputFieldStyle(label: 'Vehicle Status (If Fixed)', icon: Icons.health_and_safety_outlined),
                             dropdownColor: const Color(0xFFF8FAFC),
                             items: ['Excellent', 'Good', 'Needs Maintenance', 'On Duty']
                                 .map((s) => DropdownMenuItem<String>(value: s, child: Text(s))).toList(),
@@ -294,7 +294,10 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                       ],
                     ),
                     const Divider(height: 32),
-                    const Align(alignment: Alignment.centerLeft, child: Text("Incident & Repair Timeline", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                    const Align(
+                      alignment: Alignment.centerLeft, 
+                      child: Text("Incident & Repair Timeline", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -330,30 +333,70 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                         ),
                       ],
                     ),
+                    
                     const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InputDecorator(
-                            decoration: _inputFieldStyle(label: 'Date Repaired', icon: Icons.event_available),
-                            child: Text("${today.month}/${today.day}/${today.year} (Today)"), 
-                          ),
+                    
+                    // 👇 THE NEW CHECKBOX CONTAINER
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isRepaired ? Colors.green.shade50 : Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isRepaired ? Colors.green.shade300 : Colors.orange.shade300)
+                      ),
+                      child: CheckboxListTile(
+                        title: const Text("Repair Completed", style: TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(
+                          isRepaired ? "Vehicle is fixed. Please log the repair time below." : "Vehicle is still broken/under repair.",
+                          style: TextStyle(fontSize: 12, color: isRepaired ? Colors.green.shade700 : Colors.orange.shade800),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showTimePicker(context: context, initialTime: repairTime ?? TimeOfDay.now());
-                              if (picked != null) setModalState(() => repairTime = picked);
-                            },
-                            child: InputDecorator(
-                              decoration: _inputFieldStyle(label: 'Time Repaired', icon: Icons.build_circle_outlined),
-                              child: Text(repairTime != null ? repairTime!.format(context) : "Select Time"),
+                        value: isRepaired,
+                        activeColor: Colors.green,
+                        checkColor: Colors.white,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        onChanged: (val) => setModalState(() => isRepaired = val ?? false),
+                      ),
+                    ),
+                    
+                    // 👇 ONLY SHOW REPAIR INPUTS IF THE CHECKBOX IS CHECKED
+                    if (isRepaired) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: repairDate ?? DateTime.now(),
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                );
+                                if (picked != null) setModalState(() => repairDate = picked);
+                              },
+                              child: InputDecorator(
+                                decoration: _inputFieldStyle(label: 'Date Repaired', icon: Icons.event_available),
+                                child: Text(repairDate != null ? "${repairDate!.month}/${repairDate!.day}/${repairDate!.year}" : "Select Date"),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final picked = await showTimePicker(context: context, initialTime: repairTime ?? TimeOfDay.now());
+                                if (picked != null) setModalState(() => repairTime = picked);
+                              },
+                              child: InputDecorator(
+                                decoration: _inputFieldStyle(label: 'Time Repaired', icon: Icons.build_circle_outlined),
+                                child: Text(repairTime != null ? repairTime!.format(context) : "Select Time"),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    
                     const SizedBox(height: 16),
                     TextFormField(
                       decoration: _inputFieldStyle(label: 'Short Description of Repair/Issue', icon: Icons.description_outlined),
@@ -383,10 +426,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                 if (formKey.currentState?.validate() ?? false) {
                   formKey.currentState?.save();
                   final int vehicleId = selectedVehicleId ?? 0;
-                  if (vehicleId <= 0) {
-                    _showSnackBar('Please select a valid vehicle before saving.', Colors.red);
-                    return;
-                  }
+                  if (vehicleId <= 0) return;
 
                   String? currentUserId = widget.userId;
                   if (currentUserId == null || currentUserId.isEmpty) {
@@ -407,7 +447,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                   }
 
                   final payload = {
-                    'repair_date': '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}',
+                    'repair_date': (isRepaired && repairDate != null) ? '${repairDate!.year}-${repairDate!.month.toString().padLeft(2, '0')}-${repairDate!.day.toString().padLeft(2, '0')}' : null,
                     'description': description,
                     'vehicle_id': vehicleId,
                     'health_status': chosenHealthStatus,
@@ -415,7 +455,8 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                     'category': chosenCategory,
                     'incident_date': incidentDate != null ? '${incidentDate!.year}-${incidentDate!.month.toString().padLeft(2, '0')}-${incidentDate!.day.toString().padLeft(2, '0')}' : null,
                     'incident_time': formatTime(incidentTime),
-                    'repair_time': formatTime(repairTime),
+                    'repair_time': isRepaired ? formatTime(repairTime) : null,
+                    'is_resolved': isRepaired,
                   };
 
                   final response = await http.post(
@@ -424,24 +465,16 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                     body: jsonEncode(payload),
                   );
 
-                  final Map<String, dynamic> responseBody = response.body.isNotEmpty
-                      ? jsonDecode(response.body) as Map<String, dynamic>
-                      : {};
+                  final Map<String, dynamic> responseBody = response.body.isNotEmpty ? jsonDecode(response.body) as Map<String, dynamic> : {};
 
                   if (response.statusCode == 200 || response.statusCode == 201) {
                     widget.onRefreshNeeded();
                     if (context.mounted) {
                       Navigator.pop(context);
-                      _showSnackBar(
-                        responseBody['message'] ?? 'Maintenance record saved successfully.',
-                        Colors.green,
-                      );
+                      _showSnackBar(responseBody['message'] ?? 'Maintenance record saved successfully.', Colors.green);
                     }
                   } else {
-                    final String errorMessage = responseBody['message'] ?? 'Failed to log maintenance. (${response.statusCode})';
-                    if (context.mounted) {
-                      _showSnackBar(errorMessage, Colors.red);
-                    }
+                    if (context.mounted) _showSnackBar(responseBody['message'] ?? 'Failed to log maintenance.', Colors.red);
                   }
                 }
               },
