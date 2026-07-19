@@ -92,7 +92,11 @@ def delete_vehicle(vehicle_identifier):
 @vehicles_bp.route('/api/vehicles/maintenance', methods=['GET'])
 def get_maintenance_logs():
     try:
-        query = supabase.table('maintenance_log').select('maintenance_id, repair_date, description, vehicle_id, user_id, vehicle(plate_number), user_account(full_name)').order('repair_date', desc=True).execute()
+        # Explicitly fetching all the new detailed columns!
+        query = supabase.table('maintenance_log').select(
+            'maintenance_id, repair_date, description, vehicle_id, user_id, category, incident_date, incident_time, repair_time, is_resolved, vehicle(plate_number), user_account(full_name)'
+        ).order('repair_date', desc=True).execute()
+        
         return jsonify({"success": True, "data": query.data}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -105,6 +109,9 @@ def add_maintenance_log():
     try:
         data = request.get_json() or {}
         target_vehicle_id = int(data.get('vehicle_id'))
+        
+        # Grab the toggle value
+        is_resolved = data.get('is_resolved', True)
 
         # Prepare the new log entry
         new_log = {
@@ -112,26 +119,28 @@ def add_maintenance_log():
             "description": data.get('description', ''), 
             "vehicle_id": target_vehicle_id, 
             "user_id": data.get('user_id'),
-            # New Fields
             "category": data.get('category', 'General'),
             "incident_date": data.get('incident_date'),
             "incident_time": data.get('incident_time'),
-            "repair_time": data.get('repair_time')
+            "repair_time": data.get('repair_time'),
+            "is_resolved": is_resolved
         }
 
-        if not new_log["repair_date"] or not new_log["description"] or not new_log["vehicle_id"] or not new_log.get("user_id"):
+        if not new_log["description"] or not new_log["vehicle_id"] or not new_log.get("user_id"):
             return jsonify({"success": False, "message": "Missing required fields."}), 400
 
-        # ✅ STEP 1: Purge any older maintenance records for this specific vehicle
-        supabase.table('maintenance_log').delete().eq('vehicle_id', target_vehicle_id).execute()
+        # ❌ I DELETED THE PURGE LINE HERE SO YOUR HISTORY IS KEPT! ❌
 
-        # ✅ STEP 2: Insert the updated fresh maintenance record
+        # ✅ Insert the updated fresh maintenance record to the history
         supabase.table('maintenance_log').insert(new_log).execute()
         
-        # ✅ STEP 3: Handle Status and Availability Changes
-        updated_health = data.get('health_status', 'Excellent')
-        # Logic: Vehicle is NOT available if it's currently under maintenance or on duty
-        is_available = not any(k in updated_health.lower() for k in ["need", "maintenance", "poor", "bad", "duty"])
+        # ✅ Handle Status and Availability Changes based on the Toggle
+        if is_resolved:
+            updated_health = data.get('health_status', 'Excellent')
+            is_available = not any(k in updated_health.lower() for k in ["need", "maintenance", "poor", "bad", "duty"])
+        else:
+            updated_health = 'Under Repair'
+            is_available = False
 
         supabase.table('vehicle').update({
             "health_status": updated_health, 
@@ -139,7 +148,7 @@ def add_maintenance_log():
             "last_maintenance_description": new_log["description"]
         }).eq('vehicle_id', target_vehicle_id).execute()
 
-        return jsonify({"success": True, "message": "Maintenance log updated successfully!"}), 201
+        return jsonify({"success": True, "message": "Maintenance log added to history successfully!"}), 201
     except Exception as e:
         print(f"❌ Maintenance Logging failure: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
