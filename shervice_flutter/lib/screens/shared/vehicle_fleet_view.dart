@@ -208,30 +208,29 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
- void _showAddMaintenanceDialog() {
+// 👇 FULLY UPGRADED MAINTENANCE DIALOG (SYNCED LOGIC)
+  void _showAddMaintenanceDialog() {
     final validVehicles = _allVehicles.where((v) {
       return int.tryParse(v['vehicle_id']?.toString() ?? '') != null;
     }).toList();
 
     if (validVehicles.isEmpty) {
-      _showSnackBar(
-        'No vehicles are available for maintenance logging.',
-        Colors.orange,
-      );
+      _showSnackBar('No vehicles are available for maintenance logging.', Colors.orange);
       return;
     }
 
     final formKey = GlobalKey<FormState>();
     int? selectedVehicleId = int.tryParse(validVehicles.first['vehicle_id'].toString());
     String description = '';
-    String chosenHealthStatus = 'Excellent';
+    
+    // Defaulting to needs maintenance / unrepaired
+    String chosenHealthStatus = 'Needs Maintenance';
+    bool isRepaired = false; 
     
     String chosenCategory = 'General';
     DateTime? incidentDate = DateTime.now();
     TimeOfDay? incidentTime;
     
-    // 👇 NEW VARIABLES FOR THE CHECKBOX AND REPAIR TIMELINE
-    bool isRepaired = false; 
     DateTime? repairDate = DateTime.now();
     TimeOfDay? repairTime;
 
@@ -284,11 +283,22 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                         Expanded(
                           child: DropdownButtonFormField<String>(
                             value: chosenHealthStatus,
-                            decoration: _inputFieldStyle(label: 'Vehicle Status (If Fixed)', icon: Icons.health_and_safety_outlined),
+                            decoration: _inputFieldStyle(label: 'Vehicle Status', icon: Icons.health_and_safety_outlined),
                             dropdownColor: const Color(0xFFF8FAFC),
-                            items: ['Excellent', 'Good', 'Needs Maintenance', 'On Duty']
+                            // 👇 REMOVED "ON DUTY"
+                            items: ['Excellent', 'Good', 'Needs Maintenance']
                                 .map((s) => DropdownMenuItem<String>(value: s, child: Text(s))).toList(),
-                            onChanged: (val) => setModalState(() => chosenHealthStatus = val ?? 'Excellent'),
+                            onChanged: (val) {
+                              setModalState(() {
+                                chosenHealthStatus = val ?? 'Good';
+                                // 👇 LOGIC: If they select Needs Maintenance, force the checkbox off
+                                if (chosenHealthStatus == 'Needs Maintenance') {
+                                  isRepaired = false;
+                                } else {
+                                  isRepaired = true;
+                                }
+                              });
+                            },
                           ),
                         ),
                       ],
@@ -336,7 +346,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                     
                     const SizedBox(height: 16),
                     
-                    // 👇 THE NEW CHECKBOX CONTAINER
+                    // 👇 THE SYNCED CHECKBOX CONTAINER
                     Container(
                       decoration: BoxDecoration(
                         color: isRepaired ? Colors.green.shade50 : Colors.orange.shade50,
@@ -354,11 +364,22 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                         checkColor: Colors.white,
                         controlAffinity: ListTileControlAffinity.leading,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        onChanged: (val) => setModalState(() => isRepaired = val ?? false),
+                        onChanged: (val) {
+                          setModalState(() {
+                            isRepaired = val ?? false;
+                            // 👇 LOGIC: If they uncheck the box, force status to Needs Maintenance
+                            if (!isRepaired) {
+                              chosenHealthStatus = 'Needs Maintenance';
+                            } else if (chosenHealthStatus == 'Needs Maintenance') {
+                              // If they check the box and it was previously "Needs Maintenance", default to Good
+                              chosenHealthStatus = 'Good'; 
+                            }
+                          });
+                        },
                       ),
                     ),
                     
-                    // 👇 ONLY SHOW REPAIR INPUTS IF THE CHECKBOX IS CHECKED
+                    // ONLY SHOW REPAIR INPUTS IF THE CHECKBOX IS CHECKED
                     if (isRepaired) ...[
                       const SizedBox(height: 16),
                       Row(
