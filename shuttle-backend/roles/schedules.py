@@ -169,69 +169,43 @@ def get_pending_schedules():
 def get_dispatch_options():
     """Fetches drivers and vehicles. If 'date' is provided, filters out busy assets."""
     try:
+        # 1. Fetch ALL active assets first
         all_vehicles = supabase.table('vehicle').select('vehicle_id, plate_number, bus_type').eq('health_status', 'Excellent').execute()
         all_drivers = supabase.table('driver_profile').select('user_id, full_name').execute()
 
+        # 2. Grab the date we are checking from the request URL
         target_date = request.args.get('date')
-        ignore_trip_id = request.args.get('ignore_trip_id') # NEW: Ignore the trip we are currently editing
         
         if not target_date:
-            return jsonify({"success": True, "vehicles": all_vehicles.data, "drivers": all_drivers.data}), 200
+            return jsonify({
+                "success": True,
+                "vehicles": all_vehicles.data,
+                "drivers": all_drivers.data
+            }), 200
 
-        # Find busy assets
-        busy_query = supabase.table('trip_schedule').select('vehicle_id, user_id, trip_id').eq('schedule_date', target_date).in_('trip_status', ['Scheduled', 'In Progress', 'Ongoing'])
-        
-        # If we are editing a trip, don't count its currently assigned driver/vehicle as "busy"
-        if ignore_trip_id:
-            busy_query = busy_query.neq('trip_id', ignore_trip_id)
+        # 3. Find vehicles and drivers already scheduled for this specific date
+        busy_query = (
+            supabase.table('trip_schedule')
+            .select('vehicle_id, user_id')
+            .eq('schedule_date', target_date)
+            .in_('trip_status', ['Scheduled', 'In Progress', 'Ongoing'])
+            .execute()
+        )
             
-        busy_data = busy_query.execute()
-            
-        busy_vehicle_ids = [t['vehicle_id'] for t in busy_data.data if t.get('vehicle_id')]
-        busy_driver_uuids = [t['user_id'] for t in busy_data.data if t.get('user_id')]
+        busy_vehicle_ids = [t['vehicle_id'] for t in busy_query.data if t.get('vehicle_id')]
+        busy_driver_uuids = [t['user_id'] for t in busy_query.data if t.get('user_id')]
 
+        # 4. Filter out the busy ones
         available_vehicles = [v for v in all_vehicles.data if v['vehicle_id'] not in busy_vehicle_ids]
         available_drivers = [d for d in all_drivers.data if d['user_id'] not in busy_driver_uuids]
 
-        return jsonify({"success": True, "vehicles": available_vehicles, "drivers": available_drivers}), 200
+        return jsonify({
+            "success": True,
+            "vehicles": available_vehicles,
+            "drivers": available_drivers
+        }), 200
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@schedules_bp.route('/api/schedules/staff-edit', methods=['PUT'])
-def staff_edit_trip():
-    """Staff edits a trip, including route details and asset assignments"""
-    try:
-        data = request.get_json() or {}
-        trip_id = data.get('trip_id')
-
-        update_data = {
-            "route_name": data.get('destination'),
-            "passenger_count": int(data.get('passenger_count', 0)),
-            "route_distance": float(data.get('route_distance', 0.0)),
-            "schedule_date": data.get('departure_date'),
-            "departure_time": data.get('departure_time'),
-            "estimated_arrival_time": data.get('estimated_arrival_time')
-        }
-
-        # If staff assigned a driver/vehicle during the edit
-        driver_uuid = data.get('driver_uuid')
-        vehicle_id = data.get('vehicle_id')
-        
-        if driver_uuid and vehicle_id:
-            update_data['user_id'] = driver_uuid
-            update_data['vehicle_id'] = vehicle_id
-            
-            # Automatically upgrade status if it was pending
-            check = supabase.table('trip_schedule').select('trip_status').eq('trip_id', trip_id).execute()
-            if check.data and check.data[0].get('trip_status') == 'Pending Staff Assignment':
-                update_data['trip_status'] = 'Scheduled'
-
-        supabase.table('trip_schedule').update(update_data).eq('trip_id', trip_id).execute()
-
-        return jsonify({"success": True, "message": "Trip updated successfully."}), 200
-    except Exception as e:
-        print(f"❌ Staff Edit Error: {e}")
+        print(f"❌ Dispatch Options Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -421,4 +395,44 @@ def get_staff_assigned_trips(staff_uuid):
         return jsonify({"success": True, "data": formatted_trips}), 200
     except Exception as e:
         print(f"❌ Staff Fetch Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+    
+@schedules_bp.route('/api/schedules/update-request', methods=['PUT'])
+def update_trip_request():
+    """OIC updates an existing pending trip request"""
+    try:
+        data = request.get_json() or {}
+        trip_id = data.get('trip_id')
+        
+        # 1. Security Check: Ensure the trip is still pending
+        check = supabase.table('trip_schedule').select('trip_status').eq('trip_id', trip_id).execute()
+        if not check.data or check.data[0].get('trip_status') != 'Pending Staff Assignment':
+            return jsonify({"success": False, "message": "You can only edit pending requests. Contact staff for changes."}), 400
+
+        # 2. Safely parse numbers
+        try: p_count = int(data.get('passenger_count', 0))
+        except (ValueError, TypeError): p_count = 0 
+            
+        try: r_distance = float(data.get('route_distance', 0.0)) 
+        except (ValueError, TypeError): r_distance = 0.0
+
+        # 3. Update the database
+        response = (
+            supabase.table('trip_schedule')
+            .update({
+                "staff_id": data.get('staff_id'),
+                "route_name": data.get('destination'),
+                "route_distance": r_distance,
+                "passenger_count": p_count,
+                "schedule_date": data.get('departure_date'),
+                "departure_time": data.get('departure_time'),
+                "estimated_arrival_time": data.get('estimated_arrival_time')
+            })
+            .eq('trip_id', trip_id)
+            .execute()
+        )
+
+        return jsonify({"success": True, "message": "Trip updated successfully!"}), 200
+    except Exception as e:
+        print(f"❌ Trip Update Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
