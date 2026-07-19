@@ -495,7 +495,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
 
   // 👇 ADDED: Modal to display the fetched log history WITH SORTING
 void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> logs) {
-    String currentSort = 'Newest First';
+    String currentSort = 'Newest First'; // Default set here
 
     showDialog(
       context: context,
@@ -505,33 +505,33 @@ void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> l
           List<dynamic> sortedLogs = List.from(logs);
           
           sortedLogs.sort((a, b) {
-            // Helper to extract a sortable value
-            DateTime getDate(dynamic item) {
-              final dateStr = item['incident_date']?.toString() ?? item['repair_date']?.toString() ?? '';
-              return DateTime.tryParse(dateStr) ?? DateTime(2000);
+            // Helper: Merge date and time string into a comparable DateTime
+            DateTime parseDateTime(dynamic item) {
+              final date = item['incident_date']?.toString() ?? '';
+              final time = item['incident_time']?.toString() ?? '00:00:00';
+              // Format: "YYYY-MM-DD HH:MM:SS"
+              return DateTime.tryParse("$date $time") ?? DateTime(2000);
             }
 
-            DateTime dateA = getDate(a);
-            DateTime dateB = getDate(b);
+            DateTime dateA = parseDateTime(a);
+            DateTime dateB = parseDateTime(b);
 
+            // Chronological Sorts
             if (currentSort == 'Newest First') return dateB.compareTo(dateA);
             if (currentSort == 'Oldest First') return dateA.compareTo(dateB);
             
-            // For 'Ongoing First' (Ongoing = false/null)
+            // Logic for Ongoing/Fixed Sorting
+            bool aResolved = a['is_resolved'] == true;
+            bool bResolved = b['is_resolved'] == true;
+            
             if (currentSort == 'Ongoing First') {
-              bool aResolved = a['is_resolved'] == true;
-              bool bResolved = b['is_resolved'] == true;
               if (aResolved != bResolved) return aResolved ? 1 : -1;
             }
-            
-            // For 'Fixed First'
             if (currentSort == 'Fixed First') {
-              bool aResolved = a['is_resolved'] == true;
-              bool bResolved = b['is_resolved'] == true;
               if (aResolved != bResolved) return aResolved ? -1 : 1;
             }
 
-            return dateB.compareTo(dateA); // Default fallback
+            return dateB.compareTo(dateA); // Fallback: Newest First
           });
 
           return AlertDialog(
@@ -574,7 +574,6 @@ void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> l
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final log = sortedLogs[index];
-                        // Ensure is_resolved boolean is checked properly
                         final bool isResolved = log['is_resolved'] == true;
 
                         return Container(
@@ -599,9 +598,13 @@ void _showHistoryModal(BuildContext context, String plateNumber, List<dynamic> l
                                 ]
                               ),
                               const SizedBox(height: 8),
-                              Text(log['description'] ?? ''),
+                              Text(log['description'] ?? 'No details'),
                               const SizedBox(height: 8),
-                              Text("Incident: ${log['incident_date'] ?? 'N/A'}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                              // Displaying the incident date and time merged
+                              Text(
+                                "Incident: ${log['incident_date'] ?? 'N/A'} at ${log['incident_time'] ?? 'N/A'}", 
+                                style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w600)
+                              ),
                             ]
                           )
                         );
