@@ -739,8 +739,8 @@ class TripCard extends StatelessWidget {
     final isRejected = statusStr.toLowerCase().contains('rejected');
     final isPending = statusStr.toLowerCase().contains('pending');
     
-    // 👇 STRICT FIX: Only allow actions if it is actively Pending!
-    final bool requiresAction = isPending;
+    // Buttons are only shown if the trip is pending AND needs assignment
+    final bool showActions = isPending && needsAssignment;
 
     Color cardBorder = Colors.green.shade200;
     Color cardBg = Colors.green.shade50;
@@ -789,27 +789,13 @@ class TripCard extends StatelessWidget {
           const SizedBox(height: 12),
           _buildInfoRow('Time', _formatTimeRange(trip['departure_time'], trip['estimated_arrival_time'])),
           const SizedBox(height: 8),
-          _buildInfoRow('Route', trip['route_name'] ?? 'N/A'),
-          const SizedBox(height: 8),
           _buildInfoRow('Company', trip['client_company'] ?? 'Unknown Company'),
-          const SizedBox(height: 8),
-          _buildInfoRow('Passengers', '${trip['passenger_count'] ?? 0}'),
-          const SizedBox(height: 8),
-          _buildInfoRow('Distance', '${trip['route_distance'] ?? 0} km'),
-
-          if (trip['driver_name'] != null) ...[
-            const SizedBox(height: 8),
-            _buildInfoRow('Driver', trip['driver_name']),
-          ],
-          if (trip['vehicle_plate'] != null) ...[
-            const SizedBox(height: 8),
-            _buildInfoRow('Vehicle', trip['vehicle_plate']),
-          ],
           
-          if (requiresAction) ...[
+          if (showActions) ...[
             const SizedBox(height: 16),
             Row(
               children: [
+                // Assign Button
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
@@ -817,14 +803,15 @@ class TripCard extends StatelessWidget {
                       _showAssignModal(context);
                     },
                     icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 16),
-                    label: const Text('Assign Assets', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    label: const Text('Assign', style: TextStyle(color: Colors.white, fontSize: 12)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange.shade700,
+                      backgroundColor: Colors.blue.shade700,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
+                // Reject Button (Moved outside)
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _rejectTrip(context),
@@ -863,7 +850,7 @@ class TripCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Reject Request?"),
-        content: const Text("Are you sure you want to reject this trip request? The OIC will be notified immediately."),
+        content: const Text("Are you sure you want to reject this trip request?"),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Reject", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
@@ -880,8 +867,7 @@ class TripCard extends StatelessWidget {
         body: jsonEncode({"trip_id": trip['trip_id']}),
       );
       if (res.statusCode == 200 && context.mounted) {
-        Navigator.pop(context);
-        onAssign();
+        onAssign(); // Refresh list
       }
     } catch (e) {
       debugPrint("Reject Error: $e");
