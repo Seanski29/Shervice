@@ -170,7 +170,8 @@ def get_dispatch_options():
     """Fetches drivers and vehicles. If 'date' is provided, filters out busy assets."""
     try:
         # 1. Fetch ALL active assets first
-        all_vehicles = supabase.table('vehicle').select('vehicle_id, plate_number, bus_type').eq('health_status', 'Excellent').execute()
+        # 👇 THE FIX: We now check the true maintenance lock ('is_available' == True)
+        all_vehicles = supabase.table('vehicle').select('vehicle_id, plate_number, bus_type').eq('is_available', True).execute()
         all_drivers = supabase.table('driver_profile').select('user_id, full_name').execute()
 
         # 2. Grab the date we are checking from the request URL
@@ -207,7 +208,6 @@ def get_dispatch_options():
     except Exception as e:
         print(f"❌ Dispatch Options Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
-
     
 @schedules_bp.route('/api/schedules/complete', methods=['POST'])
 def complete_trip():

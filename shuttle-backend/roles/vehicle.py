@@ -150,3 +150,35 @@ def add_maintenance_log():
     except Exception as e:
         print(f"❌ Maintenance Logging failure: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+
+@vehicles_bp.route('/api/vehicles/maintenance', methods=['PUT'])
+def update_maintenance_log():
+    """Updates an 'Ongoing' maintenance log to 'Repaired'"""
+    try:
+        data = request.get_json() or {}
+        maintenance_id = data.get('maintenance_id')
+        vehicle_id = data.get('vehicle_id')
+        
+        if not maintenance_id or not vehicle_id:
+            return jsonify({"success": False, "message": "Missing required maintenance or vehicle ID."}), 400
+
+        # 1. Update the existing log with the repair details and mark as resolved
+        update_data = {
+            "repair_date": data.get('repair_date'),
+            "repair_time": data.get('repair_time'),
+            "is_resolved": True  # Changes the status from Ongoing to Repaired
+        }
+        
+        supabase.table('maintenance_log').update(update_data).eq('maintenance_id', maintenance_id).execute()
+        
+        # 2. Release the vehicle back to the active dispatch fleet
+        supabase.table('vehicle').update({
+            "health_status": "Good",
+            "is_available": True
+        }).eq('vehicle_id', vehicle_id).execute()
+
+        return jsonify({"success": True, "message": "Vehicle marked as repaired and ready for dispatch!"}), 200
+        
+    except Exception as e:
+        print(f"❌ Maintenance Update failure: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
