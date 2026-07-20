@@ -121,10 +121,10 @@ def get_admin_schedules():
 
 # ─────────── GLOBAL DASHBOARD ANALYTICS MONITOR ───────────
 
-@app.route('/api/dashboard/metrics', methods=['GET'])
+@admin_bp.route('/dashboard/metrics', methods=['GET']) # 👈 FIXED: @admin_bp and removed extra /api to prevent /api/api/dashboard
 def get_dashboard_metrics():
     try:
-        # 1. Active Drivers (Ensure 'Active' matches your DB string exactly)
+        # 1. Active Drivers
         drivers_res = supabase.table('driver_profile').select('*', count='exact').eq('employment_status', 'Active').execute()
         total_drivers = drivers_res.count if drivers_res else 0
 
@@ -132,12 +132,13 @@ def get_dashboard_metrics():
         vehicles_res = supabase.table('vehicle').select('*', count='exact').eq('is_available', True).execute()
         active_vehicles = vehicles_res.count if vehicles_res else 0
 
-        # 3. Ongoing Trips (Ensure 'Ongoing' matches your trip_status in the DB)
+        # 3. Ongoing Trips 
         ongoing_res = supabase.table('trip_schedule').select('*', count='exact').eq('trip_status', 'Ongoing').execute()
         ongoing_trips = ongoing_res.count if ongoing_res else 0
 
-        # 4. Unassigned Trips (Strict PostgREST syntax for OR conditions)
-        unassigned_res = supabase.table('driver_profile').select('*', count='exact').eq('employment_status', 'Active').execute()
+        # 4. Unassigned Trips 
+        # 👇 FIXED: Targets trip_schedule and uses proper PostgREST OR syntax
+        unassigned_res = supabase.table('trip_schedule').select('*', count='exact').or_("user_id.is.null,vehicle_id.is.null").execute()
         unassigned_trips = unassigned_res.count if unassigned_res else 0
 
         # 5. Maintenance Alerts
@@ -153,16 +154,13 @@ def get_dashboard_metrics():
                 "unassignedTrips": unassigned_trips,
                 "maintenanceAlerts": maintenance_alerts
             },
-            # Fetch your alerts and company metrics here as you were previously
             "alerts": [], 
             "company_weekly_metrics": [] 
         }), 200
 
     except Exception as e:
-        # Print the error to your terminal so you can see if a DB query is crashing
         print(f"DASHBOARD ERROR: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
-
 
 # ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
 
