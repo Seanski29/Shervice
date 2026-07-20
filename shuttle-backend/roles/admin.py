@@ -215,7 +215,7 @@ def get_dashboard_metrics():
 
 # ─────────── VEHICLE SPECIFICATIONS MANAGEMENT ───────────
 
-@admin_bp.route('/vehicles/update/<vehicle_id>', methods=['PUT'])
+@admin_bp.route('/api/vehicles/update/<vehicle_id>', methods=['PUT'])
 def update_vehicle_details(vehicle_id):
     try:
         data = request.get_json() or {}
@@ -241,7 +241,7 @@ def update_vehicle_details(vehicle_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@admin_bp.route('/vehicles/delete/<vehicle_id>', methods=['DELETE'])
+@admin_bp.route('/api/vehicles/delete/<vehicle_id>', methods=['DELETE'])
 def delete_vehicle_record(vehicle_id):
     try:
         supabase.table('maintenance_log').delete().eq("vehicle_id", int(vehicle_id)).execute()
@@ -254,7 +254,7 @@ def delete_vehicle_record(vehicle_id):
 
 # ─────────── DRIVER PROFILE LEDGER SYSTEM ───────────
 
-@admin_bp.route('/auth/update-driver/<user_id>', methods=['PUT'])
+@admin_bp.route('/api/auth/update-driver/<user_id>', methods=['PUT'])
 def update_driver_profile(user_id):
     try:
         data = request.get_json() or {}
@@ -295,7 +295,7 @@ def update_driver_profile(user_id):
 
 # ─────────── USER INTERFACE ACCOUNT MASTER KEYS ───────────
 
-@admin_bp.route('/auth/update-user/<user_id>', methods=['PUT'])
+@admin_bp.route('/api/auth/update-user/<user_id>', methods=['PUT'])
 def update_system_user(user_id):
     try:
         data = request.get_json() or {}
@@ -336,7 +336,7 @@ def update_system_user(user_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@admin_bp.route('/auth/delete-user/<user_id>', methods=['DELETE'])
+@admin_bp.route('/api/auth/delete-user/<user_id>', methods=['DELETE'])
 def delete_system_user(user_id):
     try:
         supabase.table("oic_profile").delete().eq("user_id", user_id).execute()
