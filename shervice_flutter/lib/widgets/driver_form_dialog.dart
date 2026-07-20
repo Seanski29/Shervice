@@ -7,8 +7,7 @@ import 'driver_evaluation_view.dart'; // Make sure the path matches where you sa
 class DriverFormDialog extends StatefulWidget {
   final DriverProfileModel? driver;
   final VoidCallback? onDelete;
-  final VoidCallback?
-  onSuccess; // Notifies the parent screen to refresh immediately
+  final VoidCallback? onSuccess;
   final String backendUrl;
 
   const DriverFormDialog({
@@ -65,18 +64,30 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
     final bool editable = _isWritingUnlocked && !forcesDisabled;
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: const Color(0xFF475569)),
+      prefixIcon: Icon(icon, color: const Color(0xFF475569), size: 20),
       filled: true,
-      fillColor: editable ? const Color(0xFFF1F5F9) : const Color(0xFFE2E8F0),
-      labelStyle: const TextStyle(color: Color(0xFF64748B)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      fillColor: editable ? const Color(0xFFF8FAFC) : const Color(0xFFF1F5F9),
+      labelStyle: const TextStyle(
+        color: Color(0xFF64748B),
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: Colors.grey.shade300),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFEF4444)),
       ),
     );
   }
@@ -114,7 +125,6 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
       };
 
       if (isEdit) {
-        // 1. Update general profile details
         res = await http
             .put(
               Uri.parse(
@@ -125,7 +135,6 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
             )
             .timeout(const Duration(seconds: 10));
 
-        // 2. ADMIN PASSWORD OVERRIDE LOGIC
         if (_passwordController.text.isNotEmpty) {
           final passResponse = await http
               .post(
@@ -146,7 +155,6 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
           }
         }
       } else {
-        // Registering a brand new driver
         final DateTime now = DateTime.now();
         final String formattedHired =
             "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
@@ -175,8 +183,8 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Database properties saved!"),
-            backgroundColor: Colors.green,
+            content: Text("Driver profile saved successfully!"),
+            backgroundColor: Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -184,19 +192,19 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Rejection: ${responseData['message'] ?? 'Server validation error.'}",
+              "Error: ${responseData['message'] ?? 'Server validation error.'}",
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: const Color(0xFFEF4444),
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e) {
-      debugPrint("❌ Form pipeline execution exception: $e");
+      debugPrint("❌ Form submission exception: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Network Sync Fault: $e"),
-          backgroundColor: Colors.red,
+          content: Text("Network error: $e"),
+          backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -208,245 +216,314 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
   @override
   Widget build(BuildContext context) {
     final bool isEdit = widget.driver != null;
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
 
-    return AlertDialog(
-      backgroundColor: const Color(0xFFF8FAFC),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Text(
-        isEdit
-            ? 'Driver Profile (DRV-${widget.driver!.id})'
-            : 'Register New Driver',
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      content: SizedBox(
-        width: 500,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: isMobile ? double.infinity : 520,
+        constraints: BoxConstraints(
+          maxWidth: 600,
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            )
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ---- Header ----
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                TextFormField(
-                  controller: _nameController,
-                  readOnly: !_isWritingUnlocked,
-                  decoration: _fieldStyle(
-                    label: 'Full Name',
-                    icon: Icons.person,
+                Text(
+                  isEdit
+                      ? 'Driver Profile (DRV-${widget.driver!.id})'
+                      : 'Register New Driver',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _licenseController,
-                  readOnly: !_isWritingUnlocked,
-                  decoration: _fieldStyle(
-                    label: 'License Number',
-                    icon: Icons.card_membership,
-                  ),
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  readOnly: !_isWritingUnlocked,
-                  decoration: _fieldStyle(
-                    label: 'Account Email',
-                    icon: Icons.email,
-                  ),
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _birthdayController,
-                  readOnly: true,
-                  decoration: _fieldStyle(
-                    label: 'Date of Birth (YYYY-MM-DD)',
-                    icon: Icons.cake,
-                  ),
-                  onTap: !_isWritingUnlocked
-                      ? null
-                      : () => _selectDate(_birthdayController),
-                ),
-                const SizedBox(height: 16),
-
-                // ALWAYS show the password field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  readOnly: !_isWritingUnlocked,
-                  decoration: _fieldStyle(
-                    label: isEdit
-                        ? 'Reset Password (Leave empty to keep current)'
-                        : 'Account Password',
-                    icon: Icons.lock_reset,
-                  ),
-                  validator: (v) {
-                    if (!isEdit && (v == null || v.length < 6))
-                      return 'Password must be >= 6 chars';
-                    if (isEdit && v != null && v.isNotEmpty && v.length < 6)
-                      return 'Password must be >= 6 chars';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Only show these extra status fields if editing
-                if (isEdit) ...[
-                  DropdownButtonFormField<String>(
-                    value: _currentStatus,
-                    decoration: _fieldStyle(
-                      label: 'Employment Status',
-                      icon: Icons.info_outline,
-                    ),
-                    dropdownColor: const Color(0xFFF8FAFC),
-                    onChanged: !_isWritingUnlocked
-                        ? null
-                        : (val) => setState(() => _currentStatus = val!),
-                    items: ['Active', 'Suspended']
-                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                        .toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    initialValue: widget.driver!.dateHired,
-                    readOnly: true,
-                    decoration: _fieldStyle(
-                      label: 'Date Hired',
-                      icon: Icons.event_available,
-                      forcesDisabled: true,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    initialValue: widget.driver!.licenseExpiry,
-                    readOnly: true,
-                    decoration: _fieldStyle(
-                      label: 'License Expiration',
-                      icon: Icons.assignment_late,
-                      forcesDisabled: true,
-                    ),
-                  ),
-                ],
               ],
             ),
-          ),
-        ),
-      ),
-      actions: [
-        if (widget.driver != null)
-          TextButton.icon(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => Dialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: SizedBox(
-                    width: 600, // Good width for desktop/tablet
-                    height: 600,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(ctx),
+            const SizedBox(height: 16),
+
+            // ---- Form (scrollable) ----
+            Flexible(
+              child: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextFormField(
+                        controller: _nameController,
+                        readOnly: !_isWritingUnlocked,
+                        decoration: _fieldStyle(
+                          label: 'Full Name',
+                          icon: Icons.person,
+                        ),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _licenseController,
+                        readOnly: !_isWritingUnlocked,
+                        decoration: _fieldStyle(
+                          label: 'License Number',
+                          icon: Icons.card_membership,
+                        ),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _emailController,
+                        readOnly: !_isWritingUnlocked,
+                        decoration: _fieldStyle(
+                          label: 'Account Email',
+                          icon: Icons.email,
+                        ),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _birthdayController,
+                        readOnly: true,
+                        decoration: _fieldStyle(
+                          label: 'Date of Birth (YYYY-MM-DD)',
+                          icon: Icons.cake,
+                        ),
+                        onTap: !_isWritingUnlocked
+                            ? null
+                            : () => _selectDate(_birthdayController),
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        readOnly: !_isWritingUnlocked,
+                        decoration: _fieldStyle(
+                          label: isEdit
+                              ? 'Reset Password (Leave empty to keep current)'
+                              : 'Account Password',
+                          icon: Icons.lock_reset,
+                        ),
+                        validator: (v) {
+                          if (!isEdit && (v == null || v.length < 6))
+                            return 'Password must be >= 6 chars';
+                          if (isEdit && v != null && v.isNotEmpty && v.length < 6)
+                            return 'Password must be >= 6 chars';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      if (isEdit) ...[
+                        DropdownButtonFormField<String>(
+                          value: _currentStatus,
+                          decoration: _fieldStyle(
+                            label: 'Employment Status',
+                            icon: Icons.info_outline,
                           ),
-                          Expanded(
-                            child: DriverEvaluationView(
-                              driverUuid: widget.driver!.userId,
-                              backendUrl: widget.backendUrl,
+                          dropdownColor: Colors.white,
+                          onChanged: !_isWritingUnlocked
+                              ? null
+                              : (val) => setState(() => _currentStatus = val!),
+                          items: ['Active', 'Suspended']
+                              .map((s) => DropdownMenuItem(
+                                    value: s,
+                                    child: Text(s),
+                                  ))
+                              .toList(),
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          initialValue: widget.driver!.dateHired,
+                          readOnly: true,
+                          decoration: _fieldStyle(
+                            label: 'Date Hired',
+                            icon: Icons.event_available,
+                            forcesDisabled: true,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          initialValue: widget.driver!.licenseExpiry,
+                          readOnly: true,
+                          decoration: _fieldStyle(
+                            label: 'License Expiration',
+                            icon: Icons.assignment_late,
+                            forcesDisabled: true,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ---- Actions (responsive wrap) ----
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // Left side: View Performance button (if edit)
+                if (isEdit)
+                  TextButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => Dialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Container(
+                            width: isMobile ? double.infinity : 600,
+                            height: isMobile
+                                ? MediaQuery.of(context).size.height * 0.8
+                                : 600,
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () => Navigator.pop(ctx),
+                                ),
+                                Expanded(
+                                  child: DriverEvaluationView(
+                                    driverUuid: widget.driver!.userId,
+                                    backendUrl: widget.backendUrl,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.star, color: Colors.amber),
-            label: const Text(
-              'View Performance',
-              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-            ),
-          ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            isEdit && widget.onDelete != null
-                ? TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      widget.onDelete!();
+                        ),
+                      );
                     },
-                    child: const Text(
-                      'Delete',
+                    icon: const Icon(Icons.star, color: Color(0xFFF59E0B)),
+                    label: const Text(
+                      'View Performance',
                       style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: 12),
-                if (isEdit && !_isWritingUnlocked)
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF64748B),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => setState(() => _isWritingUnlocked = true),
-                    child: const Text(
-                      'Edit Details',
-                      style: TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF3B82F6),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   )
                 else
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1D83E4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: _isLoading ? null : _submitDataStream,
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            isEdit ? 'Save Changes' : 'Register Driver',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                  const SizedBox.shrink(),
+
+                // Right side: Delete (if edit) + Cancel/Save
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isEdit && widget.onDelete != null)
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          widget.onDelete!();
+                        },
+                        child: const Text(
+                          'Delete',
+                          style: TextStyle(
+                            color: Color(0xFFEF4444),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                  ),
+                        ),
+                      ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 8),
+                    if (isEdit && !_isWritingUnlocked)
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF64748B),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                        ),
+                        onPressed: () => setState(() => _isWritingUnlocked = true),
+                        child: const Text(
+                          'Edit Details',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      )
+                    else
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3B82F6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                        ),
+                        onPressed: _isLoading ? null : _submitDataStream,
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                isEdit ? 'Save Changes' : 'Register Driver',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }

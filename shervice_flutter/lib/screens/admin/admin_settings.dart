@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import '../../constant.dart';
 
 class AdminSettings extends StatefulWidget {
-  final String adminId; // Required to know WHOSE password to update
+  final String adminId;
 
   const AdminSettings({super.key, required this.adminId});
 
@@ -14,7 +14,6 @@ class AdminSettings extends StatefulWidget {
 
 class _AdminSettingsState extends State<AdminSettings> {
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
 
   void _showChangePasswordModal(BuildContext context) {
     final passwordController = TextEditingController();
@@ -30,22 +29,31 @@ class _AdminSettingsState extends State<AdminSettings> {
 
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              contentPadding: const EdgeInsets.all(24),
-              content: SizedBox(
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: Container(
                 width: 400,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
                 child: isSuccess
-                    // ─── SUCCESS STATE UI ───
                     ? Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(
                             Icons.check_circle,
-                            color: Colors.green,
-                            size: 64,
+                            color: Color(0xFF10B981),
+                            size: 56,
                           ),
                           const SizedBox(height: 16),
                           const Text(
@@ -53,35 +61,40 @@ class _AdminSettingsState extends State<AdminSettings> {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
                             ),
                           ),
                           const SizedBox(height: 8),
                           const Text(
                             'Your administrator password has been changed successfully.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey),
+                            style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 14,
+                            ),
                           ),
                           const SizedBox(height: 24),
                           ElevatedButton(
                             onPressed: () => Navigator.pop(context),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade600,
-                              minimumSize: const Size(double.infinity, 50),
+                              backgroundColor: const Color(0xFF3B82F6),
+                              minimumSize: const Size(double.infinity, 44),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(10),
                               ),
+                              elevation: 0,
                             ),
                             child: const Text(
                               'Done',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
                             ),
                           ),
                         ],
                       )
-                    // ─── INPUT FORM UI ───
                     : Form(
                         key: formKey,
                         child: Column(
@@ -93,29 +106,92 @@ class _AdminSettingsState extends State<AdminSettings> {
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
+                                color: Color(0xFF0F172A),
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 16),
                             TextFormField(
                               controller: passwordController,
                               obscureText: true,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'New Password',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.lock_reset),
+                                labelStyle: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 13,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF3B82F6),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.lock_reset,
+                                  color: Color(0xFF64748B),
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
                               ),
                               validator: (val) => val == null || val.length < 6
                                   ? 'Password must be at least 6 characters'
                                   : null,
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
                             TextFormField(
                               controller: confirmPasswordController,
                               obscureText: true,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'Confirm New Password',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.lock),
+                                labelStyle: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 13,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF3B82F6),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.lock,
+                                  color: Color(0xFF64748B),
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
                               ),
                               validator: (val) => val != passwordController.text
                                   ? 'Passwords do not match'
@@ -130,7 +206,9 @@ class _AdminSettingsState extends State<AdminSettings> {
                                     onPressed: () => Navigator.pop(context),
                                     child: const Text(
                                       'Cancel',
-                                      style: TextStyle(color: Colors.grey),
+                                      style: TextStyle(
+                                        color: Color(0xFF64748B),
+                                      ),
                                     ),
                                   ),
                                 const SizedBox(width: 8),
@@ -140,13 +218,10 @@ class _AdminSettingsState extends State<AdminSettings> {
                                       : () async {
                                           if (!formKey.currentState!.validate())
                                             return;
-
                                           setModalState(
                                             () => isUpdating = true,
                                           );
-
                                           try {
-                                            // ─── REAL BACKEND UPDATE ───
                                             final response = await http
                                                 .post(
                                                   Uri.parse(
@@ -157,8 +232,7 @@ class _AdminSettingsState extends State<AdminSettings> {
                                                         'application/json',
                                                   },
                                                   body: jsonEncode({
-                                                    'user_id': widget
-                                                        .adminId, // Fetched from widget constructor
+                                                    'user_id': widget.adminId,
                                                     'new_password':
                                                         passwordController.text,
                                                   }),
@@ -166,11 +240,9 @@ class _AdminSettingsState extends State<AdminSettings> {
                                                 .timeout(
                                                   const Duration(seconds: 10),
                                                 );
-
                                             final data = jsonDecode(
                                               response.body,
                                             );
-
                                             if (response.statusCode == 200 &&
                                                 data['success'] == true) {
                                               setModalState(() {
@@ -192,25 +264,29 @@ class _AdminSettingsState extends State<AdminSettings> {
                                             ).showSnackBar(
                                               SnackBar(
                                                 content: Text('Error: $e'),
-                                                backgroundColor: Colors.red,
+                                                backgroundColor:
+                                                    const Color(0xFFEF4444),
+                                                behavior:
+                                                    SnackBarBehavior.floating,
                                               ),
                                             );
                                           }
                                         },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue.shade600,
+                                    backgroundColor: const Color(0xFF3B82F6),
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 12,
+                                      horizontal: 20,
+                                      vertical: 10,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
+                                    elevation: 0,
                                   ),
                                   child: isUpdating
                                       ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
+                                          width: 18,
+                                          height: 18,
                                           child: CircularProgressIndicator(
                                             color: Colors.white,
                                             strokeWidth: 2,
@@ -218,7 +294,11 @@ class _AdminSettingsState extends State<AdminSettings> {
                                         )
                                       : const Text(
                                           'Update Password',
-                                          style: TextStyle(color: Colors.white),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
                                         ),
                                 ),
                               ],
@@ -236,171 +316,210 @@ class _AdminSettingsState extends State<AdminSettings> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(24.0),
-      children: [
-        const Text(
-          'Account Settings',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF0F172A),
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 24),
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final double horizontalPadding = isMobile ? 12.0 : 24.0;
 
-        // ADMINISTRATOR PROFILE CARD
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Wrap(
-            spacing: 24,
-            runSpacing: 24,
-            crossAxisAlignment: WrapCrossAlignment.center,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: ListView(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 20.0),
+        children: [
+          // ─── HEADER (consistent with other admin pages) ───
+          Row(
             children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.blue.shade100,
-                child: Text(
-                  'AD',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade800,
-                  ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Account Settings',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Manage your profile, security, and preferences.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Admin System',
+              const SizedBox(width: 8),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ─── PROFILE CARD ───
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 32,
+                  backgroundColor: const Color(0xFFEFF6FF),
+                  child: Text(
+                    'AD',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                      color: const Color(0xFF3B82F6),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Administrator Account',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Full Access',
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Admin System',
                       style: TextStyle(
-                        color: Colors.blue.shade700,
-                        fontSize: 12,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // SECURITY SETTINGS
-        const Text(
-          'Security',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey,
-            letterSpacing: 1.2,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.lock_outline, color: Color(0xFF0F172A)),
-            ),
-            title: const Text(
-              'Change Password',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text(
-              'Update your administrator password',
-              style: TextStyle(fontSize: 12),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showChangePasswordModal(context),
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // PREFERENCES
-        const Text(
-          'Preferences',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey,
-            letterSpacing: 1.2,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Column(
-            children: [
-              SwitchListTile(
-                title: const Text(
-                  'Notification Alerts',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Administrator Account',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Full Access',
+                        style: TextStyle(
+                          color: const Color(0xFF3B82F6),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                value: _notificationsEnabled,
-                activeColor: Colors.blue.shade600,
-                onChanged: (val) => setState(() => _notificationsEnabled = val),
-              ),
-              const Divider(height: 1),
-              SwitchListTile(
-                title: const Text(
-                  'Dark Mode',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                value: _darkModeEnabled,
-                activeColor: Colors.blue.shade600,
-                onChanged: (val) => setState(() => _darkModeEnabled = val),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 20),
+
+          // ─── SECURITY ───
+          const Text(
+            'Security',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.lock_outline,
+                  color: Color(0xFF0F172A),
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                'Change Password',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              subtitle: const Text(
+                'Update your administrator password',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: Color(0xFF94A3B8),
+                size: 20,
+              ),
+              onTap: () => _showChangePasswordModal(context),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ─── PREFERENCES ───
+          const Text(
+            'Preferences',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              title: const Text(
+                'Notification Alerts',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              value: _notificationsEnabled,
+              activeColor: const Color(0xFF3B82F6),
+              onChanged: (val) => setState(() => _notificationsEnabled = val),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
