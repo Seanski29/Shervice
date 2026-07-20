@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../models/dashboard_metric.dart';
 import '../../models/maintenance_alert.dart';
 import '../../models/company_trip_metric.dart';
+import '../../constant.dart';
 
 class SharedDashboardView extends StatefulWidget {
   final Widget headerWidget;
@@ -33,12 +34,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   int _currentAlertPage = 0;
   final int _alertsPerPage = 3;
 
-  String get _backendUrl {
-    if (kIsWeb) return 'http://127.0.0.1:5000/api/dashboard/metrics';
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:5000/api/dashboard/metrics'
-        : 'http://127.0.0.1:5000/api/dashboard/metrics';
-  }
 
   @override
   void initState() {
@@ -59,7 +54,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
   Future<void> _fetchLiveDashboardData() async {
     try {
-      final response = await http.get(Uri.parse(_backendUrl)).timeout(const Duration(seconds: 10));
+      final response = await http.get(Uri.parse(backendUrl)).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);

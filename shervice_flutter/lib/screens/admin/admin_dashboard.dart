@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../widgets/shared_dashboard_view.dart';
+import '../../constant.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
