@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../models/dashboard_metric.dart';
 import '../../models/maintenance_alert.dart';
 import '../../models/company_trip_metric.dart';
-import '../../constant.dart';
+import '../constant.dart';
 
 class SharedDashboardView extends StatefulWidget {
   final Widget headerWidget;
