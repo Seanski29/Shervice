@@ -17,38 +17,15 @@ def get_admin_client():
 
 # ─────────── DIAGNOSTIC DATABASE CHECKS ───────────
 
-@admin_bp.route('/api/test-db', methods=['GET'])
-def diagnostic_database_check():
-    try:
-        test_query = supabase.table('driver_profile').select(
-            '*, user_account(username)'
-        ).execute()
-        
-        raw_data = test_query.data or []
-        flattened_drivers = []
-
-        for row in raw_data:
-            linked_account = row.get('user_account') or {}
-            driver_email = linked_account.get('username', '')
-            
-            row['username'] = driver_email
-            flattened_drivers.append(row)
-
-        return jsonify({
-            "connection_status": "SUCCESS",
-            "message": "Flask successfully linked driver profiles and unified user account email blocks!",
-            "table_queried": "driver_profile join user_account",
-            "total_rows_found": len(flattened_drivers),
-            "sample_data_payload": flattened_drivers[:100]
-        }), 200
-    except Exception as e:
-        print(f"❌ Diagnostic database connection or table join failed: {e}")
-        return jsonify({"connection_status": "FAILED", "error_details": str(e)}), 500
+# admin.py
+@admin_bp.route('/test-route', methods=['GET'])
+def test_route():
+    return jsonify({"success": True, "message": "It works!"}), 200
 
 
 # ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
 
-@admin_bp.route('/api/trips', methods=['GET'])
+@admin_bp.route('/trips', methods=['GET'])
 def get_admin_schedules():
     """Fetches all trip schedules and manually resolves the missing OIC company relationship map"""
     try:
@@ -82,8 +59,8 @@ def get_admin_schedules():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ─────────── GLOBAL DASHBOARD ANALYTICS MONITOR ───────────
 
+# ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
 @admin_bp.route('/api/dashboard/metrics', methods=['GET'])
 def get_dashboard_metrics():
     """Calculates unified fleet parameters, active counts, and weekly completed trip metrics live"""
@@ -127,12 +104,19 @@ def get_dashboard_metrics():
                     "description": log.get('description', 'No details provided.')
                 })
 
-        # 5. Calculate Dynamic Satisfaction Scores directly from OIC Evaluation values
-        oic_evals = supabase.table('oic_evaluation').select('overall_rating').execute()
-        oic_ratings = [r['overall_rating'] for r in oic_evals.data if r.get('overall_rating')] if oic_evals.data else []
-        avg_satisfaction = sum(oic_ratings) / len(oic_ratings) if oic_ratings else 5.0
+        # 5. Count Ongoing Trips (Replaces Punctuality)
+        ongoing_query = supabase.table('trip_schedule').select('trip_id').in_('trip_status', ['Ongoing', 'In Progress']).execute()
+        ongoing_trips_count = len(ongoing_query.data) if ongoing_query.data else 0
 
-        # 6. Fetch Company Weekly Utilization Metrics Live
+       # 6. Count Unassigned Schedules 
+        # Added "Pending Staff Assignment" to the allowed list!
+        pending_query = supabase.table('trip_schedule').select('trip_id, user_id, vehicle_id').in_('trip_status', ['Pending', 'pending', 'Scheduled', 'scheduled', 'Pending Staff Assignment']).execute()
+        
+        unassigned_count = 0
+        if pending_query.data:
+            unassigned_count = sum(1 for t in pending_query.data if not t.get('user_id') or not t.get('vehicle_id'))
+            
+        # 7. Fetch Company Weekly Utilization Metrics Live
         company_weekly_metrics = []
         try:
             companies_fetch = supabase.table('oic_profile').select('company_name').execute()
@@ -164,7 +148,8 @@ def get_dashboard_metrics():
             "metrics": {
                 "totalDrivers": total_drivers,
                 "activeVehicles": active_vehicles,
-                "averagePunctuality": avg_satisfaction,
+                "ongoingTrips": ongoing_trips_count,
+                "unassignedSchedules": unassigned_count,
                 "maintenanceAlerts": maintenance_alerts_count
             },
             "alerts": formatted_alerts,
@@ -174,52 +159,9 @@ def get_dashboard_metrics():
         print(f"❌ Dashboard Metrics Engine Failure: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-
-# ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
-
-@admin_bp.route('/api/evaluations/mutual', methods=['GET', 'POST'])
-def handle_mutual_evaluations():
-    """Handles bidirectional reviews under one table: OICs rating Shervice, and Staff rating Client companies"""
-    try:
-        if request.method == 'POST':
-            data = request.get_json() or {}
-            
-            new_eval = {
-                "trip_id": int(data.get("trip_id")),
-                "oic_id": int(data.get("oic_id")),
-                "overall_rating": int(data.get("overall_rating", 5)),
-                "comments": data.get("comments", "").strip(),
-                "evaluator_type": data.get("evaluator_type", "OIC"), # Expected values: 'OIC' or 'Staff'
-                "submit_date": data.get("submit_date", datetime.utcnow().strftime('%Y-%m-%d'))
-            }
-            
-            if not new_eval["comments"]:
-                return jsonify({"success": False, "message": "Comments cannot be empty."}), 400
-                
-            supabase.table('oic_evaluation').insert(new_eval).execute()
-            return jsonify({"success": True, "message": "Evaluation scorecard saved successfully!"}), 201
-
-        # GET Method: Pull all records and stitch company names together manually in memory
-        evals_res = supabase.table('oic_evaluation').select('*').order('submit_date', desc=True).execute()
-        raw_evals = evals_res.data or []
-        
-        oic_res = supabase.table('oic_profile').select('oic_id, company_name').execute()
-        oic_map = {item['oic_id']: item['company_name'] for item in oic_res.data if 'oic_id' in item} if oic_res.data else {}
-
-        for eval_row in raw_evals:
-            current_oic_id = eval_row.get('oic_id')
-            eval_row['company_name'] = oic_map.get(current_oic_id, "GT LANTIN")
-
-        return jsonify({"success": True, "evaluations": raw_evals}), 200
-        
-    except Exception as e:
-        print(f"❌ Mutual Evaluations Transaction Crash: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
 # ─────────── VEHICLE SPECIFICATIONS MANAGEMENT ───────────
 
-@admin_bp.route('/api/vehicles/update/<vehicle_id>', methods=['PUT'])
+@admin_bp.route('/vehicles/update/<vehicle_id>', methods=['PUT'])
 def update_vehicle_details(vehicle_id):
     try:
         data = request.get_json() or {}
@@ -245,7 +187,7 @@ def update_vehicle_details(vehicle_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@admin_bp.route('/api/vehicles/delete/<vehicle_id>', methods=['DELETE'])
+@admin_bp.route('/vehicles/delete/<vehicle_id>', methods=['DELETE'])
 def delete_vehicle_record(vehicle_id):
     try:
         supabase.table('maintenance_log').delete().eq("vehicle_id", int(vehicle_id)).execute()
@@ -258,7 +200,7 @@ def delete_vehicle_record(vehicle_id):
 
 # ─────────── DRIVER PROFILE LEDGER SYSTEM ───────────
 
-@admin_bp.route('/api/auth/update-driver/<user_id>', methods=['PUT'])
+@admin_bp.route('/auth/update-driver/<user_id>', methods=['PUT'])
 def update_driver_profile(user_id):
     try:
         data = request.get_json() or {}
@@ -299,7 +241,7 @@ def update_driver_profile(user_id):
 
 # ─────────── USER INTERFACE ACCOUNT MASTER KEYS ───────────
 
-@admin_bp.route('/api/auth/update-user/<user_id>', methods=['PUT'])
+@admin_bp.route('/auth/update-user/<user_id>', methods=['PUT'])
 def update_system_user(user_id):
     try:
         data = request.get_json() or {}
@@ -340,7 +282,7 @@ def update_system_user(user_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@admin_bp.route('/api/auth/delete-user/<user_id>', methods=['DELETE'])
+@admin_bp.route('/auth/delete-user/<user_id>', methods=['DELETE'])
 def delete_system_user(user_id):
     try:
         supabase.table("oic_profile").delete().eq("user_id", user_id).execute()
