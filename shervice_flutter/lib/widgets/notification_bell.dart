@@ -7,14 +7,14 @@ class NotificationBell extends StatefulWidget {
   final String role;
   final String userId;
   final String userName;
-  final String companyName; // ADD THIS: Pass the company name for OICs
+  final String companyName;
 
   const NotificationBell({
     super.key,
     required this.role,
     required this.userId,
     required this.userName,
-    this.companyName = 'Internal', // Default for staff/drivers
+    this.companyName = 'Internal',
   });
 
   @override
@@ -76,7 +76,6 @@ class _NotificationBellState extends State<NotificationBell> {
     _fetchNotifications();
   }
 
-  // OPTIMIZATION 1: A single endpoint handles all roles based on query parameters.
   Future<void> _fetchNotifications() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -115,14 +114,12 @@ class _NotificationBellState extends State<NotificationBell> {
     }
   }
 
-  // OPTIMIZATION 2: Mark as read in the database, not just locally.
   Future<void> _markAsRead(
     NotificationEntry entry, [
     StateSetter? dialogSetState,
   ]) async {
     if (entry.isRead) return;
 
-    // Update local state immediately for snappy UI
     setState(() => entry.isRead = true);
     dialogSetState?.call(() {});
 
@@ -136,7 +133,6 @@ class _NotificationBellState extends State<NotificationBell> {
     }
   }
 
-  // NEW FEATURE: Detail Modal
   void _showNotificationDetails(
     NotificationEntry notification,
     StateSetter dialogSetState,
@@ -193,15 +189,6 @@ class _NotificationBellState extends State<NotificationBell> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
-          if (notification.relatedTripId != null)
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                // TODO: Navigate to your specific Trip Details screen here
-                // Navigator.push(context, MaterialPageRoute(builder: (context) => TripDetailsScreen(tripId: notification.relatedTripId)));
-              },
-              child: const Text('View Trip'),
-            ),
         ],
       ),
     );
@@ -236,7 +223,7 @@ class _NotificationBellState extends State<NotificationBell> {
                         borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.18),
+                            color: Colors.black.withAlpha(46),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -393,7 +380,7 @@ class _NotificationBellState extends State<NotificationBell> {
           ),
           tileColor: notification.isRead
               ? Colors.transparent
-              : Colors.blue.shade50.withValues(alpha: 0.15),
+              : Colors.blue.shade50.withAlpha(38),
         );
       },
     );
@@ -409,7 +396,7 @@ class _NotificationBellState extends State<NotificationBell> {
         clipBehavior: Clip.none,
         children: [
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.grey),
+            icon: const Icon(Icons.notifications_none, color: Colors.grey, size: 32), // 👈 enlarged
             onPressed: _showNotificationPanel,
           ),
           if (unreadCount > 0)

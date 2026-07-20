@@ -485,39 +485,6 @@ class _AdminSettingsState extends State<AdminSettings> {
             ),
           ),
           const SizedBox(height: 20),
-
-          // ─── PREFERENCES ───
-          const Text(
-            'Preferences',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF64748B),
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: SwitchListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              title: const Text(
-                'Notification Alerts',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              value: _notificationsEnabled,
-              activeColor: const Color(0xFF3B82F6),
-              onChanged: (val) => setState(() => _notificationsEnabled = val),
-            ),
-          ),
         ],
       ),
     );

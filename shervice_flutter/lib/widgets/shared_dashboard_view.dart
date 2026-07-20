@@ -337,7 +337,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                   children: [
                     Icon(Icons.handyman, color: Color(0xFF475569), size: 22),
                     SizedBox(width: 12),
-                    Text('Maintenance Logs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    Text('Maintenance', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                   ],
                 ),
                 if (_alerts.isNotEmpty)
@@ -472,7 +472,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               children: [
                 Icon(Icons.business_center, color: Color(0xFF475569), size: 22),
                 SizedBox(width: 12),
-                Text('Client Weekly Dispatches', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                Text('Weekly Dispatches', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
               ],
             ),
           ),

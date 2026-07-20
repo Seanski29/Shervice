@@ -312,7 +312,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
         onRefresh: _fetchSchedulesFromDatabase,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 20.0),
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -368,7 +368,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // ----- FILTERS (fully responsive) -----
               Container(
@@ -479,33 +479,35 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                 _buildTopSummaryStats(),
               const SizedBox(height: 16),
 
-              // ----- MAIN CONTENT -----
+              // ----- MAIN CONTENT (Desktop: Row, Mobile: Column) -----
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.all(40),
                   child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
                 )
-              else if (isMobile)
-                Column(
-                  children: [
-                    _buildCompactCalendarGrid(),
-                    const SizedBox(height: 16),
-                    _buildTripListView(),
-                  ],
-                )
               else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 1, child: _buildCompactCalendarGrid()),
-                    const SizedBox(width: 20),
-                    Expanded(flex: 2, child: _buildTripListView()),
-                  ],
-                ),
-
-              // ----- BOTTOM SUMMARY (optional) -----
-              if (!_isLoading && _filteredSchedules.isNotEmpty)
-                _buildSummaryFooter(),
+                isMobile
+                    ? Column(
+                        children: [
+                          _buildCompactCalendarGrid(),
+                          const SizedBox(height: 16),
+                          _buildTripListView(),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: _buildCompactCalendarGrid(),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            flex: 2,
+                            child: _buildTripListView(),
+                          ),
+                        ],
+                      ),
             ],
           ),
         ),
@@ -572,7 +574,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     );
   }
 
-  // ---- CALENDAR ----
+  // ---- CALENDAR (compact) ----
   Widget _buildCompactCalendarGrid() {
     final firstDay = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
     final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
@@ -749,7 +751,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     );
   }
 
-  // ---- TRIP LIST ----
+  // ---- TRIP LIST (expands within parent, no internal scroll) ----
   Widget _buildTripListView() {
     final displayedTrips = _getDisplayedTrips();
 
@@ -884,14 +886,14 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     return GestureDetector(
       onTap: () => _showTripDetails(trip),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // reduced from 16,12
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Left indicator - fixed height 36 to match driver/fleet
+            // Left indicator - fixed height 36
             Container(
               width: 4,
               height: 36,
@@ -931,16 +933,16 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                           status.toUpperCase(),
                           style: TextStyle(
                             color: statusColor,
-                            fontSize: 8, // reduced from 9
+                            fontSize: 8,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2), // reduced from 6
+                  const SizedBox(height: 2),
                   Wrap(
-                    spacing: 10, // reduced from 14
+                    spacing: 10,
                     runSpacing: 2,
                     children: [
                       _cardIconText(Icons.person_outline, driver),
@@ -971,72 +973,18 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: const Color(0xFF64748B)), // reduced from 13
+        Icon(icon, size: 12, color: const Color(0xFF64748B)),
         const SizedBox(width: 4),
         Text(
           text,
           style: const TextStyle(
             fontWeight: FontWeight.w500,
             color: Color(0xFF64748B),
-            fontSize: 11, // reduced from 12
+            fontSize: 11,
           ),
           overflow: TextOverflow.ellipsis,
         ),
       ],
-    );
-  }
-
-  // ---- BOTTOM SUMMARY (wrap) ----
-  Widget _buildSummaryFooter() {
-    final List<Map<String, dynamic>> stats = [
-      {'label': 'Total Trips', 'value': _totalTrips.toString(), 'color': const Color(0xFF3B82F6)},
-      {'label': 'Scheduled', 'value': _scheduledTrips.toString(), 'color': const Color(0xFF10B981)},
-      {'label': 'In Progress', 'value': _inProgressTrips.toString(), 'color': const Color(0xFFF59E0B)},
-    ];
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Wrap(
-        alignment: WrapAlignment.spaceAround,
-        spacing: 8,
-        runSpacing: 8,
-        children: stats.map((stat) {
-          return Column(
-            children: [
-              Text(
-                stat['value'],
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: stat['color'],
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                stat['label'],
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          );
-        }).toList(),
-      ),
     );
   }
 }
