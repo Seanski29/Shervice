@@ -137,7 +137,7 @@ def get_dashboard_metrics():
         ongoing_trips = ongoing_res.count if ongoing_res else 0
 
         # 4. Unassigned Trips (Strict PostgREST syntax for OR conditions)
-        unassigned_res = supabase.table('trip_schedule').select('*', count='exact').or_('trip_status', 'Pending Staff Assignment').execute()
+        unassigned_res = supabase.table('driver_profile').select('*', count='exact').eq('employment_status', 'Active').execute()
         unassigned_trips = unassigned_res.count if unassigned_res else 0
 
         # 5. Maintenance Alerts
