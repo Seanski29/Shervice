@@ -168,7 +168,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     return Container(
       height: 70,
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F2F2), // 5% off-white (was medium gray)
+        color: Colors.white, // 5% off-white (was medium gray)
         border: Border(bottom: BorderSide(color: Colors.white)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
