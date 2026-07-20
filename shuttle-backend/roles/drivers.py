@@ -4,6 +4,25 @@ from flask import Blueprint, jsonify, request
 drivers_bp = Blueprint('drivers', __name__)
 supabase = None
 
+@drivers_bp.route('/api/driver/all', methods=['GET'])
+def get_all_drivers():
+    try:
+        res = supabase.table('driver_profile')\
+            .select('user_id, full_name, license_number, license_expiry, status')\
+            .execute()
+
+        return jsonify({
+            "connection_status": "SUCCESS",
+            "sample_data_payload": res.data
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Driver List Fetch Exception: {e}")
+        return jsonify({
+            "connection_status": "FAILED",
+            "error": str(e)
+        }), 500
+
 # Update your route decorators below to use the new variable name:
 @drivers_bp.route('/api/driver/active-trip/<driver_name>', methods=['GET'])
 def get_driver_active_trip(driver_name):

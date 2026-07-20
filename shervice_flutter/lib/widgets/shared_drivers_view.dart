@@ -55,7 +55,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
-    final String url = '$backendUrl/test-db';
+    final String url = '$backendUrl/api/driver/all';
     debugPrint("🔍 Fetching drivers from: $url");
 
     try {
