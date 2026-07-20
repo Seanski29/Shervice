@@ -12,6 +12,8 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
+import '../../widgets/legal_policies_button.dart';
+
 
 class StaffLayoutDesktop extends StatefulWidget {
   final String staffId;
@@ -251,7 +253,7 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
       height: 70,
       decoration: BoxDecoration(
         color: Colors.white, // remained white (not off‑white)
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(bottom: BorderSide(color: Colors.white)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -277,8 +279,12 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
             userId: widget.staffId,
             userName: widget.staffName,
             companyName: widget.companyName,
+            iconSize: 28,
           ),
           const SizedBox(width: 16),
+                  const LegalPoliciesButton(
+          iconColor: Colors.grey, // matches notification bell color
+        ),
         ],
       ),
     );

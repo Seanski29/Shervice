@@ -12,6 +12,7 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
+import '../../widgets/legal_policies_button.dart';
 
 class StaffLayoutMobile extends StatefulWidget {
   final String staffId;
@@ -135,12 +136,16 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
               userId: widget.staffId,
               userName: widget.staffName,
               companyName: widget.companyName,
+              iconSize: 28,
             ),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
               onPressed: () => _confirmLogout(),
             ),
             const SizedBox(width: 4),
+                    const LegalPoliciesButton(
+          iconColor: Colors.grey, // matches notification bell color
+        ),
           ],
         ),
 

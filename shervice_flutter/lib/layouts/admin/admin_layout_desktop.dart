@@ -11,6 +11,7 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
+import '../../widgets/legal_policies_button.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
   final String adminId;
@@ -188,8 +189,12 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
             userId: widget.adminId,
             userName: 'Admin',
             companyName: '',
+            iconSize: 28,
           ),
           const SizedBox(width: 16),
+          const LegalPoliciesButton(
+          iconColor: Colors.grey, // matches notification bell color
+        ),
         ],
       ),
     );

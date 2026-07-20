@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../screens/driver/driver_dashboard.dart';
 import '../../screens/driver/driver_schedules.dart';
-import '../../screens/driver/driver_ratings.dart';
 import '../../screens/driver/driver_profile.dart';
 import '../../login/login.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
+import '../../widgets/legal_policies_button.dart';
 
 class DriverLayoutMobile extends StatefulWidget {
   final String driverId;
@@ -28,19 +28,16 @@ class DriverLayoutMobile extends StatefulWidget {
 class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
   int _selectedIndex = 0;
 
-  // The 4 Screens for the Driver
   List<Widget> get _screens => [
-    DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
-    DriverSchedules(driverId: widget.driverId),
-    DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
-  ];
+        DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
+        DriverSchedules(driverId: widget.driverId),
+        DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
+      ];
 
   final List<String> _titles = ['Dashboard', 'Schedule', 'Profile'];
-
   final List<IconData> _icons = [
     Icons.dashboard_outlined,
     Icons.calendar_month_outlined,
-    Icons.settings_outlined,
     Icons.person_outline,
   ];
 
@@ -55,7 +52,8 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
         appBar: AppBar(
           backgroundColor: const Color(0xFF1E293B),
           elevation: 0,
-          centerTitle: true,
+          centerTitle: true, // 👈 center the title
+          leading: const LegalPoliciesButton(iconColor: Colors.white70), // 👈 far left
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -69,26 +67,27 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
                 clipBehavior: Clip.antiAlias,
                 child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Image.asset(
                 'assets/shervice - white.jpg',
-                height: 25,
+                height: 22,
                 fit: BoxFit.contain,
               ),
             ],
           ),
           actions: [
+            // 👈 right side: bell + logout
             NotificationBell(
               role: 'Driver',
               userId: widget.driverId,
               userName: widget.driverName,
               companyName: widget.companyName,
+              iconSize: 28,
             ),
             IconButton(
-              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
+              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
               onPressed: () => _confirmLogout(context),
             ),
-            const SizedBox(width: 4),
           ],
         ),
         body: SafeArea(
@@ -129,22 +128,16 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
                     children: [
                       Icon(
                         _icons[index],
-                        color: isSelected
-                            ? Colors.blue.shade600
-                            : Colors.grey.shade400,
+                        color: isSelected ? Colors.blue.shade600 : Colors.grey.shade400,
                         size: 22,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         _titles[index],
                         style: TextStyle(
-                          color: isSelected
-                              ? Colors.blue.shade700
-                              : Colors.grey.shade500,
+                          color: isSelected ? Colors.blue.shade700 : Colors.grey.shade500,
                           fontSize: 10,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.w500,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                         ),
                       ),
                     ],

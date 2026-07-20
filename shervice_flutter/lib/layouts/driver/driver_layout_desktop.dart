@@ -7,6 +7,7 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
+import '../../widgets/legal_policies_button.dart';
 
 class DriverLayoutDesktop extends StatefulWidget {
   final String driverId;
@@ -177,8 +178,12 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                           userId: widget.driverId,
                           userName: widget.driverName,
                           companyName: widget.companyName,
+                          iconSize: 28,
                         ),
                         const SizedBox(width: 16),
+                                const LegalPoliciesButton(
+          iconColor: Colors.grey, // matches notification bell color
+        ),
                       ],
                     ),
                   ),

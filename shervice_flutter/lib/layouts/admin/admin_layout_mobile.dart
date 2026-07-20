@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-
-// Import your screens
 import '../../screens/admin/admin_dashboard.dart';
 import '../../screens/admin/admin_schedules.dart';
 import '../../screens/admin/admin_drivers.dart';
@@ -8,16 +6,15 @@ import '../../screens/admin/admin_vehicles.dart';
 import '../../screens/admin/admin_users.dart';
 import '../../screens/admin/admin_settings.dart';
 import '../../screens/admin/admin_feedbacks.dart';
-
-// IMPORTANT: Import the Login Screen
 import '../../login/login.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
+import '../../widgets/legal_policies_button.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
 
 class AdminMobileLayout extends StatefulWidget {
-  final String adminId; // ✅ Added adminId parameter
+  final String adminId;
 
   const AdminMobileLayout({super.key, required this.adminId});
 
@@ -28,19 +25,16 @@ class AdminMobileLayout extends StatefulWidget {
 class _AdminMobileLayoutState extends State<AdminMobileLayout> {
   int _selectedIndex = 0;
 
-  // ✅ Changed to 'late final', added the adminId, and ADDED AdminFeedbacks to fix length mismatch!
   late final List<Widget> _screens = [
     const AdminDashboard(),
     const AdminSchedules(),
     const AdminDriver(),
     const AdminFleet(),
     const AdminUsers(),
-    AdminSettings(
-      adminId: widget.adminId,
-    ), // ✅ Passed the ID to settings // ✅ Added to match the 7 icons
+    AdminSettings(adminId: widget.adminId),
+    const AdminFeedbacks(),
   ];
 
-  // Shortened Titles for Bottom Nav to prevent text from overflowing
   final List<String> _shortTitles = [
     'Overview',
     'Schedules',
@@ -48,9 +42,9 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     'Fleet',
     'Users',
     'Settings',
+    'Feedbacks',
   ];
 
-  // Icons matching each screen
   final List<IconData> _icons = [
     Icons.grid_view,
     Icons.calendar_month_outlined,
@@ -72,51 +66,26 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
         appBar: AppBar(
           backgroundColor: const Color(0xFF1E293B),
           elevation: 0,
-          automaticallyImplyLeading: false, // Hide back button
           centerTitle: true,
+          leading: const LegalPoliciesButton(iconColor: Colors.white70),
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Perfectly circular logo container with white background
               Container(
-                width: 32,
-                height: 32,
+                width: 30,
+                height: 30,
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: Image.asset(
-                  'assets/logo.jpg',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Icon(
-                        Icons.directions_car,
-                        color: Colors.blue,
-                        size: 18,
-                      ),
-                    );
-                  },
-                ),
+                child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
               ),
-              const SizedBox(width: 10),
-              // White text logo image
+              const SizedBox(width: 8),
               Image.asset(
                 'assets/shervice - white.jpg',
-                height: 25,
+                height: 22,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Text(
-                    'SHERVICE',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      letterSpacing: 1.0,
-                    ),
-                  );
-                },
               ),
             ],
           ),
@@ -126,10 +95,10 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
               userId: widget.adminId,
               userName: 'Admin',
               companyName: '',
+              iconSize: 28,
             ),
-            const SizedBox(width: 4),
             IconButton(
-              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
+              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
               onPressed: () => _handleLogout(context),
             ),
             const SizedBox(width: 4),
@@ -153,10 +122,10 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
         border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
-          ),
+          )
         ],
       ),
       child: SafeArea(
@@ -169,13 +138,8 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
               children: List.generate(_screens.length, (index) {
                 final isSelected = _selectedIndex == index;
                 return InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedIndex = index;
-                    });
-                  },
+                  onTap: () => setState(() => _selectedIndex = index),
                   child: Container(
-                    // Dividing by 5 displays exactly 5 items and peeks at the next, prompting scrolling
                     width: MediaQuery.of(context).size.width / 5,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(
@@ -183,22 +147,16 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
                       children: [
                         Icon(
                           _icons[index],
-                          color: isSelected
-                              ? Colors.blue.shade600
-                              : Colors.grey.shade400,
+                          color: isSelected ? Colors.blue.shade600 : Colors.grey.shade400,
                           size: 22,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           _shortTitles[index],
                           style: TextStyle(
-                            color: isSelected
-                                ? Colors.blue.shade700
-                                : Colors.grey.shade500,
+                            color: isSelected ? Colors.blue.shade700 : Colors.grey.shade500,
                             fontSize: 10,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.w500,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -219,34 +177,20 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        // 👈 It's named 'dialogContext' here
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text(
-            'Confirm Logout',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: const Text(
-            'Are you sure you want to log out of your account?',
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text('Are you sure you want to log out of your account?'),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext); // Close dialog
-              },
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
-                // 1. Clear session
                 await SessionManager.clearSession();
-
-                // 2. FIXED: Use dialogContext to pop the dialog safely
+                if (!mounted) return;
                 Navigator.pop(dialogContext);
-
-                // 3. Navigate back to login
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -254,17 +198,9 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red.shade600,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text(
-                'Logout',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         );
