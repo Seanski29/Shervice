@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/driver_profile_model.dart';
-import 'driver_evaluation_view.dart'; // Make sure the path matches where you saved it!
+import 'driver_evaluation_view.dart';
 
 class DriverFormDialog extends StatefulWidget {
   final DriverProfileModel? driver;
@@ -236,7 +236,7 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
               color: Colors.black.withOpacity(0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
-            )
+            ),
           ],
         ),
         child: Column(
@@ -332,31 +332,16 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
                         validator: (v) {
                           if (!isEdit && (v == null || v.length < 6))
                             return 'Password must be >= 6 chars';
-                          if (isEdit && v != null && v.isNotEmpty && v.length < 6)
+                          if (isEdit &&
+                              v != null &&
+                              v.isNotEmpty &&
+                              v.length < 6)
                             return 'Password must be >= 6 chars';
                           return null;
                         },
                       ),
                       const SizedBox(height: 14),
                       if (isEdit) ...[
-                        DropdownButtonFormField<String>(
-                          value: _currentStatus,
-                          decoration: _fieldStyle(
-                            label: 'Employment Status',
-                            icon: Icons.info_outline,
-                          ),
-                          dropdownColor: Colors.white,
-                          onChanged: !_isWritingUnlocked
-                              ? null
-                              : (val) => setState(() => _currentStatus = val!),
-                          items: ['Active', 'Suspended']
-                              .map((s) => DropdownMenuItem(
-                                    value: s,
-                                    child: Text(s),
-                                  ))
-                              .toList(),
-                        ),
-                        const SizedBox(height: 14),
                         TextFormField(
                           initialValue: widget.driver!.dateHired,
                           readOnly: true,
@@ -476,7 +461,8 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
                             vertical: 10,
                           ),
                         ),
-                        onPressed: () => setState(() => _isWritingUnlocked = true),
+                        onPressed: () =>
+                            setState(() => _isWritingUnlocked = true),
                         child: const Text(
                           'Edit Details',
                           style: TextStyle(
