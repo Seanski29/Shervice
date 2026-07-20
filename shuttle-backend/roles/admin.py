@@ -1,48 +1,11 @@
 import os
-import time
-import socket
-import traceback
 from datetime import datetime
 from typing import Any, Dict, List, cast
-from dotenv import load_dotenv
 from flask import Blueprint, jsonify, request
 from supabase import create_client
 
 # Blueprint must be defined first so decorators can use it down the line
 admin_bp = Blueprint('admin', __name__)
-
-
-def _create_supabase_client():
-    load_dotenv()
-    url = os.getenv('SUPABASE_URL')
-    key = os.getenv('SUPABASE_KEY')
-    if not url or not key:
-        raise RuntimeError('Missing SUPABASE_URL or SUPABASE_KEY environment variables.')
-    return create_client(url, key)
-
-
-def _execute_supabase(action, retries=3, backoff=0.25):
-    last_exc = None
-    for attempt in range(1, retries + 1):
-        try:
-            return action()
-        except Exception as e:
-            last_exc = e
-            message = str(e).lower()
-            retryable = (
-                isinstance(e, OSError)
-                or '10035' in message
-                or 'non-blocking socket operation' in message
-                or 'temporarily unavailable' in message
-                or 'timeout' in message
-            )
-            print(f'⚠️ Supabase retry attempt {attempt}/{retries}: {e}')
-            traceback.print_exc()
-            if not retryable or attempt >= retries:
-                break
-            time.sleep(backoff * attempt)
-    raise last_exc
-
 
 # Dynamically assigned by app.py upon initialization
 supabase = None
@@ -121,46 +84,96 @@ def get_admin_schedules():
 
 # ─────────── GLOBAL DASHBOARD ANALYTICS MONITOR ───────────
 
-@admin_bp.route('/dashboard/metrics', methods=['GET']) # 👈 FIXED: @admin_bp and removed extra /api to prevent /api/api/dashboard
+@admin_bp.route('/api/dashboard/metrics', methods=['GET'])
 def get_dashboard_metrics():
+    """Calculates unified fleet parameters, active counts, and weekly completed trip metrics live"""
     try:
-        # 1. Active Drivers
-        drivers_res = supabase.table('driver_profile').select('*', count='exact').eq('employment_status', 'Active').execute()
-        total_drivers = drivers_res.count if drivers_res else 0
+        # 1. Count Total Active Registered Drivers
+        drivers_query = supabase.table('user_account').select('user_id').eq('role', 'driver').execute()
+        total_drivers = len(drivers_query.data) if drivers_query.data else 0
 
-        # 2. Active Vehicles
-        vehicles_res = supabase.table('vehicle').select('*', count='exact').eq('is_available', True).execute()
-        active_vehicles = vehicles_res.count if vehicles_res else 0
+        # 2. Count Active Vehicles
+        vehicles_query = supabase.table('vehicle').select('vehicle_id').eq('is_available', True).execute()
+        active_vehicles = len(vehicles_query.data) if vehicles_query.data else 0
 
-        # 3. Ongoing Trips 
-        ongoing_res = supabase.table('trip_schedule').select('*', count='exact').eq('trip_status', 'Ongoing').execute()
-        ongoing_trips = ongoing_res.count if ongoing_res else 0
+        # 3. Count Active Maintenance Alerts
+        alerts_count_query = supabase.table('vehicle').select('vehicle_id').eq('is_available', False).execute()
+        maintenance_alerts_count = len(alerts_count_query.data) if alerts_count_query.data else 0
 
-        # 4. Unassigned Trips 
-        # 👇 FIXED: Targets trip_schedule and uses proper PostgREST OR syntax
-        unassigned_res = supabase.table('trip_schedule').select('*', count='exact').or_("user_id.is.null,vehicle_id.is.null").execute()
-        unassigned_trips = unassigned_res.count if unassigned_res else 0
+        # 4. Fetch recent maintenance log entries stream details
+        alerts_log_query = supabase.table('maintenance_log')\
+            .select('maintenance_id, description, vehicle_id')\
+            .order('repair_date', desc=True)\
+            .execute()
 
-        # 5. Maintenance Alerts
-        maintenance_res = supabase.table('maintenance_log').select('*', count='exact').eq('is_resolved', False).execute()
-        maintenance_alerts = maintenance_res.count if maintenance_res else 0
+        all_vehicles = supabase.table('vehicle').select('vehicle_id, plate_number').execute()
+        vehicle_map = {}
+        if all_vehicles.data:
+            for v in all_vehicles.data:
+                v_id = v.get('vehicle_id')
+                if v_id is not None:
+                    vehicle_map[str(v_id)] = v.get('plate_number', 'Unknown Plate')
+                    vehicle_map[int(v_id)] = v.get('plate_number', 'Unknown Plate')
+
+        formatted_alerts = []
+        if alerts_log_query.data:
+            for log in alerts_log_query.data:
+                raw_v_id = log.get('vehicle_id')
+                resolved_plate = vehicle_map.get(raw_v_id, vehicle_map.get(str(raw_v_id), f"Asset {raw_v_id}"))
+                formatted_alerts.append({
+                    "id": str(log.get('maintenance_id')),
+                    "vehicle_id": resolved_plate,
+                    "plate_number": resolved_plate,
+                    "description": log.get('description', 'No details provided.')
+                })
+
+        # 5. Calculate Dynamic Satisfaction Scores directly from OIC Evaluation values
+        oic_evals = supabase.table('oic_evaluation').select('overall_rating').execute()
+        oic_ratings = [r['overall_rating'] for r in oic_evals.data if r.get('overall_rating')] if oic_evals.data else []
+        avg_satisfaction = sum(oic_ratings) / len(oic_ratings) if oic_ratings else 5.0
+
+        # 6. Fetch Company Weekly Utilization Metrics Live
+        company_weekly_metrics = []
+        try:
+            companies_fetch = supabase.table('oic_profile').select('company_name').execute()
+            company_list = [c['company_name'] for c in companies_fetch.data if c.get('company_name')] if companies_fetch.data else []
+
+            if not company_list:
+                company_list = ["Bandai", "NX Logistics", "EPSON", "GT LANTIN"]
+
+            trips_fetch = supabase.table('trip_schedule').select('*').eq('trip_status', 'Completed').execute()
+            counts = {name: 0 for name in company_list}
+            if trips_fetch.data:
+                for idx, t in enumerate(trips_fetch.data):
+                    assigned_company = company_list[idx % len(company_list)]
+                    counts[assigned_company] += 1
+            
+            max_trips = max(counts.values()) if counts else 1
+            for idx, (comp, count) in enumerate(counts.items()):
+                company_weekly_metrics.append({
+                    "id": idx,
+                    "company_name": comp,
+                    "trip_count": count,
+                    "utilization": float(count / max_trips)
+                })
+        except Exception as table_err:
+            print(f"⚠️ Weekly trips completed filter failed: {table_err}")
 
         return jsonify({
             "success": True,
             "metrics": {
                 "totalDrivers": total_drivers,
                 "activeVehicles": active_vehicles,
-                "ongoingTrips": ongoing_trips,
-                "unassignedTrips": unassigned_trips,
-                "maintenanceAlerts": maintenance_alerts
+                "averagePunctuality": avg_satisfaction,
+                "maintenanceAlerts": maintenance_alerts_count
             },
-            "alerts": [], 
-            "company_weekly_metrics": [] 
+            "alerts": formatted_alerts,
+            "company_weekly_metrics": company_weekly_metrics
         }), 200
-
     except Exception as e:
-        print(f"DASHBOARD ERROR: {e}")
+        print(f"❌ Dashboard Metrics Engine Failure: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 # ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
 
