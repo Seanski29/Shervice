@@ -5,18 +5,16 @@ import 'package:flutter/foundation.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:io';
 import '../../constant.dart';
-
-// 1. ADDED IMPORT FOR THE BADGE
 import '../../widgets/driver_rating_badge.dart';
 
 class DriverDashboard extends StatefulWidget {
   final String driverName;
-  final String driverId; // 2. DRIVER ID ADDED HERE
+  final String driverId;
 
   const DriverDashboard({
     super.key,
     required this.driverName,
-    required this.driverId, // 2. DRIVER ID REQUIRED HERE
+    required this.driverId,
   });
 
   @override
@@ -97,143 +95,161 @@ class _DriverDashboardState extends State<DriverDashboard> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Passenger Evaluation',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Ask passengers to scan this code as they exit to evaluate the trip.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 13),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Passenger Evaluation',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
               ),
-              child: SizedBox(
-                width: 200,
-                height: 200,
+              const SizedBox(height: 8),
+              const Text(
+                'Ask passengers to scan this code as they exit.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
                 child: QrImageView(
                   data: evalUrl,
                   version: QrVersions.auto,
                   backgroundColor: Colors.white,
+                  size: 200,
                 ),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final double horizontalPadding = isMobile ? 12.0 : 24.0;
+
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Color(0xFFF8FAFC),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
+      );
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: RefreshIndicator(
         onRefresh: _fetchAssignedTripData,
-        child: ListView(
-          padding: const EdgeInsets.all(20.0),
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Good Morning,',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 14,
-                      ),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── HEADER (consistent with admin) ──
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Good Morning, ${widget.driverName}',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Your current dispatch and vehicle status.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      widget.driverName,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
-                      ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Rating badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
                     ),
-                  ],
-                ),
-                // 3. HARDCODED RATING REPLACED HERE
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.amber.shade200),
+                    ),
+                    child: DriverRatingBadge(
+                      key: UniqueKey(),
+                      driverUuid: widget.driverId,
+                      backendUrl: backendUrl,
+                    ),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.amber.shade200),
-                  ),
-                  child: DriverRatingBadge(
-                    key: UniqueKey(),
-                    driverUuid: widget.driverId,
-                    backendUrl: backendUrl,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            const Text(
-              'CURRENT DISPATCH',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-                letterSpacing: 1.2,
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 20),
 
-            if (_hasAssignedTripData())
-              _buildActiveTripCard()
-            else
-              _buildEmptyTripPlaceholder(),
-
-            const SizedBox(height: 24),
-
-            const Text(
-              'ASSIGNED VEHICLE',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-                letterSpacing: 1.2,
+              // ── CURRENT DISPATCH ──
+              const Text(
+                'CURRENT DISPATCH',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 1.0,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              if (_hasAssignedTripData())
+                _buildActiveTripCard()
+              else
+                _buildEmptyTripPlaceholder(),
+              const SizedBox(height: 20),
 
-            if (_hasAssignedTripData())
-              _buildVehicleDetailsCard()
-            else
-              _buildEmptyVehiclePlaceholder(),
-          ],
+              // ── ASSIGNED VEHICLE ──
+              const Text(
+                'ASSIGNED VEHICLE',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (_hasAssignedTripData())
+                _buildVehicleDetailsCard()
+              else
+                _buildEmptyVehiclePlaceholder(),
+            ],
+          ),
         ),
       ),
     );
@@ -245,8 +261,32 @@ class _DriverDashboardState extends State<DriverDashboard> {
     final departureTime = _activeTrip!['departure_time']?.toString();
     final estimatedArrival = _activeTrip!['estimated_arrival_time']?.toString();
 
+    // ── Route details data ──
+    final details = [
+      {
+        'icon': Icons.people_alt_outlined,
+        'label': 'Passengers',
+        'value': '${_activeTrip!['passenger_count'] ?? 0}',
+      },
+      {
+        'icon': Icons.straighten,
+        'label': 'Distance',
+        'value': '${_activeTrip!['route_distance'] ?? 0} km',
+      },
+      {
+        'icon': Icons.access_time,
+        'label': 'Schedule',
+        'value': _formatDepartureEta(departureTime, estimatedArrival),
+      },
+      {
+        'icon': Icons.pin_drop_outlined,
+        'label': 'Status',
+        'value': isOngoing ? 'In Transit' : 'Pending',
+      },
+    ];
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.blue.shade700, Colors.blue.shade900],
@@ -256,7 +296,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withValues(alpha: 0.3),
+            color: Colors.blue.withAlpha(76),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -269,10 +309,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.white24,
                   borderRadius: BorderRadius.circular(8),
@@ -282,19 +319,14 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isOngoing
-                      ? Colors.green.shade400
-                      : Colors.orange.shade400,
+                  color: isOngoing ? Colors.green.shade400 : Colors.orange.shade400,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -302,74 +334,69 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 10,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           _buildTimelineRow(
             Icons.my_location,
-            'ROUTE PLAN',
+            'ROUTE',
             _activeTrip!['route_name']?.toString() ?? 'Pending Assignment',
             _formatDepartureEta(departureTime, estimatedArrival),
             Colors.blue.shade200,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          // ── 2x2 GRID for details ──
           Container(
-            padding: const EdgeInsets.only(top: 16),
+            padding: const EdgeInsets.only(top: 12),
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Colors.white24, width: 1)),
             ),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 12,
-              alignment: WrapAlignment.spaceBetween,
+            child: Column(
               children: [
-                _buildRouteDetail(
-                  Icons.people_alt_outlined,
-                  'Passengers',
-                  '${_activeTrip!['passenger_count'] ?? 0} Logged',
+                Row(
+                  children: [
+                    Expanded(child: _buildRouteDetail(details[0])),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildRouteDetail(details[1])),
+                  ],
                 ),
-                _buildRouteDetail(
-                  Icons.straighten,
-                  'Distance',
-                  '${_activeTrip!['route_distance'] ?? 0} km',
-                ),
-                _buildRouteDetail(
-                  Icons.access_time,
-                  'Schedule',
-                  _formatDepartureEta(departureTime, estimatedArrival),
-                ),
-                _buildRouteDetail(
-                  Icons.pin_drop_outlined,
-                  'Status',
-                  isOngoing ? 'In Transit' : 'Pending',
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _buildRouteDetail(details[2])),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildRouteDetail(details[3])),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () =>
                   _showPassengerQR(_activeTrip!['trip_id'].toString()),
-              icon: const Icon(Icons.qr_code, color: Colors.blue),
+              icon: const Icon(Icons.qr_code, color: Colors.blue, size: 18),
               label: const Text(
                 'Show Passenger QR',
                 style: TextStyle(
                   color: Colors.blue,
                   fontWeight: FontWeight.bold,
+                  fontSize: 13,
                 ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                elevation: 0,
               ),
             ),
           ),
@@ -378,34 +405,69 @@ class _DriverDashboardState extends State<DriverDashboard> {
     );
   }
 
+  // ── New method to build a single detail item (used in 2x2 grid) ──
+  Widget _buildRouteDetail(Map<String, dynamic> detail) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(detail['icon'], color: Colors.white70, size: 13),
+            const SizedBox(width: 4),
+            Text(
+              detail['label'],
+              style: const TextStyle(color: Colors.white70, fontSize: 10),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          detail['value'],
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildEmptyTripPlaceholder() {
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(5),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Center(
         child: Column(
           children: [
             Icon(
               Icons.directions_bus_outlined,
-              size: 48,
+              size: 40,
               color: Colors.grey.shade400,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
               'No route or schedule assigned',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.grey.shade700,
-                fontSize: 16,
+                fontSize: 15,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
-              'Pull down to refresh when your assigned route becomes available from dispatch.',
+              'Pull down to refresh when dispatch assigns a trip.',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
               textAlign: TextAlign.center,
             ),
@@ -421,27 +483,34 @@ class _DriverDashboardState extends State<DriverDashboard> {
         _activeTrip!['model']?.toString() ?? 'Contact Staff Dispatcher';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(5),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.directions_car,
-              size: 32,
+              size: 28,
               color: Color(0xFF0F172A),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,22 +518,27 @@ class _DriverDashboardState extends State<DriverDashboard> {
                 Text(
                   plate,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF0F172A),
                   ),
                 ),
                 Text(
                   model,
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
+            icon: const Icon(Icons.qr_code_scanner, color: Color(0xFF3B82F6)),
             tooltip: 'Scan Vehicle QR',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
       ),
@@ -473,27 +547,33 @@ class _DriverDashboardState extends State<DriverDashboard> {
 
   Widget _buildEmptyVehiclePlaceholder() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(5),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.key_off, color: Colors.grey.shade400, size: 28),
-            const SizedBox(width: 12),
-            Text(
-              'No vehicle keys assigned to your profile.',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
-              ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.key_off, color: Colors.grey.shade400, size: 24),
+          const SizedBox(width: 8),
+          Text(
+            'No vehicle assigned to your profile.',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -508,8 +588,8 @@ class _DriverDashboardState extends State<DriverDashboard> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: iconColor, size: 24),
-        const SizedBox(width: 12),
+        Icon(icon, color: iconColor, size: 20),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -518,17 +598,17 @@ class _DriverDashboardState extends State<DriverDashboard> {
                 label,
                 style: const TextStyle(
                   color: Colors.white70,
-                  fontSize: 10,
-                  letterSpacing: 1,
+                  fontSize: 9,
+                  letterSpacing: 0.8,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
               Text(
                 location,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -540,7 +620,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
           time,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -560,32 +640,5 @@ class _DriverDashboardState extends State<DriverDashboard> {
         : '--:--';
 
     return '$formattedDeparture-$formattedEta';
-  }
-
-  Widget _buildRouteDetail(IconData icon, String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, color: Colors.white70, size: 14),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white70, fontSize: 11),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
   }
 }

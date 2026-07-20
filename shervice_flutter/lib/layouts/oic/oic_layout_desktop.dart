@@ -31,6 +31,10 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
   bool _isSidebarExpanded = true;
   bool _showWelcome = true;
 
+  void _toggleSidebar() {
+    setState(() => _isSidebarExpanded = !_isSidebarExpanded);
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
@@ -130,6 +134,12 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
                       ],
                     ),
                   ),
+                  // ─── TOGGLE BUTTON (inside sidebar when expanded) ───
+                  IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white70),
+                    onPressed: _toggleSidebar,
+                    tooltip: 'Collapse',
+                  ),
                 ],
               ],
             ),
@@ -195,37 +205,41 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
   }
 
   Widget _buildHeader() => Container(
-    height: 70,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.menu, color: Colors.grey),
-          onPressed: () =>
-              setState(() => _isSidebarExpanded = !_isSidebarExpanded),
+        height: 70,
+        decoration: BoxDecoration(
+          color: Colors.white, // stayed white (not off‑white)
+          border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
         ),
-        const Spacer(),
-        if (_showWelcome) ...[
-          SlideInWelcomeWidget(
-            role: widget.oicName,
-            onHidden: () => setState(() => _showWelcome = false),
-          ),
-          const SizedBox(width: 10),
-        ],
-        NotificationBell(
-          role: 'OIC',
-          userId: widget.oicId,
-          userName: widget.oicName,
-          companyName: widget.companyName,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            // ─── TOGGLE BUTTON (only when sidebar is collapsed) ───
+            if (!_isSidebarExpanded)
+              IconButton(
+                icon: const Icon(Icons.menu, color: Colors.black87),
+                onPressed: _toggleSidebar,
+                tooltip: 'Expand',
+              ),
+            if (!_isSidebarExpanded) const SizedBox(width: 4),
+            const Spacer(),
+            if (_showWelcome) ...[
+              SlideInWelcomeWidget(
+                role: widget.oicName,
+                onHidden: () => setState(() => _showWelcome = false),
+              ),
+              const SizedBox(width: 10),
+            ],
+            NotificationBell(
+              role: 'OIC',
+              userId: widget.oicId,
+              userName: widget.oicName,
+              companyName: widget.companyName,
+            ),
+            const SizedBox(width: 16),
+          ],
         ),
-        const SizedBox(width: 16),
-      ],
-    ),
-  );
+      );
+
   void _confirmLogout(BuildContext context) {
     showDialog(
       context: context,
@@ -261,6 +275,7 @@ class SlideInWelcomeWidget extends StatefulWidget {
   final String role;
   final VoidCallback? onHidden;
   const SlideInWelcomeWidget({super.key, required this.role, this.onHidden});
+
   @override
   State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
 }
@@ -305,27 +320,27 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
 
   @override
   Widget build(BuildContext context) => SlideTransition(
-    position: _offsetAnimation,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        border: Border.all(color: Colors.green.shade200),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            'Welcome, ${widget.role}!',
-            style: TextStyle(
-              color: Colors.green.shade800,
-              fontWeight: FontWeight.bold,
-            ),
+        position: _offsetAnimation,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            border: Border.all(color: Colors.green.shade200),
+            borderRadius: BorderRadius.circular(30),
           ),
-        ],
-      ),
-    ),
-  );
+          child: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Welcome, ${widget.role}!',
+                style: TextStyle(
+                  color: Colors.green.shade800,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }

@@ -34,24 +34,27 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
   bool _isSidebarExpanded = true;
   bool _showWelcome = true;
 
-  List<Widget> get _screens => [
-    StaffDashboard(
-      staffName: widget.staffName,
-      companyName: widget.companyName,
-    ),
-    StaffVehicle(staffId: widget.staffId),
-    StaffSchedules(staffId: widget.staffId),
-    StaffTrips(staffId: widget.staffId),
-    const StaffDrivers(),
-    const StaffAttendance(),
-    const StaffAnalytics(),
+  void _toggleSidebar() {
+    setState(() => _isSidebarExpanded = !_isSidebarExpanded);
+  }
 
-    StaffSettings(
-      staffId: widget.staffId,
-      staffName: widget.staffName,
-      companyName: widget.companyName,
-    ),
-  ];
+  List<Widget> get _screens => [
+        StaffDashboard(
+          staffName: widget.staffName,
+          companyName: widget.companyName,
+        ),
+        StaffVehicle(staffId: widget.staffId),
+        StaffSchedules(staffId: widget.staffId),
+        StaffTrips(staffId: widget.staffId),
+        const StaffDrivers(),
+        const StaffAttendance(),
+        const StaffAnalytics(),
+        StaffSettings(
+          staffId: widget.staffId,
+          staffName: widget.staffName,
+          companyName: widget.companyName,
+        ),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +89,7 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
       child: Column(
         children: [
           const SizedBox(height: 20),
-          // Consistent Branding Header
+          // Consistent Branding Header (with toggle when expanded)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
@@ -147,6 +150,12 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
                         ),
                       ],
                     ),
+                  ),
+                  // ─── TOGGLE BUTTON (inside sidebar when expanded) ───
+                  IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white70),
+                    onPressed: _toggleSidebar,
+                    tooltip: 'Collapse',
                   ),
                 ],
               ],
@@ -241,17 +250,20 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
     return Container(
       height: 70,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white, // remained white (not off‑white)
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.grey),
-            onPressed: () =>
-                setState(() => _isSidebarExpanded = !_isSidebarExpanded),
-          ),
+          // ─── TOGGLE BUTTON (only when sidebar is collapsed) ───
+          if (!_isSidebarExpanded)
+            IconButton(
+              icon: const Icon(Icons.menu, color: Colors.black87),
+              onPressed: _toggleSidebar,
+              tooltip: 'Expand',
+            ),
+          if (!_isSidebarExpanded) const SizedBox(width: 4),
           const Spacer(),
           if (_showWelcome) ...[
             SlideInWelcomeWidget(
@@ -319,7 +331,7 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
 }
 
 // ============================================================================
-// ANIMATED WELCOME WIDGET
+// ANIMATED WELCOME WIDGET (unchanged)
 // ============================================================================
 class SlideInWelcomeWidget extends StatefulWidget {
   final String role;
