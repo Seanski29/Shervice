@@ -149,7 +149,7 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _buildNavItem(0, 'Manage', Icons.dashboard),
+                _buildNavItem(0, 'Dashboard', Icons.house),
                 _buildNavItem(1, 'Schedules', Icons.calendar_month_outlined),
                 _buildNavItem(2, 'Trip Logs', Icons.list_alt),
                 _buildNavItem(3, 'Settings', Icons.settings),
