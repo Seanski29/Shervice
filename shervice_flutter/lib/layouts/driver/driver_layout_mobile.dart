@@ -40,7 +40,7 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
   final List<IconData> _icons = [
     Icons.dashboard_outlined,
     Icons.calendar_month_outlined,
-    Icons.star_outline,
+    Icons.settings_outlined,
     Icons.person_outline,
   ];
 

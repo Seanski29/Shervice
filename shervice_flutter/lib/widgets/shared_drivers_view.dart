@@ -11,8 +11,7 @@ import 'driver_rating_badge.dart';
 class SharedDriversView extends StatefulWidget {
   final bool canManage;
   final Widget customHeader;
-  final Function(BuildContext context, DriverProfileModel? driver)?
-  onDriverTapped;
+  final Function(BuildContext context, DriverProfileModel? driver)? onDriverTapped;
 
   const SharedDriversView({
     super.key,
@@ -56,13 +55,12 @@ class SharedDriversViewState extends State<SharedDriversView> {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
-    // Construct the path dynamically using the constant
     final String url = '$backendUrl/test-db';
     debugPrint("🔍 Fetching drivers from: $url");
 
     try {
       final response = await http
-          .get(Uri.parse(url)) // Use the URL built with backendUrl
+          .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -124,234 +122,345 @@ class SharedDriversViewState extends State<SharedDriversView> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final double horizontalPadding = isMobile ? 12.0 : 24.0;
+
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           widget.customHeader,
-          const SizedBox(height: 24),
-          Row(
+          const SizedBox(height: 20),
+
+          // Search & Sort
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.start,
             children: [
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  onChanged: (value) {
-                    _searchQuery = value;
-                    _applyFiltersAndSort();
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search by name or letter...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: isMobile ? double.infinity : 350,
+                  minWidth: isMobile ? double.infinity : 200,
+                ),
+                child: SizedBox(
+                  height: 42,
+                  child: TextField(
+                    onChanged: (value) {
+                      _searchQuery = value;
+                      _applyFiltersAndSort();
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search by name or letter...',
+                      hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                      prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                      ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: isMobile ? double.infinity : 200,
+                  minWidth: isMobile ? double.infinity : 140,
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _currentSort,
-                    icon: const Icon(Icons.sort),
-                    items: _sortOptions
-                        .map(
-                          (s) => DropdownMenuItem<String>(
-                            value: s,
-                            child: Text(s),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        _currentSort = val;
-                        _applyFiltersAndSort();
-                      }
-                    },
+                child: SizedBox(
+                  height: 42,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: _currentSort,
+                        icon: const Icon(Icons.sort, size: 18, color: Color(0xFF64748B)),
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                        items: _sortOptions.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _currentSort = val;
+                              _applyFiltersAndSort();
+                            });
+                          }
+                        },
+                      ),
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+
+          // Driver List
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
                 : _filteredDrivers.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.people_outline,
-                          size: 64,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No active drivers found.',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _paginatedDrivers.length,
-                    itemBuilder: (context, index) {
-                      final driver = _paginatedDrivers[index];
-                      final Color statusColor = (driver.status == 'Active')
-                          ? Colors.green
-                          : Colors.orange;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: ListTile(
-                            splashColor: Colors.grey.withOpacity(0.1),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.people_outline,
+                              size: 64,
+                              color: Colors.grey.shade400,
                             ),
-                            title: Text(
-                              driver.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0F172A),
-                                fontSize: 16,
+                            const SizedBox(height: 16),
+                            Text(
+                              'No active drivers found.',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 4.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _paginatedDrivers.length,
+                        itemBuilder: (context, index) {
+                          final driver = _paginatedDrivers[index];
+                          final Color statusColor = (driver.status == 'Active')
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFF59E0B);
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8), // reduced from 12
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.02),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () {
+                                  if (widget.onDriverTapped != null) {
+                                    widget.onDriverTapped!(context, driver);
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, // reduced from 16
+                                    vertical: 8,   // reduced from 12
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
-                                      DriverRatingBadge(
-                                        key: UniqueKey(),
-                                        driverUuid: driver.userId,
-                                        backendUrl: backendUrl,
-                                      ),
-
-                                      const SizedBox(width: 8),
-
-                                      // 2. KEPT: The Active/Inactive status badge remains exactly the same
+                                      // Left indicator – smaller height
                                       Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2,
-                                        ),
+                                        width: 4,
+                                        height: 36, // reduced from 50
+                                        margin: const EdgeInsets.only(right: 12),
                                         decoration: BoxDecoration(
-                                          color: statusColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          color: statusColor,
+                                          borderRadius: BorderRadius.circular(4),
                                         ),
-                                        child: Text(
-                                          driver.status,
-                                          style: TextStyle(
-                                            color: statusColor,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    driver.name,
+                                                    style: const TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Color(0xFF0F172A),
+                                                      fontSize: 15, // reduced from 16
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 1,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: statusColor.withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                  child: Text(
+                                                    driver.status,
+                                                    style: TextStyle(
+                                                      color: statusColor,
+                                                      fontSize: 8, // reduced from 9
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 2), // reduced from 4
+                                            Wrap(
+                                              spacing: 10, // reduced from 14
+                                              runSpacing: 2,
+                                              children: [
+                                                DriverRatingBadge(
+                                                  key: UniqueKey(),
+                                                  driverUuid: driver.userId,
+                                                  backendUrl: backendUrl,
+                                                ),
+                                                _infoChip(
+                                                  Icons.badge_outlined,
+                                                  "License: ${driver.licenseNumber}",
+                                                ),
+                                                _infoChip(
+                                                  Icons.calendar_today_outlined,
+                                                  "Expiry: ${driver.licenseExpiry}",
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 14,
+                                        color: Color(0xFF94A3B8),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    "License: ${driver.licenseNumber} • Expiry: ${driver.licenseExpiry}",
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
-                            trailing: const Icon(
-                              Icons.arrow_forward_ios,
-                              size: 14,
-                              color: Colors.grey,
-                            ),
-                            onTap: () {
-                              if (widget.onDriverTapped != null) {
-                                widget.onDriverTapped!(context, driver);
-                              }
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                          );
+                        },
+                      ),
           ),
-          // FIX: Responsive, scalable pagination wrapped in FittedBox
+
+          // Pagination (unchanged)
           if (!_isLoading && _filteredDrivers.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 16),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredDrivers.length)} of ${_filteredDrivers.length} drivers',
-                      style: const TextStyle(color: Colors.grey, fontSize: 14),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 16,
+                runSpacing: 12,
+                children: [
+                  Text(
+                    'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredDrivers.length)} of ${_filteredDrivers.length} drivers',
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 13,
                     ),
-                    const SizedBox(width: 16),
-                    Row(
-                      children: [
-                        OutlinedButton(
-                          onPressed: _currentPage > 0
-                              ? () => setState(() => _currentPage--)
-                              : null,
-                          child: const Text('Previous'),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      OutlinedButton(
+                        onPressed: _currentPage > 0
+                            ? () => setState(() => _currentPage--)
+                            : null,
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Page ${_currentPage + 1} of $_totalPages',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        child: const Text('Previous'),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          onPressed: _currentPage < _totalPages - 1
-                              ? () => setState(() => _currentPage++)
-                              : null,
-                          child: const Text('Next'),
+                        child: Text(
+                          '${_currentPage + 1} / $_totalPages',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF3B82F6),
+                            fontSize: 13,
+                          ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: _currentPage < _totalPages - 1
+                            ? () => setState(() => _currentPage++)
+                            : null,
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                        child: const Text('Next'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
         ],
       ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: const Color(0xFF64748B)), // reduced from 13
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 11, // reduced from 12
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

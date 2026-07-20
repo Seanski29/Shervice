@@ -87,47 +87,61 @@ class _AdminDriverState extends State<AdminDriver> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SharedDriversView(
-        // The unique value key tells Flutter to destroy the old layout cache and fetch data immediately
         key: ValueKey('admin_drivers_list_$_refreshSeed'),
         canManage: true,
         onDriverTapped: (ctx, model) => _showDriverModal(ctx, model),
 
-        // FIX: Wrapped the header in a Wrap so the Title and "Add Driver" button
-        // drop to the next line on narrow mobile screens instead of throwing an overflow error!
-        customHeader: Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 16,
-          runSpacing: 16,
+        // ✅ Header matches AdminSchedules exactly: Row with title/subtitle on left, button on right.
+        customHeader: Row(
           children: [
-            const Text(
-              'Driver Management',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
-                letterSpacing: -0.5,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Driver Management',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Manage driver profiles, assignments, and performance records.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(width: 8),
+            // Add Driver button – styled like the refresh button but with icon+text
             ElevatedButton.icon(
               onPressed: () => _showDriverModal(context, null),
-              icon: const Icon(Icons.person_add, color: Colors.white),
+              icon: const Icon(Icons.person_add, color: Colors.white, size: 18),
               label: const Text(
                 'Add Driver',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
+                  fontSize: 13,
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade600,
+                backgroundColor: const Color(0xFF3B82F6),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
-                  vertical: 12,
+                  vertical: 10,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                elevation: 0,
               ),
             ),
           ],

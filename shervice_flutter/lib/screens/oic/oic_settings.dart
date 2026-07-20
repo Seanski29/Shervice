@@ -47,17 +47,17 @@ class _OicSettingsState extends State<OicSettings> {
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200 && responseData['success'] == true) {
-        _showSnackBar("Password updated securely!", Colors.green);
+        _showSnackBar("Password updated!", const Color(0xFF10B981));
         _passwordController.clear();
         _confirmPasswordController.clear();
       } else {
         _showSnackBar(
           responseData['message'] ?? "Failed to update password.",
-          Colors.red,
+          const Color(0xFFEF4444),
         );
       }
     } catch (e) {
-      _showSnackBar("Network error: Could not reach the server.", Colors.red);
+      _showSnackBar("Network error.", const Color(0xFFEF4444));
     } finally {
       setState(() => _isSaving = false);
     }
@@ -69,6 +69,7 @@ class _OicSettingsState extends State<OicSettings> {
         content: Text(message),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -82,38 +83,98 @@ class _OicSettingsState extends State<OicSettings> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final double horizontalPadding = isMobile ? 12.0 : 24.0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Card Header
+            // ── HEADER ──
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Account Settings',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Manage your profile and security credentials.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _passwordController.clear();
+                        _confirmPasswordController.clear();
+                      });
+                    },
+                    icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6), size: 20),
+                    tooltip: 'Reset Form',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // ── PROFILE CARD ──
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 36,
-                    backgroundColor: Colors.blue.shade50,
+                    radius: 28,
+                    backgroundColor: const Color(0xFFEFF6FF),
                     child: Text(
                       widget.oicName.isNotEmpty
                           ? widget.oicName[0].toUpperCase()
                           : 'O',
                       style: TextStyle(
-                        color: Colors.blue.shade700,
-                        fontSize: 24,
+                        color: const Color(0xFF3B82F6),
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,26 +182,23 @@ class _OicSettingsState extends State<OicSettings> {
                         Text(
                           widget.oicName,
                           style: const TextStyle(
-                            fontSize: 22,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF0F172A),
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(12),
+                            color: const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
                             widget.companyName,
                             style: const TextStyle(
-                              color: Colors.green,
-                              fontSize: 12,
+                              color: Color(0xFF10B981),
+                              fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -151,25 +209,22 @@ class _OicSettingsState extends State<OicSettings> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 14),
 
-            // Interactive Password Update Form
-            const Text(
-              "SECURITY & SETTINGS",
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 12),
+            // ── PASSWORD FORM ──
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Form(
                 key: _formKey,
@@ -177,60 +232,71 @@ class _OicSettingsState extends State<OicSettings> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Change Account Password",
+                      'Change Password',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF0F172A),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: true,
                       decoration: const InputDecoration(
-                        labelText: "New Password",
+                        labelText: 'New Password',
+                        labelStyle: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                         border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock_outline),
+                        prefixIcon: Icon(Icons.lock_outline, size: 18),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       validator: (val) => val == null || val.length < 6
-                          ? "Password must contain at least 6 characters"
+                          ? "Min 6 characters"
                           : null,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: true,
                       decoration: const InputDecoration(
-                        labelText: "Confirm New Password",
+                        labelText: 'Confirm Password',
+                        labelStyle: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                         border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock_reset),
+                        prefixIcon: Icon(Icons.lock_reset, size: 18),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       validator: (val) => val != _passwordController.text
                           ? "Passwords do not match"
                           : null,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 14),
                     SizedBox(
                       width: double.infinity,
-                      height: 48,
+                      height: 40,
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _updateAccountPassword,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
+                          backgroundColor: const Color(0xFF3B82F6),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
+                          elevation: 0,
                         ),
                         child: _isSaving
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text(
-                                "Update System Password",
+                                'Update Password',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 13,
                                 ),
                               ),
                       ),

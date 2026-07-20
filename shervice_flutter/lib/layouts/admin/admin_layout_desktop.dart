@@ -8,7 +8,6 @@ import '../../screens/admin/admin_settings.dart';
 import '../../screens/admin/admin_feedbacks.dart';
 import '../../login/login.dart';
 import '../../widgets/notification_bell.dart';
-// 1. Import the Ploop wrapper
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
@@ -25,23 +24,25 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
 
-  // 2. Initializing screens inside the state or getter ensures access to widget.adminId
   List<Widget> get _screens => [
-    const AdminDashboard(),
-    const AdminSchedules(),
-    const AdminDriver(),
-    const AdminFleet(),
-    const AdminUsers(),
-    AdminSettings(adminId: widget.adminId),
-  ];
+        const AdminDashboard(),
+        const AdminSchedules(),
+        const AdminDriver(),
+        const AdminFleet(),
+        const AdminUsers(),
+        AdminSettings(adminId: widget.adminId),
+      ];
+
+  void _toggleSidebar() {
+    setState(() => _isSidebarExpanded = !_isSidebarExpanded);
+  }
 
   @override
   Widget build(BuildContext context) {
-    // 3. Apply the "Ploop" here! The chatbot is now handled globally.
     return SherviceFloatingStack(
       userRole: 'Admin',
       userName: 'System Admin',
-      localIp: localIp, // Ensure this is imported from constant.dart
+      localIp: localIp,
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         body: SafeArea(
@@ -63,8 +64,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     );
   }
 
-  // ... (Keep your existing _buildSidebar and _buildHeader methods below)
-  // ... existing code ...
+  // ─── SIDEBAR ───
   Widget _buildSidebar() {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -77,6 +77,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
               children: [
+                // Logo
                 Container(
                   width: 44,
                   height: 44,
@@ -122,6 +123,12 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                       ],
                     ),
                   ),
+                  // ─── TOGGLE BUTTON (inside sidebar when expanded) ───
+                  IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white70),
+                    onPressed: _toggleSidebar,
+                    tooltip: 'Collapse',
+                  ),
                 ],
               ],
             ),
@@ -155,24 +162,27 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     );
   }
 
+  // ─── HEADER (now 5% off‑white) ───
   Widget _buildHeader() {
     return Container(
       height: 70,
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        color: const Color(0xFFF2F2F2), // 5% off-white (was medium gray)
+        border: Border(bottom: BorderSide(color: Colors.white)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.grey),
-            onPressed: () =>
-                setState(() => _isSidebarExpanded = !_isSidebarExpanded),
-          ),
+          // ─── TOGGLE BUTTON (only when sidebar is collapsed) ───
+          if (!_isSidebarExpanded)
+            IconButton(
+              icon: const Icon(Icons.menu, color: Colors.black87),
+              onPressed: _toggleSidebar,
+              tooltip: 'Expand',
+            ),
+          if (!_isSidebarExpanded) const SizedBox(width: 4),
+          const WelcomeMessage(role: 'Admin'),
           const Spacer(),
-          const SlideInWelcomeWidget(role: 'Admin'),
-          const SizedBox(width: 16),
           NotificationBell(
             role: 'Admin',
             userId: widget.adminId,
@@ -185,6 +195,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     );
   }
 
+  // ─── NAVIGATION ITEM ───
   Widget _buildNavItem(
     int index,
     String title,
@@ -259,18 +270,21 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   }
 }
 
-class SlideInWelcomeWidget extends StatefulWidget {
+// ─── WELCOME MESSAGE (auto‑disappears after 5 seconds) ───
+class WelcomeMessage extends StatefulWidget {
   final String role;
-  const SlideInWelcomeWidget({super.key, required this.role});
+  const WelcomeMessage({super.key, required this.role});
 
   @override
-  State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
+  State<WelcomeMessage> createState() => _WelcomeMessageState();
 }
 
-class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
+class _WelcomeMessageState extends State<WelcomeMessage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<Offset> _offsetAnimation;
+  late final Animation<Offset> _slideAnimation;
+  late final Animation<double> _fadeAnimation;
+  bool _visible = true;
 
   @override
   void initState() {
@@ -279,11 +293,21 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _offsetAnimation = Tween<Offset>(
+    _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -0.2),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+
     _controller.forward();
+
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() => _visible = false);
+      }
+    });
   }
 
   @override
@@ -294,19 +318,21 @@ class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
 
   @override
   Widget build(BuildContext context) {
-    return SlideTransition(
-      position: _offsetAnimation,
-      child: Text(
-        'Welcome, ${widget.role}',
-        style: const TextStyle(
-          color: Colors.black87,
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
+    if (!_visible) return const SizedBox.shrink();
+
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Text(
+          'Welcome, ${widget.role}',
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
   }
 }
-
-
-// Keep your SlideInWelcomeWidget class here...

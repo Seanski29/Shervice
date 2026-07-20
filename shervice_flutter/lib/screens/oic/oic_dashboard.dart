@@ -23,49 +23,47 @@ class OicDashboard extends StatefulWidget {
 }
 
 class _OicDashboardState extends State<OicDashboard> {
-  // ─── TAB STATE ───
-  // 5 tabs: pending, approved, dispatched, manage_trip, completed
+  // ─── STATE ───
   String _currentPath = 'pending';
-
-  // ─── FORM STATE ───
   String _passengerCount = '';
   Map<String, dynamic>? _selectedTrip;
-
-  // ─── DATA STATE ───
   bool _isLoading = true;
   List<dynamic> _allTrips = [];
 
-  // ─── PAGINATION STATE (one per paginated tab) ───
+  // ─── PAGINATION ───
   int _pendingPage = 0;
   int _approvedPage = 0;
   int _dispatchedPage = 0;
   int _completedPage = 0;
-  final int _itemsPerPage = 4;
+  final int _itemsPerPage = 10;
 
+  // ─── SORT STATE ───
+  String _pendingSort = 'Date (Newest)';
+  String _approvedSort = 'Date (Newest)';
+  String _dispatchedSort = 'Date (Newest)';
+  String _completedSort = 'Date (Newest)';
+  final List<String> _sortOptions = ['Date (Newest)', 'Date (Oldest)', 'Trip ID'];
+
+  // ─── LIFECYCLE ───
   @override
   void initState() {
     super.initState();
     _fetchLiveSchedules();
   }
 
-  // ─── DATA FETCH: trips ───
+  // ─── DATA FETCH ───
   Future<void> _fetchLiveSchedules() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-
     try {
-      final tripsRes = await http.get(Uri.parse('$backendUrl/trips'));
-
-      if (tripsRes.statusCode == 200) {
-        final tripsData = jsonDecode(tripsRes.body);
-        final List<dynamic> fetchedTrips = tripsData['trips'] ?? [];
-
-        // Filter trips belonging to this OIC by ID or company name
-        final matchingTrips = fetchedTrips.where((t) {
+      final res = await http.get(Uri.parse('$backendUrl/trips'));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final List<dynamic> fetched = data['trips'] ?? [];
+        final matching = fetched.where((t) {
           final dbOicId = t['oic_id']?.toString() ?? '';
-          final targetOicId = widget.oicId.toString().trim();
-          if (dbOicId == targetOicId) return true;
-
+          final target = widget.oicId.toString().trim();
+          if (dbOicId == target) return true;
           final dbCompany = (t['oic_profile'] ?? {})['company_name']
                   ?.toString()
                   .toLowerCase()
@@ -73,49 +71,44 @@ class _OicDashboardState extends State<OicDashboard> {
               '';
           return dbCompany == widget.companyName.toLowerCase().trim();
         }).toList();
-
         setState(() {
-          _allTrips = matchingTrips;
+          _allTrips = matching;
           _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('❌ OIC Schedule Sync Error: $e');
-      _showSnackBar('Failed to sync latest trip schedules.', Colors.red);
+      debugPrint('❌ OIC sync error: $e');
+      _showSnackBar('Failed to sync schedules.', Colors.red);
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ─── DISPATCH ACTION ───
+  // ─── DISPATCH ───
   Future<void> _dispatchTripWithHeadcount() async {
     if (_selectedTrip == null || _passengerCount.trim().isEmpty) {
-      _showSnackBar('Please enter a valid passenger headcount.', Colors.orange);
+      _showSnackBar('Enter passenger headcount.', Colors.orange);
       return;
     }
-
     setState(() => _isLoading = true);
     try {
-      final res = await http
-          .post(
-            Uri.parse('$backendUrl/dispatch/submit'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'trip_id': _selectedTrip!['trip_id'] ?? _selectedTrip!['id'],
-              'passenger_count': int.tryParse(_passengerCount) ?? 0,
-              'company_name': widget.companyName,
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
-
+      final res = await http.post(
+        Uri.parse('$backendUrl/dispatch/submit'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'trip_id': _selectedTrip!['trip_id'] ?? _selectedTrip!['id'],
+          'passenger_count': int.tryParse(_passengerCount) ?? 0,
+          'company_name': widget.companyName,
+        }),
+      ).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200 || res.statusCode == 201) {
-        _showSnackBar('Trip successfully dispatched!', Colors.green);
+        _showSnackBar('Trip dispatched!', Colors.green);
         _resetFormState();
         await _fetchLiveSchedules();
       } else {
-        _showSnackBar('Server error: ${res.statusCode}', Colors.red);
+        _showSnackBar('Error: ${res.statusCode}', Colors.red);
       }
     } catch (e) {
-      _showSnackBar('Dispatch transmission failure.', Colors.red);
+      _showSnackBar('Dispatch failed.', Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -135,17 +128,42 @@ class _OicDashboardState extends State<OicDashboard> {
         content: Text(msg),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  // ─── TAB BUTTON BUILDER (Code 2 design with FittedBox) ───
-  Widget _buildTabButton(
-    String path,
-    String label,
-    IconData icon,
-    Color activeColor,
-  ) {
+  // ─── SORTING ───
+  List<dynamic> _sortTrips(List<dynamic> trips, String sortBy) {
+    final sorted = List<dynamic>.from(trips);
+    switch (sortBy) {
+      case 'Date (Newest)':
+        sorted.sort((a, b) {
+          final da = a['schedule_date'] ?? '';
+          final db = b['schedule_date'] ?? '';
+          return db.compareTo(da);
+        });
+        break;
+      case 'Date (Oldest)':
+        sorted.sort((a, b) {
+          final da = a['schedule_date'] ?? '';
+          final db = b['schedule_date'] ?? '';
+          return da.compareTo(db);
+        });
+        break;
+      case 'Trip ID':
+        sorted.sort((a, b) {
+          final idA = (a['trip_id'] ?? 0).toString();
+          final idB = (b['trip_id'] ?? 0).toString();
+          return idA.compareTo(idB);
+        });
+        break;
+    }
+    return sorted;
+  }
+
+  // ─── TAB BUTTON ───
+  Widget _buildTabButton(String path, String label, IconData icon, Color activeColor) {
     final isActive = _currentPath == path;
     return Expanded(
       child: InkWell(
@@ -153,33 +171,27 @@ class _OicDashboardState extends State<OicDashboard> {
           _currentPath = path;
           _selectedTrip = null;
         }),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
           decoration: BoxDecoration(
             color: isActive ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
             border: isActive ? Border.all(color: Colors.grey.shade200) : null,
-            boxShadow: isActive
-                ? [const BoxShadow(color: Colors.black12, blurRadius: 4)]
-                : [],
+            boxShadow: isActive ? [const BoxShadow(color: Colors.black12, blurRadius: 2)] : [],
           ),
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: isActive ? activeColor : Colors.grey.shade500,
-                ),
-                const SizedBox(width: 8),
+                Icon(icon, size: 14, color: isActive ? activeColor : Colors.grey.shade500),
+                const SizedBox(width: 4),
                 Text(
                   label,
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 11,
                     color: isActive ? activeColor : Colors.grey.shade500,
                   ),
                 ),
@@ -191,10 +203,11 @@ class _OicDashboardState extends State<OicDashboard> {
     );
   }
 
-  // ─── ROOT BUILD ───
+  // ─── BUILD ───
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 850;
+    final double pad = isMobile ? 10.0 : 20.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -202,101 +215,99 @@ class _OicDashboardState extends State<OicDashboard> {
         onRefresh: _fetchLiveSchedules,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.all(isMobile ? 16 : 24),
+          padding: EdgeInsets.symmetric(horizontal: pad, vertical: 10.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header (Code 2 Wrap design) ──
-              Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 12,
-                runSpacing: 8,
+              // ── HEADER ──
+              Row(
                 children: [
-                  Text(
-                    'Welcome, ${widget.oicName}',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome, ${widget.oicName}',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Dispatch Management',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Text(
-                      widget.companyName,
-                      style: TextStyle(
-                        color: Colors.blue.shade700,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: IconButton(
+                      onPressed: () {
+                        setState(() => _isLoading = true);
+                        _fetchLiveSchedules();
+                      },
+                      icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6), size: 20),
+                      tooltip: 'Refresh',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                'OIC Dispatch Management | Monitor rotations, dispatch fleets, and review completed trips.',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 24),
 
-              // ── 5-Tab Navigation ──
+              // ── COMPANY CHIP ──
               Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.2)),
+                ),
+                child: Text(
+                  widget.companyName,
+                  style: const TextStyle(
+                    color: Color(0xFF3B82F6),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // ── TABS ──
+              Container(
+                padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    _buildTabButton(
-                      'pending',
-                      'Pending',
-                      Icons.hourglass_top,
-                      Colors.orange.shade700,
-                    ),
-                    _buildTabButton(
-                      'approved',
-                      'Approved',
-                      Icons.event_available,
-                      Colors.blue.shade700,
-                    ),
-                    _buildTabButton(
-                      'dispatched',
-                      'Ongoing',
-                      Icons.local_shipping,
-                      Colors.green.shade700,
-                    ),
-                    _buildTabButton(
-                      'manage_trip',
-                      'Dispatch',
-                      Icons.send,
-                      Colors.teal.shade700,
-                    ),
-                    _buildTabButton(
-                      'completed',
-                      'Completed',
-                      Icons.check_circle,
-                      Colors.purple.shade700,
-                    ),
+                    _buildTabButton('pending', 'Pending', Icons.hourglass_top, Colors.orange.shade700),
+                    _buildTabButton('approved', 'Approved', Icons.event_available, Colors.blue.shade700),
+                    _buildTabButton('dispatched', 'Ongoing', Icons.local_shipping, Colors.green.shade700),
+                    _buildTabButton('completed', 'Completed', Icons.check_circle, Colors.purple.shade700),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 10),
 
-              // ── Tab Content ──
+              // ── CONTENT ──
               _isLoading
                   ? const Padding(
-                      padding: EdgeInsets.all(60.0),
-                      child: Center(child: CircularProgressIndicator()),
+                      padding: EdgeInsets.all(32.0),
+                      child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
                     )
                   : _currentPath == 'pending'
                       ? _buildPendingView(isMobile)
@@ -314,429 +325,157 @@ class _OicDashboardState extends State<OicDashboard> {
     );
   }
 
-  // ─── TAB 1: PENDING VIEW (Pending Staff Assignment) ───
-  Widget _buildPendingView(bool isMobile) {
-    final pendingTrips = _allTrips.where((t) {
-      final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
-      return status == 'pending staff assignment';
+  // ─── TAB VIEWS ───
+  Widget _buildPendingView(bool isMobile) =>
+      _buildTabContent('pending staff assignment', 'Pending', isMobile, _pendingPage, (p) => setState(() => _pendingPage = p), _pendingSort, (s) => setState(() => _pendingSort = s));
+
+  Widget _buildApprovedView(bool isMobile) =>
+      _buildTabContent('scheduled', 'Scheduled', isMobile, _approvedPage, (p) => setState(() => _approvedPage = p), _approvedSort, (s) => setState(() => _approvedSort = s));
+
+  Widget _buildDispatchedView(bool isMobile) =>
+      _buildTabContent('ongoing', 'Ongoing', isMobile, _dispatchedPage, (p) => setState(() => _dispatchedPage = p), _dispatchedSort, (s) => setState(() => _dispatchedSort = s));
+
+  Widget _buildCompletedView(bool isMobile) =>
+      _buildTabContent('completed', 'Completed', isMobile, _completedPage, (p) => setState(() => _completedPage = p), _completedSort, (s) => setState(() => _completedSort = s));
+
+  Widget _buildTabContent(
+    String statusFilter,
+    String statusLabel,
+    bool isMobile,
+    int currentPage,
+    Function(int) onPageChanged,
+    String currentSort,
+    Function(String) onSortChanged,
+  ) {
+    final filtered = _allTrips.where((t) {
+      final s = (t['trip_status'] ?? '').toString().toLowerCase().trim();
+      return s == statusFilter;
     }).toList();
 
-    if (pendingTrips.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Text(
-            "No trips currently pending staff assignment layouts.",
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      );
-    }
+    if (filtered.isEmpty) return _buildEmptyState('No $statusLabel trips');
 
-    int totalPages = (pendingTrips.length / _itemsPerPage).ceil();
-    int startIdx = _pendingPage * _itemsPerPage;
-    int endIdx = min(startIdx + _itemsPerPage, pendingTrips.length);
-    List<dynamic> activePageList = pendingTrips.sublist(startIdx, endIdx);
+    final sorted = _sortTrips(filtered, currentSort);
 
     return Column(
       children: [
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 2.2,
+        // ── SORT DROPDOWN ──
+        Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: currentSort,
+                icon: const Icon(Icons.sort, size: 16, color: Color(0xFF64748B)),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A)),
+                items: _sortOptions.map((s) {
+                  return DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12)));
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) onSortChanged(val);
+                },
+              ),
+            ),
           ),
-          itemCount: activePageList.length,
-          itemBuilder: (context, index) {
-            final trip = activePageList[index];
-            final driverName =
-                (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
-            final vehiclePlate =
-                (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
-
-            final departure = _formatTimeString(trip['departure_time']);
-            final arrival = _formatTimeString(trip['estimated_arrival_time']);
-
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "TRIP ID: ${trip['trip_id']}",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          "PENDING ASSIGNMENT",
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange.shade800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  _iconTextRow(
-                    Icons.access_time,
-                    "${trip['schedule_date']} | $departure - $arrival",
-                  ),
-                  const SizedBox(height: 4),
-                  _iconTextRow(
-                    Icons.location_on,
-                    trip['route_name'] ?? 'Unassigned Route',
-                  ),
-                  const SizedBox(height: 4),
-                  _iconTextRow(
-                    Icons.airport_shuttle,
-                    "Shuttle: $vehiclePlate | Driver: $driverName",
-                  ),
-                ],
-              ),
-            );
-          },
         ),
-        _buildPaginationControls(
-          pendingTrips.length,
-          startIdx,
-          endIdx,
-          totalPages,
-          _pendingPage,
-          (newPage) {
-            setState(() => _pendingPage = newPage);
-          },
+        const SizedBox(height: 8),
+        _buildPaginatedGrid(
+          items: sorted,
+          isMobile: isMobile,
+          currentPage: currentPage,
+          onPageChanged: onPageChanged,
+          itemBuilder: (trip) => _buildColoredCard(trip, overrideStatus: statusLabel),
         ),
       ],
     );
   }
 
-  // ─── TAB 2: APPROVED ───
-  Widget _buildApprovedView(bool isMobile) {
-    final filtered = _allTrips.where((t) {
-      final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
-      return status == 'scheduled';
-    }).toList();
-
-    if (filtered.isEmpty) {
-      return _buildEmptyState('No upcoming approved scheduled runs found.');
-    }
-
-    int totalPages = (filtered.length / _itemsPerPage).ceil();
-    int startIdx = _approvedPage * _itemsPerPage;
-    int endIdx = min(startIdx + _itemsPerPage, filtered.length);
-    List<dynamic> activePageList = filtered.sublist(startIdx, endIdx);
-
-    return Column(
-      children: [
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 2.2,
-          ),
-          itemCount: activePageList.length,
-          itemBuilder: (context, index) {
-            final trip = activePageList[index];
-            final driverName =
-                (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
-            final vehiclePlate =
-                (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
-
-            final departure = _formatTimeString(trip['departure_time']);
-            final arrival = _formatTimeString(trip['estimated_arrival_time']);
-
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "TRIP ID: ${trip['trip_id']}",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          "SCHEDULED",
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  _iconTextRow(
-                    Icons.access_time,
-                    "${trip['schedule_date']} | $departure - $arrival",
-                  ),
-                  const SizedBox(height: 4),
-                  _iconTextRow(
-                    Icons.location_on,
-                    trip['route_name'] ?? 'Unassigned Route',
-                  ),
-                  const SizedBox(height: 4),
-                  _iconTextRow(
-                    Icons.airport_shuttle,
-                    "Shuttle: $vehiclePlate | Driver: $driverName",
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-        _buildPaginationControls(
-          filtered.length,
-          startIdx,
-          endIdx,
-          totalPages,
-          _approvedPage,
-          (newPage) {
-            setState(() => _approvedPage = newPage);
-          },
-        ),
-      ],
-    );
-  }
-
-  // ─── TAB 3: ONGOING ───
-  Widget _buildDispatchedView(bool isMobile) {
-    final filtered = _allTrips.where((t) {
-      final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
-      return status == 'ongoing';
-    }).toList();
-
-    if (filtered.isEmpty) {
-      return _buildEmptyState('No ongoing departures currently active.');
-    }
-
-    return _buildPaginatedGrid(
-      items: filtered,
-      isMobile: isMobile,
-      currentPage: _dispatchedPage,
-      onPageChanged: (p) => setState(() => _dispatchedPage = p),
-      itemBuilder: (trip) => _buildTripCard(
-        trip,
-        overrideStatus: 'Ongoing',
-        extraRow: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '👥 ${trip['passenger_count'] ?? 0} Passengers',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF334155),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── TAB 4: DISPATCH (no pagination — action-based) ───
+  // ─── DISPATCH TAB ───
   Widget _buildManageTripView(bool isMobile) {
-    final scheduledTrips = _allTrips.where((t) {
-      final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
-      return status == 'scheduled';
+    final scheduled = _allTrips.where((t) {
+      final s = (t['trip_status'] ?? '').toString().toLowerCase().trim();
+      return s == 'scheduled';
     }).toList();
 
-    final selectedTripId = _selectedTrip?['trip_id'];
+    final selectedId = _selectedTrip?['trip_id'];
 
-    Widget tripSelectionList = Column(
+    Widget list = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Select Scheduled Trip to Dispatch',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          'Select Scheduled Trip',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
         ),
-        const SizedBox(height: 16),
-        if (scheduledTrips.isEmpty)
-          _buildEmptyState(
-            'No scheduled trips are available to dispatch right now.',
-          )
+        const SizedBox(height: 8),
+        if (scheduled.isEmpty)
+          _buildEmptyState('No scheduled trips to dispatch.')
         else
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: scheduledTrips.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final trip = scheduledTrips[index];
-              final driverName =
-                  (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
-              final vehiclePlate =
-                  (trip['vehicle'] ?? {})['plate_number'] ??
-                  'No Shuttle Linked';
-              final passengerCount = trip['passenger_count'] ?? 0;
-
-              final departure = _formatTimeString(trip['departure_time']);
-              final arrival = _formatTimeString(trip['estimated_arrival_time']);
-              final isSelected = selectedTripId == trip['trip_id'];
+            itemCount: scheduled.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 6),
+            itemBuilder: (ctx, i) {
+              final trip = scheduled[i];
+              final driver = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
+              final vehicle = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle';
+              final pax = trip['passenger_count'] ?? 0;
+              final isSelected = selectedId == trip['trip_id'];
 
               return GestureDetector(
                 onTap: () => setState(() => _selectedTrip = trip),
                 child: Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.teal.shade50 : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: isSelected
-                          ? Colors.teal.shade300
-                          : Colors.grey.shade200,
+                      color: isSelected ? const Color(0xFF3B82F6) : Colors.grey.shade200,
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              "TRIP ID: ${trip['trip_id']}",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: Color(0xFF0F172A),
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'TRIP-${trip['trip_id']}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              trip['route_name'] ?? 'Unassigned',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                               maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
+                            const SizedBox(height: 2),
+                            Wrap(
+                              spacing: 6,
+                              children: [
+                                _infoChip(Icons.person, driver),
+                                _infoChip(Icons.directions_car, vehicle),
+                                _infoChip(Icons.people, '$pax pax'),
+                              ],
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              "SCHEDULED",
-                              style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green.shade700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        "${trip['schedule_date']} | $departure - $arrival",
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
+                          ],
                         ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        trip['route_name'] ?? 'Unassigned Route',
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Shuttle: $vehiclePlate | Driver: $driverName",
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: Colors.green.shade50,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          "👥 $passengerCount Passengers",
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF334155),
-                          ),
+                          'SCHEDULED',
+                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.green.shade700),
                         ),
                       ),
                     ],
@@ -748,11 +487,11 @@ class _OicDashboardState extends State<OicDashboard> {
       ],
     );
 
-    Widget actionPanel = Container(
-      padding: const EdgeInsets.all(24),
+    Widget panel = Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: _selectedTrip == null
@@ -761,12 +500,12 @@ class _OicDashboardState extends State<OicDashboard> {
               children: [
                 const Text(
                   'Dispatch Trip',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 6),
                 Text(
-                  'Choose a scheduled trip from the list to assign a passenger headcount and dispatch it.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  'Select a trip above.',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                 ),
               ],
             )
@@ -774,47 +513,47 @@ class _OicDashboardState extends State<OicDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Dispatch Trip #${_selectedTrip!['trip_id']}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Color(0xFF0F172A),
-                  ),
+                  'Dispatch #${_selectedTrip!['trip_id']}',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
                 TextField(
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Passenger Headcount',
-                    hintText: 'Enter passenger count',
-                    fillColor: const Color(0xFFF1F5F9),
+                    labelText: 'Passenger Count',
+                    hintText: 'Enter count',
                     filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
                     ),
                   ),
-                  onChanged: (value) => _passengerCount = value,
+                  onChanged: (v) => _passengerCount = v,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.shade600,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      backgroundColor: const Color(0xFF3B82F6),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       elevation: 0,
                     ),
                     onPressed: _dispatchTripWithHeadcount,
                     child: const Text(
-                      'Dispatch Trip',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      'Dispatch',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                     ),
                   ),
                 ),
@@ -822,175 +561,124 @@ class _OicDashboardState extends State<OicDashboard> {
             ),
     );
 
-    if (isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [tripSelectionList, const SizedBox(height: 32), actionPanel],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: tripSelectionList),
-        const SizedBox(width: 32),
-        Expanded(child: actionPanel),
-      ],
-    );
-  }
-
-  // ─── TAB 5: COMPLETED ───
-  Widget _buildCompletedView(bool isMobile) {
-    final filtered = _allTrips.where((t) {
-      final status = (t['trip_status'] ?? '').toString().toLowerCase().trim();
-      return status == 'completed';
-    }).toList();
-
-    if (filtered.isEmpty) {
-      return _buildEmptyState('No completed trips found.');
-    }
-
-    return _buildPaginatedGrid(
-      items: filtered,
-      isMobile: isMobile,
-      currentPage: _completedPage,
-      onPageChanged: (p) => setState(() => _completedPage = p),
-      itemBuilder: (trip) => _buildTripCard(
-        trip,
-        overrideStatus: 'Completed',
-      ),
-    );
-  }
-
-  // ─── REUSABLE: PAGINATED GRID/LIST ───
-  Widget _buildPaginatedGrid({
-    required List<dynamic> items,
-    required bool isMobile,
-    required int currentPage,
-    required Function(int) onPageChanged,
-    required Widget Function(dynamic) itemBuilder,
-  }) {
-    int totalPages = (items.length / _itemsPerPage).ceil();
-    int startIdx = currentPage * _itemsPerPage;
-    int endIdx = min(startIdx + _itemsPerPage, items.length);
-    final pageItems = items.sublist(startIdx, endIdx);
-
-    Widget grid = isMobile
-        ? ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: pageItems.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 16),
-            itemBuilder: (_, i) => itemBuilder(pageItems[i]),
-          )
-        : GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 2.4,
-            ),
-            itemCount: pageItems.length,
-            itemBuilder: (_, i) => itemBuilder(pageItems[i]),
+    return isMobile
+        ? Column(children: [list, const SizedBox(height: 16), panel])
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: list),
+              const SizedBox(width: 20),
+              Expanded(child: panel),
+            ],
           );
-
-    return Column(
-      children: [
-        grid,
-        // Only show pagination controls if there are more items than one page
-        if (items.length > _itemsPerPage)
-          _buildPaginationControls(
-            items.length,
-            startIdx,
-            endIdx,
-            totalPages,
-            currentPage,
-            onPageChanged,
-          ),
-      ],
-    );
   }
 
-  // ─── REUSABLE UI FORMATTING HELPERS ───
-  Widget _buildEmptyState(String message) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Center(
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
+  // ─── NEW COLORED CARD WITH FILLED BOX ───
+  Widget _buildColoredCard(dynamic trip, {String? overrideStatus}) {
+    final status = (overrideStatus ?? trip['trip_status'] ?? 'Scheduled').toString().toLowerCase();
+    final driver = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
+    final vehicle = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle';
+    final dep = _formatTime(trip['departure_time']);
+    final arr = _formatTime(trip['estimated_arrival_time']);
+    final pax = trip['passenger_count'] ?? 0;
+    final distance = trip['route_distance'] ?? 0;
 
-  Widget _buildTripCard(
-    dynamic trip, {
-    String? overrideStatus,
-    Widget? extraRow,
-  }) {
-    final status = (overrideStatus ?? trip['trip_status'] ?? 'Scheduled')
-        .toString();
-    final driverName =
-        (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
-    final vehiclePlate =
-        (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle Linked';
-    final departure = _formatTimeString(trip['departure_time']);
-    final arrival = _formatTimeString(trip['estimated_arrival_time']);
-
-    Color statusColor = Colors.orange.shade700;
-    if (status.toLowerCase() == 'ongoing') {
-      statusColor = Colors.green.shade700;
-    } else if (status.toLowerCase() == 'scheduled') {
-      statusColor = Colors.blue.shade700;
-    } else if (status.toLowerCase() == 'completed') {
-      statusColor = Colors.purple.shade700;
+    Color statusColor;
+    Color bgColor;
+    String statusLabel;
+    switch (status) {
+      case 'ongoing':
+        statusColor = const Color(0xFF10B981);
+        bgColor = const Color(0xFFECFDF5);
+        statusLabel = 'ONGOING';
+        break;
+      case 'scheduled':
+        statusColor = const Color(0xFF3B82F6);
+        bgColor = const Color(0xFFEFF6FF);
+        statusLabel = 'SCHEDULED';
+        break;
+      case 'completed':
+        statusColor = const Color(0xFF8B5CF6);
+        bgColor = const Color(0xFFF3E8FF);
+        statusLabel = 'COMPLETED';
+        break;
+      case 'pending staff assignment':
+        statusColor = const Color(0xFFF59E0B);
+        bgColor = const Color(0xFFFEF3C7);
+        statusLabel = 'PENDING';
+        break;
+      default:
+        statusColor = const Color(0xFF64748B);
+        bgColor = const Color(0xFFF1F5F9);
+        statusLabel = status.toUpperCase();
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: statusColor.withOpacity(0.3), width: 0.5),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Left: main info (Trip ID + Route, driver, vehicle, time)
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'TRIP-${trip['trip_id']} • ${trip['route_name'] ?? 'Unassigned'}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: const Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 2,
+                  children: [
+                    _infoChip(Icons.person, driver),
+                    _infoChip(Icons.directions_car, vehicle),
+                    _infoChip(Icons.access_time, '$dep → $arr'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Right: passenger count + distance + status badge
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Expanded(
-                child: Text(
-                  'TRIP ID: ${trip['trip_id']}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color(0xFF0F172A),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+              Row(
+                children: [
+                  _infoChip(Icons.people, '$pax pax'),
+                  const SizedBox(width: 8),
+                  _infoChip(Icons.straighten, '$distance km'),
+                ],
               ),
+              const SizedBox(height: 4),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
+                  color: statusColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  status.toUpperCase(),
+                  statusLabel,
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: statusColor,
                   ),
@@ -998,105 +686,124 @@ class _OicDashboardState extends State<OicDashboard> {
               ),
             ],
           ),
-          const Spacer(),
-          _iconTextRow(
-            Icons.access_time,
-            "${trip['schedule_date']} | $departure - $arrival",
-          ),
-          const SizedBox(height: 4),
-          _iconTextRow(
-            Icons.location_on,
-            trip['route_name'] ?? 'Unassigned Route',
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: _iconTextRow(
-                  Icons.airport_shuttle,
-                  'Shuttle: $vehiclePlate | Driver: $driverName',
-                ),
-              ),
-              extraRow ?? const SizedBox.shrink(),
-            ],
-          ),
         ],
       ),
     );
   }
 
-  // Safely formats time strings to prevent crashes on unexpectedly short strings
-  String _formatTimeString(dynamic timeVal) {
-    if (timeVal == null || timeVal.toString().trim().isEmpty) return 'TBD';
-    String t = timeVal.toString();
-    if (t.length >= 5) return t.substring(0, 5);
-    return t;
-  }
-
-  Widget _iconTextRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: Colors.grey.shade500),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
+  Widget _infoChip(IconData icon, String text) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: const Color(0xFF64748B)),
+          const SizedBox(width: 3),
+          Text(
             text,
-            style: TextStyle(
-              color: Colors.grey.shade700,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF64748B),
               fontWeight: FontWeight.w500,
             ),
-            overflow: TextOverflow.ellipsis,
           ),
+        ],
+      );
+
+  // ─── HELPERS ───
+  Widget _buildEmptyState(String msg) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Text(msg, style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
         ),
+      );
+
+  String _formatTime(dynamic t) {
+    if (t == null || t.toString().trim().isEmpty) return 'TBD';
+    final s = t.toString();
+    return s.length >= 5 ? s.substring(0, 5) : s;
+  }
+
+  // ─── PAGINATED GRID ───
+  Widget _buildPaginatedGrid({
+    required List<dynamic> items,
+    required bool isMobile,
+    required int currentPage,
+    required Function(int) onPageChanged,
+    required Widget Function(dynamic) itemBuilder,
+  }) {
+    final totalPages = (items.length / _itemsPerPage).ceil();
+    final start = currentPage * _itemsPerPage;
+    final end = min(start + _itemsPerPage, items.length);
+    final pageItems = items.sublist(start, end);
+
+    Widget grid;
+    if (isMobile) {
+      grid = ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: pageItems.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 6),
+        itemBuilder: (_, i) => itemBuilder(pageItems[i]),
+      );
+    } else {
+      grid = GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 3.8,
+        ),
+        itemCount: pageItems.length,
+        itemBuilder: (_, i) => itemBuilder(pageItems[i]),
+      );
+    }
+
+    return Column(
+      children: [
+        grid,
+        if (items.length > _itemsPerPage)
+          _buildPagination(start, end, totalPages, currentPage, onPageChanged, items.length),
       ],
     );
   }
 
-  // ─── REUSABLE: PAGINATION CONTROLS ───
-  Widget _buildPaginationControls(
-    int totalItems,
-    int start,
-    int end,
-    int totalPages,
-    int currentPage,
-    Function(int) onPageChanged,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Showing ${start + 1}–$end of $totalItems',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-          ),
-          Row(
-            children: [
-              OutlinedButton(
-                onPressed: currentPage > 0
-                    ? () => onPageChanged(currentPage - 1)
-                    : null,
-                child: const Text('Prev'),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${currentPage + 1} / $totalPages',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+  Widget _buildPagination(int start, int end, int totalPages, int currentPage, Function(int) onChanged, int total) =>
+      Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('${start + 1}–$end of $total', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left, size: 16),
+                  onPressed: currentPage > 0 ? () => onChanged(currentPage - 1) : null,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  color: currentPage > 0 ? const Color(0xFF3B82F6) : Colors.grey.shade300,
                 ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: currentPage < totalPages - 1
-                    ? () => onPageChanged(currentPage + 1)
-                    : null,
-                child: const Text('Next'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${currentPage + 1}/$totalPages',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF3B82F6), fontSize: 11),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right, size: 16),
+                  onPressed: currentPage < totalPages - 1 ? () => onChanged(currentPage + 1) : null,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  color: currentPage < totalPages - 1 ? const Color(0xFF3B82F6) : Colors.grey.shade300,
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
 }

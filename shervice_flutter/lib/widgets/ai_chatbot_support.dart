@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../constant.dart'; // Make sure this path is correct for your project
+import '../constant.dart';
 
 class AiChatbotSupport extends StatefulWidget {
-  final String userRole; // 'Admin', 'Staff', 'OIC', or 'Driver'
+  final String userRole;
   final String userName;
-  final String localIp; // Passed from layout (e.g., '192.168.1.11')
+  final String localIp;
 
   const AiChatbotSupport({
     super.key,
@@ -26,12 +26,8 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  // Uses the global backendUrl from constant.dart safely
-  String get _backendUrl {
-    return '$backendUrl/ai/chat';
-  }
+  String get _backendUrl => '$backendUrl/ai/chat';
 
-  // --- Role-Specific Suggestions tailored for Navigation & Emergencies ---
   List<String> get _quickSuggestions {
     switch (widget.userRole.toLowerCase()) {
       case 'admin':
@@ -135,12 +131,19 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
+    // Get system bottom padding (keyboard, system nav)
+    final systemBottom = MediaQuery.of(context).padding.bottom;
+    // Add extra space for a bottom navigation bar on mobile (typical height ~60-70)
+    const bottomNavHeight = 65.0;
+
+    // On mobile, add extra offset so FAB sits above the bottom nav
+    final bottomOffset = isMobile ? systemBottom + bottomNavHeight : systemBottom + 20;
 
     return Stack(
       children: [
         // Floating Action Button
         Positioned(
-          bottom: 20,
+          bottom: 20 + (isMobile ? bottomNavHeight : 0),
           right: 20,
           child: FloatingActionButton(
             onPressed: () => setState(() => _isChatOpen = !_isChatOpen),
@@ -155,7 +158,7 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
         // Chat Dialog Window
         if (_isChatOpen)
           Positioned(
-            bottom: 90,
+            bottom: 90 + (isMobile ? bottomNavHeight : 0),
             right: 20,
             child: Card(
               elevation: 12,
@@ -225,7 +228,6 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
                                 vertical: 10,
                               ),
                               decoration: BoxDecoration(
-                                // Red for emergency, Blue for user, Grey for normal bot response
                                 color: isEmergency
                                     ? Colors.red.shade100
                                     : (isUser
@@ -354,7 +356,7 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
                         ),
                       ),
                       child: Column(
-                        mainAxisSize: MainAxisSize.min, // Prevents stretching
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Row(
                             children: [
@@ -383,9 +385,7 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8), // Gap before disclaimer
-                          
-                          // THE AI DISCLAIMER
+                          const SizedBox(height: 8),
                           const Text(
                             'Shervice Copilot is an AI and can make mistakes. Please verify important logistics.',
                             style: TextStyle(

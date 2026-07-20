@@ -28,11 +28,15 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
 
+  void _toggleSidebar() {
+    setState(() => _isSidebarExpanded = !_isSidebarExpanded);
+  }
+
   List<Widget> get _screens => [
-    DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
-    DriverSchedules(driverId: widget.driverId),
-    DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
-  ];
+        DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
+        DriverSchedules(driverId: widget.driverId),
+        DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +55,7 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
               color: const Color(0xFF1E293B),
               child: Column(
                 children: [
-                  // Branding Header
+                  // Branding Header (with toggle button when expanded)
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -102,6 +106,12 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                               ],
                             ),
                           ),
+                          // ─── TOGGLE BUTTON (inside sidebar when expanded) ───
+                          IconButton(
+                            icon: const Icon(Icons.menu, color: Colors.white70),
+                            onPressed: _toggleSidebar,
+                            tooltip: 'Collapse',
+                          ),
                         ],
                       ],
                     ),
@@ -146,18 +156,21 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
             Expanded(
               child: Column(
                 children: [
+                  // ─── HEADER (white, contains toggle when sidebar collapsed) ───
                   Container(
                     height: 70,
-                    color: Colors.white,
+                    color: Colors.white, // remained white (not off‑white)
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.menu, color: Colors.grey),
-                          onPressed: () => setState(
-                            () => _isSidebarExpanded = !_isSidebarExpanded,
+                        // ─── TOGGLE BUTTON (only when sidebar is collapsed) ───
+                        if (!_isSidebarExpanded)
+                          IconButton(
+                            icon: const Icon(Icons.menu, color: Colors.black87),
+                            onPressed: _toggleSidebar,
+                            tooltip: 'Expand',
                           ),
-                        ),
+                        if (!_isSidebarExpanded) const SizedBox(width: 4),
                         const Spacer(),
                         NotificationBell(
                           role: 'Driver',

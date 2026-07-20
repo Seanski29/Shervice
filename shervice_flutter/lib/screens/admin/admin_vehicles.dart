@@ -202,273 +202,391 @@ class _AdminFleetState extends State<AdminFleet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16,
-            runSpacing: 16,
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final double horizontalPadding = isMobile ? 12.0 : 24.0;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: RefreshIndicator(
+        onRefresh: _fetchVehicles,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Fleet Management',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                  letterSpacing: -0.5,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _showVehicleModal(context),
-                icon: const Icon(Icons.directions_bus, color: Colors.white),
-                label: const Text(
-                  'Register Vehicle',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade600,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  onChanged: (value) {
-                    _searchQuery = value;
-                    _applyFiltersAndSort();
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search by plate number or model specs...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _currentSort,
-                    icon: const Icon(Icons.sort),
-                    items: _sortOptions
-                        .map(
-                          (String value) => DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (newValue) {
-                      if (newValue != null) {
-                        _currentSort = newValue;
-                        _applyFiltersAndSort();
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredVehicles.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No tracking vehicles matched parameters.",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _paginatedVehicles.length,
-                    itemBuilder: (context, index) {
-                      final v = _paginatedVehicles[index];
-                      final String plate = v['plate_number'] ?? 'UNKNOWN';
-                      final String rawBusType =
-                          v['bus_type'] ?? 'Unknown Model';
-                      final String condition =
-                          v['health_status'] ?? 'Good Condition';
-
-                      final String modelDisplay = rawBusType.contains(' - ')
-                          ? rawBusType.split(' - ').last
-                          : rawBusType;
-                      final String seatCapacity = rawBusType.contains(' - ')
-                          ? rawBusType.split(' - ').first
-                          : 'Configured Seats';
-
-                      Color conditionColor = Colors.green;
-                      if (condition == 'Maintenance Required') {
-                        conditionColor = Colors.orange;
-                      } else if (condition == 'Under Repair') {
-                        conditionColor = Colors.red;
-                      }
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => _showVehicleModal(
-                              context,
-                              vehicle: Map<String, dynamic>.from(v),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        plate,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: conditionColor.withOpacity(
-                                            0.1,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          condition,
-                                          style: TextStyle(
-                                            color: conditionColor,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const Divider(),
-                                  const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 16,
-                                    runSpacing: 12,
-                                    children: [
-                                      _iconText(
-                                        Icons.directions_car_outlined,
-                                        modelDisplay,
-                                      ),
-                                      _iconText(
-                                        Icons.group_outlined,
-                                        seatCapacity,
-                                      ),
-                                      _iconText(
-                                        Icons.build_circle_outlined,
-                                        'Status: $condition',
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-
-          if (!_isLoading && _filteredVehicles.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                alignment: WrapAlignment.spaceBetween,
+              // ----- HEADER (matches AdminSchedules/AdminDriver) -----
+              Row(
                 children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 260),
-                    child: Text(
-                      'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredVehicles.length)} of ${_filteredVehicles.length} vehicles',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 14,
-                      ),
-                      softWrap: true,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Fleet Management',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Manage vehicle profiles, documents, and compliance status.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      OutlinedButton(
-                        onPressed: _currentPage > 0 ? _prevPage : null,
-                        child: const Text('Previous'),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _showVehicleModal(context),
+                    icon: const Icon(Icons.directions_bus, color: Colors.white, size: 18),
+                    label: const Text(
+                      'Register Vehicle',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
-                      Text(
-                        'Page ${_currentPage + 1} of $_totalPages',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
                       ),
-                      OutlinedButton(
-                        onPressed: _currentPage < _totalPages - 1
-                            ? _nextPage
-                            : null,
-                        child: const Text('Next'),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    ],
+                      elevation: 0,
+                    ),
                   ),
                 ],
               ),
-            ),
-        ],
+              const SizedBox(height: 20),
+
+              // ----- SEARCH & SORT (responsive Wrap) -----
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.start,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isMobile ? double.infinity : 350,
+                      minWidth: isMobile ? double.infinity : 200,
+                    ),
+                    child: SizedBox(
+                      height: 42,
+                      child: TextField(
+                        onChanged: (value) {
+                          _searchQuery = value;
+                          _applyFiltersAndSort();
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Search by plate or model...',
+                          hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                          prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isMobile ? double.infinity : 200,
+                      minWidth: isMobile ? double.infinity : 140,
+                    ),
+                    child: SizedBox(
+                      height: 42,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: _currentSort,
+                            icon: const Icon(Icons.sort, size: 18, color: Color(0xFF64748B)),
+                            style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                            items: _sortOptions
+                                .map(
+                                  (String value) => DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (newValue) {
+                              if (newValue != null) {
+                                _currentSort = newValue;
+                                _applyFiltersAndSort();
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ----- VEHICLE LIST -----
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
+                    : _filteredVehicles.isEmpty
+                        ? const Center(
+                            child: Text(
+                              "No tracking vehicles matched parameters.",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _paginatedVehicles.length,
+                            itemBuilder: (context, index) {
+                              final v = _paginatedVehicles[index];
+                              final String plate = v['plate_number'] ?? 'UNKNOWN';
+                              final String rawBusType =
+                                  v['bus_type'] ?? 'Unknown Model';
+                              final String condition =
+                                  v['health_status'] ?? 'Good Condition';
+
+                              final String modelDisplay = rawBusType.contains(' - ')
+                                  ? rawBusType.split(' - ').last
+                                  : rawBusType;
+                              final String seatCapacity = rawBusType.contains(' - ')
+                                  ? rawBusType.split(' - ').first
+                                  : 'Configured Seats';
+
+                              Color conditionColor = const Color(0xFF10B981); // green
+                              if (condition == 'Maintenance Required') {
+                                conditionColor = const Color(0xFFF59E0B); // yellow
+                              } else if (condition == 'Under Repair') {
+                                conditionColor = const Color(0xFFEF4444); // red
+                              }
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.02),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    )
+                                  ],
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(16),
+                                    onTap: () => _showVehicleModal(
+                                      context,
+                                      vehicle: Map<String, dynamic>.from(v),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          // Left indicator bar
+                                          Container(
+                                            width: 4,
+                                            height: 36,
+                                            margin: const EdgeInsets.only(right: 12),
+                                            decoration: BoxDecoration(
+                                              color: conditionColor,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        plate,
+                                                        style: const TextStyle(
+                                                          fontSize: 15,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Color(0xFF0F172A),
+                                                        ),
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 1,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: conditionColor.withOpacity(
+                                                          0.1,
+                                                        ),
+                                                        borderRadius: BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        condition,
+                                                        style: TextStyle(
+                                                          color: conditionColor,
+                                                          fontSize: 8,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Wrap(
+                                                  spacing: 10,
+                                                  runSpacing: 2,
+                                                  children: [
+                                                    _iconText(
+                                                      Icons.directions_car_outlined,
+                                                      modelDisplay,
+                                                    ),
+                                                    _iconText(
+                                                      Icons.group_outlined,
+                                                      seatCapacity,
+                                                    ),
+                                                    _iconText(
+                                                      Icons.build_circle_outlined,
+                                                      'Status: $condition',
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          const Icon(
+                                            Icons.arrow_forward_ios,
+                                            size: 14,
+                                            color: Color(0xFF94A3B8),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+              ),
+
+              // ----- PAGINATION -----
+              if (!_isLoading && _filteredVehicles.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 16,
+                    runSpacing: 12,
+                    children: [
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 260),
+                        child: Text(
+                          'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredVehicles.length)} of ${_filteredVehicles.length} vehicles',
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 13,
+                          ),
+                          softWrap: true,
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          OutlinedButton(
+                            onPressed: _currentPage > 0 ? _prevPage : null,
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              side: BorderSide(color: Colors.grey.shade300),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            child: const Text('Previous'),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${_currentPage + 1} / $_totalPages',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF3B82F6),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: _currentPage < _totalPages - 1
+                                ? _nextPage
+                                : null,
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              side: BorderSide(color: Colors.grey.shade300),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            child: const Text('Next'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -477,14 +595,24 @@ class _AdminFleetState extends State<AdminFleet> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 20, color: Colors.grey),
-        const SizedBox(width: 8),
-        Text(text, style: const TextStyle(fontWeight: FontWeight.w500)),
+        Icon(icon, size: 12, color: const Color(0xFF64748B)),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF64748B),
+          ),
+        ),
       ],
     );
   }
 }
 
+// ============================================================================
+// REGISTER VEHICLE DIALOG – kept exactly as original, only styling tweaks
+// ============================================================================
 class RegisterVehicleDialog extends StatefulWidget {
   final Map<String, dynamic>? vehicle;
   final VoidCallback? onDelete;
@@ -598,18 +726,30 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
     final bool active = _isWritingUnlocked && !forceDisable;
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: const Color(0xFF475569)),
+      prefixIcon: Icon(icon, color: const Color(0xFF475569), size: 20),
       filled: true,
-      fillColor: active ? const Color(0xFFF1F5F9) : const Color(0xFFE2E8F0),
-      labelStyle: const TextStyle(color: Color(0xFF64748B)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      fillColor: active ? const Color(0xFFF8FAFC) : const Color(0xFFF1F5F9),
+      labelStyle: const TextStyle(
+        color: Color(0xFF64748B),
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade300),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFEF4444)),
       ),
     );
   }
@@ -626,7 +766,8 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
           content: Text(
             "Please declare all validation certificate expirations.",
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -682,7 +823,8 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                   ? "Vehicle layout update saved!"
                   : "Vehicle successfully registered!",
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       } else {
@@ -691,7 +833,11 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -718,6 +864,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
   @override
   Widget build(BuildContext context) {
     final bool isEditMode = widget.vehicle != null;
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
 
     return AlertDialog(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -726,12 +873,12 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
         isEditMode ? 'Vehicle Specification Sheet' : 'Register New Vehicle',
         style: const TextStyle(
           fontWeight: FontWeight.bold,
-          fontSize: 24,
+          fontSize: 20,
           color: Color(0xFF0F172A),
         ),
       ),
       content: SizedBox(
-        width: 680,
+        width: isMobile ? double.infinity : 680,
         child: StatefulBuilder(
           builder: (context, setDialogState) {
             return Form(
@@ -745,11 +892,11 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                       "Basic Information",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                        fontSize: 15,
+                        color: Color(0xFF3B82F6),
+                        fontSize: 14,
                       ),
                     ),
-                    const Divider(),
+                    const Divider(height: 20),
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -765,7 +912,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: TextFormField(
                             controller: _modelController,
@@ -780,7 +927,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     Row(
                       children: [
                         Expanded(
@@ -795,7 +942,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: DropdownButtonFormField<String>(
                             value: _selectedCapacity,
@@ -819,7 +966,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     TextFormField(
                       controller: _engineController,
                       readOnly: !_isWritingUnlocked,
@@ -834,11 +981,11 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                       "Documents & Expirations",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                        fontSize: 15,
+                        color: Color(0xFF3B82F6),
+                        fontSize: 14,
                       ),
                     ),
-                    const Divider(),
+                    const Divider(height: 20),
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -855,7 +1002,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           flex: 1,
                           child: TextFormField(
@@ -875,7 +1022,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     Row(
                       children: [
                         Expanded(
@@ -891,7 +1038,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           flex: 1,
                           child: TextFormField(
@@ -911,7 +1058,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     Row(
                       children: [
                         Expanded(
@@ -927,7 +1074,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           flex: 1,
                           child: TextFormField(
@@ -944,7 +1091,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     Row(
                       children: [
                         Expanded(
@@ -960,7 +1107,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           flex: 1,
                           child: TextFormField(
@@ -985,10 +1132,13 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
           },
         ),
       ),
-      actionsPadding: const EdgeInsets.only(bottom: 24, right: 24, left: 24),
+      actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
       actions: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             isEditMode
                 ? TextButton(
@@ -1003,14 +1153,15 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                     child: const Text(
                       'Delete',
                       style: TextStyle(
-                        color: Colors.red,
+                        color: Color(0xFFEF4444),
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontSize: 14,
                       ),
                     ),
                   )
                 : const SizedBox.shrink(),
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -1022,17 +1173,17 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 if (isEditMode && !_isWritingUnlocked)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF64748B),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
+                        horizontal: 16,
+                        vertical: 10,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       elevation: 0,
                     ),
@@ -1042,27 +1193,28 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
                     ),
                   )
                 else
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1D83E4),
+                      backgroundColor: const Color(0xFF3B82F6),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
+                        horizontal: 16,
+                        vertical: 10,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       elevation: 0,
                     ),
                     onPressed: _isLoading ? null : _submitVehicleForm,
                     child: _isLoading
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(
                               color: Colors.white,
                               strokeWidth: 2,
@@ -1073,6 +1225,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
+                              fontSize: 13,
                             ),
                           ),
                   ),

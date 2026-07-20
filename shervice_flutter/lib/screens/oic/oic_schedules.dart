@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../constant.dart';
 
 class OicSchedules extends StatefulWidget {
-  final String oicId; 
+  final String oicId;
 
   const OicSchedules({super.key, required this.oicId});
 
@@ -31,7 +31,6 @@ class _OicSchedulesState extends State<OicSchedules> {
       final response = await http.get(
         Uri.parse('$backendUrl/schedules/oic/${widget.oicId}'),
       );
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && mounted) {
@@ -136,73 +135,74 @@ class _OicSchedulesState extends State<OicSchedules> {
           child: ListView.separated(
             shrinkWrap: true,
             itemCount: schedules.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final trip = schedules[index];
               final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
-              
               final isPending = statusStr.toLowerCase().contains('pending');
               final isRejected = statusStr.toLowerCase().contains('rejected');
-              
-              Color statusColor = Colors.green.shade700;
-              Color statusBg = Colors.green.shade50;
-              
-              if (isRejected) {
-                statusColor = Colors.red.shade700;
-                statusBg = Colors.red.shade50;
-              } else if (isPending) {
-                statusColor = Colors.orange.shade700;
-                statusBg = Colors.orange.shade50;
-              }
+              Color statusColor = isRejected ? const Color(0xFFEF4444) : (isPending ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
+              Color statusBg = isRejected ? const Color(0xFFFEF2F2) : (isPending ? const Color(0xFFFEF3C7) : const Color(0xFFECFDF5));
 
               return Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
                             trip['route_name'] ?? 'Unknown Route',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
-                        ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${trip['schedule_date']} • ${_formatTime(trip['departure_time'])} → ${_formatTime(trip['estimated_arrival_time'])}',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          ),
+                          Text(
+                            '👥 ${trip['passenger_count'] ?? 0}  •  📍 ${trip['route_distance'] ?? 0} km',
+                            style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                           decoration: BoxDecoration(
                             color: statusBg,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
                             statusStr,
                             style: TextStyle(
                               color: statusColor,
-                              fontSize: 11,
+                              fontSize: 8,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                        // 👇 EDIT BUTTON IN CALENDAR POPUP
                         if (isPending || isRejected)
                           IconButton(
-                            icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 20),
+                            icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 16),
                             onPressed: () {
-                              Navigator.pop(context); // close current dialog
+                              Navigator.pop(context);
                               _showEditScheduleModal(context, trip);
                             },
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text('Departure: ${_formatTime(trip['departure_time'])}  •  ETA: ${_formatTime(trip['estimated_arrival_time'])}'),
-                    const SizedBox(height: 4),
-                    Text('Passengers: ${trip['passenger_count'] ?? 0}  •  Distance: ${trip['route_distance'] ?? 0} km'),
                   ],
                 ),
               );
@@ -219,274 +219,422 @@ class _OicSchedulesState extends State<OicSchedules> {
     );
   }
 
+  int get _totalTrips => _myTrips.length;
+  int get _pendingTrips => _myTrips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase().contains('pending')).length;
+  int get _rejectedTrips => _myTrips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase().contains('rejected')).length;
+  int get _scheduledTrips => _myTrips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'scheduled').length;
+
   @override
   Widget build(BuildContext context) {
-    final recentSchedules = _recentSchedules;
-    final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
-    final daysBefore = firstDayOfMonth.weekday % 7;
-    final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
-    final totalCells = ((daysBefore + daysInMonth) / 7).ceil() * 7;
-    final now = DateTime.now();
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final double horizontalPadding = isMobile ? 12.0 : 24.0;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: RefreshIndicator(
+        onRefresh: _fetchMyTrips,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
+              // ── HEADER ──
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'My Trip Requests',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Calendar view of your schedules and dispatches.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: IconButton(
+                      onPressed: () {
+                        setState(() => _isLoading = true);
+                        _fetchMyTrips();
+                      },
+                      icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6), size: 20),
+                      tooltip: 'Refresh',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  ElevatedButton.icon(
+                    onPressed: () => _showNewScheduleModal(context),
+                    icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                    label: const Text(
+                      'New',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // ── STATS CHIPS ──
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _statChip(Icons.list_alt, _totalTrips.toString(), 'Total', const Color(0xFF3B82F6)),
+                  _statChip(Icons.hourglass_top, _pendingTrips.toString(), 'Pending', const Color(0xFFF59E0B)),
+                  _statChip(Icons.event_available, _scheduledTrips.toString(), 'Scheduled', const Color(0xFF10B981)),
+                  _statChip(Icons.cancel, _rejectedTrips.toString(), 'Rejected', const Color(0xFFEF4444)),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // ── RECENT SCHEDULES ──
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'My Trip Requests',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                      'Recent Schedules',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
+                      )
+                    else if (_recentSchedules.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Text('No schedules yet.', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                        ),
+                      )
+                    else
+                      Column(
+                        children: _recentSchedules.map((trip) => _buildRecentCard(trip)).toList(),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'A calendar view of your recent schedules and dispatches.',
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                    ),
                   ],
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: () => _showNewScheduleModal(context),
-                icon: const Icon(Icons.add, size: 18, color: Colors.white),
-                label: const Text(
-                  'New Request',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              const SizedBox(height: 12),
+
+              // ── COMPACT CALENDAR ──
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade600,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                ),
+                child: _buildCalendar(),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Recent Schedules',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                if (_isLoading)
-                  const Center(child: CircularProgressIndicator())
-                else if (recentSchedules.isEmpty)
-                  const Text('No schedules recorded yet.', style: TextStyle(color: Colors.grey))
-                else
-                  ...recentSchedules.map((trip) {
-                    final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
-                    final isPending = statusStr.toLowerCase().contains('pending');
-                    final isRejected = statusStr.toLowerCase().contains('rejected');
+        ),
+      ),
+    );
+  }
 
-                    Color statusColor = Colors.green.shade700;
-                    Color statusBg = Colors.green.shade50;
-
-                    if (isRejected) {
-                      statusColor = Colors.red.shade700;
-                      statusBg = Colors.red.shade50;
-                    } else if (isPending) {
-                      statusColor = Colors.orange.shade700;
-                      statusBg = Colors.orange.shade50;
-                    }
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  trip['route_name'] ?? 'Unknown Route',
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${trip['schedule_date'] ?? ''} • ${_formatTime(trip['departure_time'])} → ${_formatTime(trip['estimated_arrival_time'])}',
-                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: statusBg,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              statusStr,
-                              style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          // 👇 EDIT BUTTON IN RECENT SCHEDULES LIST
-                          if (isPending || isRejected)
-                            IconButton(
-                              icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 20),
-                              onPressed: () => _showEditScheduleModal(context, trip),
-                            ),
-                        ],
-                      ),
-                    );
-                  }),
-              ],
-            ),
+  Widget _statChip(IconData icon, String value, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
           ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
-                          icon: const Icon(Icons.chevron_left),
-                        ),
-                        IconButton(
-                          onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
-                          icon: const Icon(Icons.chevron_right),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-                      .map(
-                        (day) => Expanded(
-                          child: Center(
-                            child: Text(
-                              day,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 8),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 1.0,
-                  ),
-                  itemCount: totalCells,
-                  itemBuilder: (context, index) {
-                    final date = DateTime(_focusedMonth.year, _focusedMonth.month, index - daysBefore + 1);
-                    final isCurrentMonth = date.month == _focusedMonth.month;
-                    final schedules = _schedulesForDate(date);
-                    final isOccupied = schedules.isNotEmpty;
-                    final isSelected = _selectedDate != null &&
-                        _selectedDate!.year == date.year &&
-                        _selectedDate!.month == date.month &&
-                        _selectedDate!.day == date.day;
-                    final isToday = now.year == date.year && now.month == date.month && now.day == date.day;
-
-                    return InkWell(
-                      onTap: isOccupied
-                          ? () {
-                              setState(() => _selectedDate = date);
-                              _showDayDetailsDialog(date, schedules);
-                            }
-                          : () => setState(() => _selectedDate = date),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? Colors.blue.shade50
-                              : isOccupied
-                                  ? Colors.blue.shade50
-                                  : Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isToday ? Colors.blue.shade300 : Colors.transparent,
-                            width: isToday ? 1.5 : 1,
-                          ),
-                        ),
-                        padding: const EdgeInsets.all(6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              date.day.toString(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isCurrentMonth ? Colors.black87 : Colors.grey.shade400,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            if (isOccupied)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.shade600,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  schedules.length > 1 ? '${schedules.length}' : '1',
-                                  style: const TextStyle(fontSize: 10, color: Colors.white),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
+          const SizedBox(width: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 9, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildRecentCard(Map<String, dynamic> trip) {
+    final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
+    final isPending = statusStr.toLowerCase().contains('pending');
+    final isRejected = statusStr.toLowerCase().contains('rejected');
+    final isScheduled = statusStr.toLowerCase() == 'scheduled';
+
+    Color statusColor;
+    String statusLabel;
+    if (isRejected) {
+      statusColor = const Color(0xFFEF4444);
+      statusLabel = 'REJECTED';
+    } else if (isPending) {
+      statusColor = const Color(0xFFF59E0B);
+      statusLabel = 'PENDING';
+    } else if (isScheduled) {
+      statusColor = const Color(0xFF10B981);
+      statusLabel = 'SCHEDULED';
+    } else {
+      statusColor = const Color(0xFF64748B);
+      statusLabel = statusStr.toUpperCase();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trip['route_name'] ?? 'Unknown Route',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  '${trip['schedule_date']} • ${_formatTime(trip['departure_time'])} → ${_formatTime(trip['estimated_arrival_time'])}',
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              statusLabel,
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+                color: statusColor,
+              ),
+            ),
+          ),
+          if (isPending || isRejected)
+            IconButton(
+              icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 14),
+              onPressed: () => _showEditScheduleModal(context, trip),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ─── COMPACT CALENDAR ───
+  Widget _buildCalendar() {
+    final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final daysBefore = firstDay.weekday % 7;
+    final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
+    final totalCells = ((daysBefore + daysInMonth) / 7).ceil() * 7;
+    final now = DateTime.now();
+
+    return Column(
+      children: [
+        // ── Header ──
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+            ),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left, size: 16),
+                  onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right, size: 16),
+                  onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        // ── Weekday headers ──
+        Row(
+          children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+              .map((day) => Expanded(
+                    child: Center(
+                      child: Text(
+                        day,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 8, color: Color(0xFF475569)),
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 2),
+        // ── Days grid (compact) ──
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+            childAspectRatio: 0.7,
+          ),
+          itemCount: totalCells,
+          itemBuilder: (context, index) {
+            final date = DateTime(_focusedMonth.year, _focusedMonth.month, index - daysBefore + 1);
+            final isCurrentMonth = date.month == _focusedMonth.month;
+            final schedules = _schedulesForDate(date);
+            final isOccupied = schedules.isNotEmpty;
+            final isSelected = _selectedDate != null &&
+                _selectedDate!.year == date.year &&
+                _selectedDate!.month == date.month &&
+                _selectedDate!.day == date.day;
+            final isToday = now.year == date.year && now.month == date.month && now.day == date.day;
+
+            return InkWell(
+              onTap: isOccupied
+                  ? () {
+                      setState(() => _selectedDate = date);
+                      _showDayDetailsDialog(date, schedules);
+                    }
+                  : () => setState(() => _selectedDate = date),
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF3B82F6)
+                      : (isOccupied
+                          ? const Color(0xFFEFF6FF)
+                          : Colors.transparent),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: isToday
+                        ? const Color(0xFFF59E0B)
+                        : (isSelected
+                            ? const Color(0xFF3B82F6)
+                            : Colors.grey.shade200),
+                    width: isToday ? 1.2 : (isSelected ? 1.2 : 0.5),
+                  ),
+                ),
+                padding: const EdgeInsets.all(1),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      date.day.toString(),
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected
+                            ? Colors.white
+                            : (isCurrentMonth
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFF94A3B8)),
+                      ),
+                    ),
+                    if (isOccupied)
+                      Container(
+                        margin: const EdgeInsets.only(top: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0.5),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : const Color(0xFF3B82F6),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          schedules.length > 1 ? '${schedules.length}' : '•',
+                          style: TextStyle(
+                            fontSize: 6,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? const Color(0xFF3B82F6) : Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
 }
 
-// ─── NEW TRIP REQUEST FORM DIALOG ───
+// ─── CREATE TRIP REQUEST DIALOG (unchanged) ───
 class CreateTripRequestDialog extends StatefulWidget {
   final String oicId;
 
@@ -538,28 +686,22 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
 
   Future<void> _submitRequest() async {
     if (!_formKey.currentState!.validate()) return;
-
-    if (_selectedDate == null ||
-        _selectedTime == null ||
-        _selectedArrivalTime == null ||
-        _selectedStaffId == null) {
+    if (_selectedDate == null || _selectedTime == null ||
+        _selectedArrivalTime == null || _selectedStaffId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please complete all fields.'),
-          backgroundColor: Colors.red,
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
-
     setState(() => _isLoading = true);
 
-    final formattedDate =
-        "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
-    final formattedTime =
-        "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
-    final formattedETA =
-        "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
+    final formattedDate = "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
+    final formattedTime = "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
+    final formattedETA = "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
 
     try {
       final response = await http.post(
@@ -578,14 +720,14 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
       );
 
       final data = jsonDecode(response.body);
-
       if (response.statusCode == 201 && data['success'] == true) {
         if (!mounted) return;
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Trip requested successfully!"),
-            backgroundColor: Colors.green,
+            content: Text("Trip requested!"),
+            backgroundColor: Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       } else {
@@ -594,7 +736,11 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -604,13 +750,13 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Text(
-        "Request New Schedule",
-        style: TextStyle(fontWeight: FontWeight.bold),
+        "Request Schedule",
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0F172A)),
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       content: SizedBox(
-        width: 450,
+        width: 440,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -622,68 +768,74 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                 else
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(
-                      labelText: "Assign to Dispatch Staff",
+                      labelText: "Dispatch Staff",
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.support_agent),
+                      prefixIcon: Icon(Icons.support_agent, size: 18),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
                     value: _selectedStaffId,
                     items: _staffMembers
-                        .map(
-                          (s) => DropdownMenuItem<String>(
-                            value: s['user_id'],
-                            child: Text(s['full_name'] ?? 'Staff'),
-                          ),
-                        )
+                        .map((s) => DropdownMenuItem<String>(
+                              value: s['user_id'],
+                              child: Text(s['full_name'] ?? 'Staff'),
+                            ))
                         .toList(),
                     onChanged: (val) => setState(() => _selectedStaffId = val),
                   ),
-                const SizedBox(height: 16),
-
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _destinationController,
                   validator: (val) => val!.isEmpty ? "Required" : null,
                   decoration: const InputDecoration(
                     labelText: "Route / Destination",
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.location_on),
+                    prefixIcon: Icon(Icons.location_on, size: 18),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _distanceController,
-                  keyboardType: TextInputType.number,
-                  validator: (val) {
-                    if (val == null || val.isEmpty) return "Required";
-                    if (double.tryParse(val) == null)
-                      return "Must be a valid number";
-                    return null;
-                  },
-                  decoration: const InputDecoration(
-                    labelText: "Distance (km)",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.map),
-                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _distanceController,
+                        keyboardType: TextInputType.number,
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return "Required";
+                          if (double.tryParse(val) == null) return "Invalid";
+                          return null;
+                        },
+                        decoration: const InputDecoration(
+                          labelText: "Distance (km)",
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.map, size: 18),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _passengerController,
+                        keyboardType: TextInputType.number,
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return "Required";
+                          final count = int.tryParse(val);
+                          if (count == null) return "Invalid";
+                          if (count > 20) return "Max 20";
+                          return null;
+                        },
+                        decoration: const InputDecoration(
+                          labelText: "Passengers",
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.people, size: 18),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _passengerController,
-                  keyboardType: TextInputType.number,
-                  validator: (val) {
-                    if (val == null || val.isEmpty) return "Required";
-                    if (int.tryParse(val) == null)
-                      return "Must be a valid number";
-                    return null;
-                  },
-                  decoration: const InputDecoration(
-                    labelText: "Number of Passengers",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.people),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
@@ -691,24 +843,23 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: context,
-                            initialDate: DateTime.now().add(
-                              const Duration(days: 1),
-                            ),
+                            initialDate: DateTime.now().add(const Duration(days: 1)),
                             firstDate: DateTime.now(),
                             lastDate: DateTime(2030),
                           );
-                          if (picked != null)
-                            setState(() => _selectedDate = picked);
+                          if (picked != null) setState(() => _selectedDate = picked);
                         },
                         child: InputDecorator(
                           decoration: const InputDecoration(
                             labelText: 'Date',
                             border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           ),
                           child: Text(
                             _selectedDate == null
                                 ? "Select Date"
                                 : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}",
+                            style: const TextStyle(fontSize: 13),
                           ),
                         ),
                       ),
@@ -721,18 +872,17 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                             context: context,
                             initialTime: const TimeOfDay(hour: 8, minute: 0),
                           );
-                          if (picked != null)
-                            setState(() => _selectedTime = picked);
+                          if (picked != null) setState(() => _selectedTime = picked);
                         },
                         child: InputDecorator(
                           decoration: const InputDecoration(
-                            labelText: 'Departure',
+                            labelText: 'Depart',
                             border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           ),
                           child: Text(
-                            _selectedTime == null
-                                ? "Time"
-                                : _selectedTime!.format(context),
+                            _selectedTime == null ? "Time" : _selectedTime!.format(context),
+                            style: const TextStyle(fontSize: 13),
                           ),
                         ),
                       ),
@@ -745,18 +895,17 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                             context: context,
                             initialTime: const TimeOfDay(hour: 17, minute: 0),
                           );
-                          if (picked != null)
-                            setState(() => _selectedArrivalTime = picked);
+                          if (picked != null) setState(() => _selectedArrivalTime = picked);
                         },
                         child: InputDecorator(
                           decoration: const InputDecoration(
                             labelText: 'ETA',
                             border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           ),
                           child: Text(
-                            _selectedArrivalTime == null
-                                ? "Arrival"
-                                : _selectedArrivalTime!.format(context),
+                            _selectedArrivalTime == null ? "Arrival" : _selectedArrivalTime!.format(context),
+                            style: const TextStyle(fontSize: 13),
                           ),
                         ),
                       ),
@@ -776,17 +925,18 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
         ElevatedButton(
           onPressed: _isLoading ? null : _submitRequest,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue.shade600,
+            backgroundColor: const Color(0xFF3B82F6),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           ),
           child: _isLoading
               ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(color: Colors.white),
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                 )
               : const Text(
-                  "Submit Request",
-                  style: TextStyle(color: Colors.white),
+                  "Submit",
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
         ),
       ],
@@ -794,12 +944,16 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
   }
 }
 
-// ─── EDIT TRIP REQUEST FORM DIALOG ───
+// ─── EDIT TRIP REQUEST DIALOG (unchanged) ───
 class EditTripRequestDialog extends StatefulWidget {
   final Map<String, dynamic> trip;
   final String backendUrl;
 
-  const EditTripRequestDialog({super.key, required this.trip, required this.backendUrl});
+  const EditTripRequestDialog({
+    super.key,
+    required this.trip,
+    required this.backendUrl,
+  });
 
   @override
   State<EditTripRequestDialog> createState() => _EditTripRequestDialogState();
@@ -841,8 +995,17 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
   }
 
   Future<void> _submitEdit() async {
-    if (!_formKey.currentState!.validate() || _selectedDate == null || _selectedTime == null || _selectedArrivalTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please complete all fields.'), backgroundColor: Colors.red));
+    if (!_formKey.currentState!.validate() ||
+        _selectedDate == null ||
+        _selectedTime == null ||
+        _selectedArrivalTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please complete all fields.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
 
@@ -858,7 +1021,7 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           "trip_id": widget.trip['trip_id'],
-          "staff_id": widget.trip['staff_id'], // Passes the staff ID so they get notified!
+          "staff_id": widget.trip['staff_id'],
           "destination": _destinationController.text.trim(),
           "passenger_count": _passengerController.text.trim(),
           "route_distance": _distanceController.text.trim(),
@@ -872,13 +1035,25 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
       if (response.statusCode == 200 && data['success'] == true) {
         if (!mounted) return;
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Trip updated successfully!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Trip updated!"),
+            backgroundColor: Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
         throw Exception(data['message'] ?? "Failed to update request.");
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -887,10 +1062,13 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text("Edit Schedule Request", style: TextStyle(fontWeight: FontWeight.bold)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        "Edit Request",
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0F172A)),
+      ),
       content: SizedBox(
-        width: 450,
+        width: 440,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -900,23 +1078,54 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                 TextFormField(
                   controller: _destinationController,
                   validator: (val) => val!.isEmpty ? "Required" : null,
-                  decoration: const InputDecoration(labelText: "Route / Destination", border: OutlineInputBorder(), prefixIcon: Icon(Icons.location_on)),
+                  decoration: const InputDecoration(
+                    labelText: "Route / Destination",
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.location_on, size: 18),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _distanceController,
-                  keyboardType: TextInputType.number,
-                  validator: (val) => val == null || val.isEmpty ? "Required" : (double.tryParse(val) == null ? "Invalid number" : null),
-                  decoration: const InputDecoration(labelText: "Distance (km)", border: OutlineInputBorder(), prefixIcon: Icon(Icons.map)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _distanceController,
+                        keyboardType: TextInputType.number,
+                        validator: (val) => val == null || val.isEmpty
+                            ? "Required"
+                            : (double.tryParse(val) == null ? "Invalid" : null),
+                        decoration: const InputDecoration(
+                          labelText: "Distance (km)",
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.map, size: 18),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _passengerController,
+                        keyboardType: TextInputType.number,
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return "Required";
+                          final count = int.tryParse(val);
+                          if (count == null) return "Invalid";
+                          if (count > 20) return "Max 20";
+                          return null;
+                        },
+                        decoration: const InputDecoration(
+                          labelText: "Passengers",
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.people, size: 18),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passengerController,
-                  keyboardType: TextInputType.number,
-                  validator: (val) => val == null || val.isEmpty ? "Required" : (int.tryParse(val) == null ? "Invalid number" : null),
-                  decoration: const InputDecoration(labelText: "Passengers", border: OutlineInputBorder(), prefixIcon: Icon(Icons.people)),
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
@@ -931,25 +1140,17 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                           if (picked != null) setState(() => _selectedDate = picked);
                         },
                         child: InputDecorator(
-                          decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder()),
-                          child: Text(_selectedDate == null ? "Select Date" : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}"),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showTimePicker(context: context, initialTime: _selectedTime ?? const TimeOfDay(hour: 8, minute: 0));
-                          if (picked != null) setState(() => _selectedTime = picked);
-                        },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(labelText: 'Departure', border: OutlineInputBorder()),
-                          child: Text(_selectedTime == null ? "Time" : _selectedTime!.format(context)),
+                          decoration: const InputDecoration(
+                            labelText: 'Date',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          child: Text(
+                            _selectedDate == null
+                                ? "Select Date"
+                                : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}",
+                            style: const TextStyle(fontSize: 13),
+                          ),
                         ),
                       ),
                     ),
@@ -957,12 +1158,45 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final picked = await showTimePicker(context: context, initialTime: _selectedArrivalTime ?? const TimeOfDay(hour: 17, minute: 0));
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: _selectedTime ?? const TimeOfDay(hour: 8, minute: 0),
+                          );
+                          if (picked != null) setState(() => _selectedTime = picked);
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Depart',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          child: Text(
+                            _selectedTime == null ? "Time" : _selectedTime!.format(context),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: _selectedArrivalTime ?? const TimeOfDay(hour: 17, minute: 0),
+                          );
                           if (picked != null) setState(() => _selectedArrivalTime = picked);
                         },
                         child: InputDecorator(
-                          decoration: const InputDecoration(labelText: 'ETA', border: OutlineInputBorder()),
-                          child: Text(_selectedArrivalTime == null ? "Arrival" : _selectedArrivalTime!.format(context)),
+                          decoration: const InputDecoration(
+                            labelText: 'ETA',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          child: Text(
+                            _selectedArrivalTime == null ? "Arrival" : _selectedArrivalTime!.format(context),
+                            style: const TextStyle(fontSize: 13),
+                          ),
                         ),
                       ),
                     ),
@@ -974,11 +1208,26 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancel"),
+        ),
         ElevatedButton(
           onPressed: _isLoading ? null : _submitEdit,
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade600),
-          child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Text("Save Changes", style: TextStyle(color: Colors.white)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF3B82F6),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                )
+              : const Text(
+                  "Save",
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
         ),
       ],
     );

@@ -1,8 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'dart:io';
 import '../../constant.dart';
 
 class StaffTrips extends StatefulWidget {
@@ -16,8 +16,10 @@ class StaffTrips extends StatefulWidget {
 
 class _StaffTripsState extends State<StaffTrips> {
   String _searchTerm = '';
+  String _statusFilter = 'All';
+  final List<String> _statusOptions = ['All', 'Scheduled', 'Ongoing', 'Completed'];
   List<dynamic> _trips = [];
-  bool _isLoading = true; //[cite: 6]
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -48,316 +50,446 @@ class _StaffTripsState extends State<StaffTrips> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Search by Route, Driver, or Client Company
-    final filteredTrips = _trips.where((trip) {
+  List<dynamic> get _filteredTrips {
+    return _trips.where((trip) {
+      // Search filter
       final route = (trip['route_name'] ?? '').toString().toLowerCase();
       final driver = (trip['driver_name'] ?? '').toString().toLowerCase();
       final client = (trip['client_company'] ?? '').toString().toLowerCase();
       final search = _searchTerm.toLowerCase();
-      return route.contains(search) ||
+      final matchesSearch = route.contains(search) ||
           driver.contains(search) ||
           client.contains(search);
-    }).toList(); //[cite: 6]
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      // Status filter
+      final status = (trip['trip_status'] ?? '').toString().toLowerCase();
+      final matchesStatus = _statusFilter == 'All' ||
+          status == _statusFilter.toLowerCase();
+
+      return matchesSearch && matchesStatus;
+    }).toList();
+  }
+
+  int get _totalTrips => _trips.length;
+  int get _scheduledTrips => _trips
+      .where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'scheduled')
+      .length;
+  int get _ongoingTrips => _trips
+      .where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'ongoing')
+      .length;
+  int get _completedTrips => _trips
+      .where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'completed')
+      .length;
+
+  Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return const Color(0xFF10B981);
+      case 'ongoing':
+        return const Color(0xFF3B82F6);
+      case 'scheduled':
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF64748B);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final double horizontalPadding = isMobile ? 12.0 : 24.0;
+    final filteredTrips = _filteredTrips;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: RefreshIndicator(
+        onRefresh: _fetchStaffLogs,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // ── HEADER ──
+              Row(
                 children: [
-                  const Text(
-                    'My Dispatched Trips',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'My Dispatched Trips',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'History of trips you have actively assigned.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'History of trips you have actively assigned.',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: IconButton(
+                      onPressed: () {
+                        setState(() => _isLoading = true);
+                        _fetchStaffLogs();
+                      },
+                      icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6)),
+                      tooltip: 'Refresh',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
                   ),
                 ],
               ),
-              SizedBox(
-                width: 250,
-                child: TextField(
-                  onChanged: (val) => setState(() => _searchTerm = val),
-                  decoration: InputDecoration(
-                    hintText: 'Search logs...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+              const SizedBox(height: 12),
+
+              // ── STATS CHIPS ──
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _statChip(Icons.event, _totalTrips.toString(), 'Total', const Color(0xFF3B82F6)),
+                  _statChip(Icons.schedule, _scheduledTrips.toString(), 'Scheduled', const Color(0xFFF59E0B)),
+                  _statChip(Icons.play_arrow, _ongoingTrips.toString(), 'Ongoing', const Color(0xFF3B82F6)),
+                  _statChip(Icons.check_circle, _completedTrips.toString(), 'Completed', const Color(0xFF10B981)),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // ── SEARCH & FILTER ──
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.start,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isMobile ? double.infinity : 280,
+                      minWidth: isMobile ? double.infinity : 200,
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    child: SizedBox(
+                      height: 38,
+                      child: TextField(
+                        onChanged: (val) => setState(() => _searchTerm = val),
+                        decoration: InputDecoration(
+                          hintText: 'Search...',
+                          hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF64748B)),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                          ),
+                        ),
+                      ),
                     ),
+                  ),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isMobile ? double.infinity : 160,
+                      minWidth: isMobile ? double.infinity : 120,
+                    ),
+                    child: SizedBox(
+                      height: 38,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: _statusFilter,
+                            icon: const Icon(Icons.filter_alt_outlined, size: 16, color: Color(0xFF64748B)),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A)),
+                            items: _statusOptions.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (newValue) {
+                              if (newValue != null) {
+                                setState(() => _statusFilter = newValue);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // ── TRIP LIST ──
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
+                      : filteredTrips.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.history, size: 48, color: Colors.grey.shade400),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No trips found.',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: filteredTrips.length,
+                              itemBuilder: (context, index) {
+                                final trip = filteredTrips[index];
+                                return _buildTripCard(trip);
+                              },
+                            ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statChip(IconData icon, String value, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTripCard(Map<String, dynamic> trip) {
+    final status = (trip['trip_status'] ?? 'Unknown').toString();
+    final statusColor = _statusColor(status);
+    final driver = trip['driver_name'] ?? 'Unassigned';
+    final plate = trip['plate_number'] ?? 'N/A';
+    final route = trip['route_name'] ?? 'Unknown Route';
+    final client = trip['client_company'] ?? 'Unknown Client';
+    final date = trip['schedule_date'] ?? 'TBD';
+    final departure = trip['departure_time']?.toString().substring(0, 5) ?? '--:--';
+    final arrival = trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--';
+    final passengers = trip['passenger_count'] ?? 0;
+    final distance = trip['route_distance'] ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── ROW: ROUTE + STATUS ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  route,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 6),
 
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade100),
-                    ),
+          // ── CLIENT + DATE ──
+          Row(
+            children: [
+              Icon(Icons.business, size: 12, color: const Color(0xFF64748B)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  client,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.assignment_turned_in,
-                            color: Colors.blue.shade600,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Dispatch History',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.refresh, size: 20),
-                        onPressed: () {
-                          setState(() => _isLoading = true);
-                          _fetchStaffLogs();
-                        },
-                      ),
-                    ],
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                if (_isLoading)
-                  const Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (filteredTrips.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Center(
-                      child: Text("You have not dispatched any trips yet."),
-                    ),
-                  ) //[cite: 6]
-                else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: filteredTrips.length,
-                    separatorBuilder: (context, index) =>
-                        Divider(height: 1, color: Colors.grey.shade100),
-                    itemBuilder: (context, index) {
-                      final trip = filteredTrips[index];
-                      final String status = trip['trip_status'] ?? 'Unknown';
+              ),
+              const SizedBox(width: 12),
+              Icon(Icons.calendar_today, size: 12, color: const Color(0xFF64748B)),
+              const SizedBox(width: 4),
+              Text(
+                date,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
 
-                      Color statusColor = Colors.orange;
-                      if (status == 'Completed')
-                        statusColor = Colors.green;
-                      else if (status == 'Ongoing' || status == 'Scheduled')
-                        statusColor = Colors.blue; //[cite: 6]
+          // ── DRIVER + VEHICLE ──
+          Row(
+            children: [
+              Icon(Icons.person, size: 12, color: const Color(0xFF64748B)),
+              const SizedBox(width: 4),
+              Text(
+                driver,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Icon(Icons.directions_car, size: 12, color: const Color(0xFF64748B)),
+              const SizedBox(width: 4),
+              Text(
+                plate,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
 
-                      return Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    trip['client_company'] ?? 'Unknown Client',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.location_on,
-                                        size: 14,
-                                        color: Colors.blue,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          trip['route_name'] ?? 'Unknown Route',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  // Added a quick overview of Passengers & Distance right below the route name
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.people,
-                                        size: 14,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${trip['passenger_count'] ?? 0} Pax',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Icon(
-                                        Icons.map,
-                                        size: 14,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${trip['route_distance'] ?? 0} km',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.person,
-                                        size: 14,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        trip['driver_name'],
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.local_shipping,
-                                        size: 14,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        trip['plate_number'],
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    trip['schedule_date'] ?? '',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Time: ${trip['departure_time']?.toString().substring(0, 5) ?? '--:--'}-${trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--'}',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withOpacity(0.1),
-                                    border: Border.all(
-                                      color: statusColor.withOpacity(0.3),
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    status.toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: statusColor,
-                                    ),
-                                  ), //[cite: 6]
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            ),
+          // ── TIME + PASSENGERS + DISTANCE ──
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              _infoChip(Icons.access_time, '$departure - $arrival'),
+              _infoChip(Icons.people, '$passengers pax'),
+              _infoChip(Icons.straighten, '$distance km'),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 11, color: const Color(0xFF64748B)),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }
