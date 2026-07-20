@@ -9,6 +9,8 @@ import '../../../widgets/notification_bell.dart';
 import '../../../widgets/shervice_floating_stack.dart';
 import '../../../constant.dart';
 import '../../session_manager.dart';
+import '../../../widgets/legal_policies_button.dart'; 
+import '../../widgets/legal_policies_button.dart';
 
 class OicLayoutDesktop extends StatefulWidget {
   final String oicId;
@@ -234,8 +236,12 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
               userId: widget.oicId,
               userName: widget.oicName,
               companyName: widget.companyName,
+              iconSize: 28,
             ),
             const SizedBox(width: 16),
+                    const LegalPoliciesButton(
+          iconColor: Colors.grey, // matches notification bell color
+        ),
           ],
         ),
       );

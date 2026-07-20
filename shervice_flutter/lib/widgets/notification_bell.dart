@@ -14,7 +14,7 @@ class NotificationBell extends StatefulWidget {
     required this.role,
     required this.userId,
     required this.userName,
-    this.companyName = 'Internal',
+    this.companyName = 'Internal', required int iconSize,
   });
 
   @override

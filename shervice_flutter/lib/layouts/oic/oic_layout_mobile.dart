@@ -8,6 +8,8 @@ import '../../../widgets/notification_bell.dart';
 import '../../../widgets/shervice_floating_stack.dart';
 import '../../../constant.dart';
 import '../../session_manager.dart';
+import '../../widgets/legal_policies_button.dart';
+
 
 class OicLayoutMobile extends StatefulWidget {
   final String oicId;
@@ -111,12 +113,17 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
               userId: widget.oicId,
               userName: widget.oicName,
               companyName: widget.companyName,
+              iconSize: 28,
             ),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
               onPressed: () => _confirmLogout(context),
             ),
             const SizedBox(width: 4),
+                    const LegalPoliciesButton(
+          iconColor: Colors.grey, // matches notification bell color
+        ),
+            
           ],
         ),
         body: SafeArea(

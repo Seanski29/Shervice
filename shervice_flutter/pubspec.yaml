@@ -14,10 +14,8 @@ dependencies:
     sdk: flutter
   http: ^1.2.0
   shared_preferences: ^2.2.2
-  # The web plugin must be indented exactly like this
   flutter_web_plugins:
     sdk: flutter
-  # Re-added the default cupertino icons just in case you need them
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.15.0
   flutter_facebook_auth: ^7.1.7
@@ -27,13 +25,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1   # ✅ Added here
 
-# The flutter section is where assets and UI configs live
 flutter:
   uses-material-design: true
-  
-  # Assets must be nested under the flutter section, exactly 2 spaces in
   assets:
     - assets/logo.jpg
     - assets/shervice.jpg
     - assets/shervice - white.jpg
+
+# ✅ Top-level (outside "flutter:")
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo.jpg"
+  adaptive_icon_background: "#1E293B"          # optional – dark blue background
+  adaptive_icon_foreground: "assets/logo.jpg"  # optional – same logo

@@ -15,6 +15,8 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
+import '../../widgets/legal_policies_button.dart';
+
 
 class AdminMobileLayout extends StatefulWidget {
   final String adminId; // ✅ Added adminId parameter
@@ -126,8 +128,12 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
               userId: widget.adminId,
               userName: 'Admin',
               companyName: '',
+              iconSize: 28,
             ),
             const SizedBox(width: 4),
+                    const LegalPoliciesButton(
+          iconColor: Colors.grey, // matches notification bell color
+        ),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
               onPressed: () => _handleLogout(context),
