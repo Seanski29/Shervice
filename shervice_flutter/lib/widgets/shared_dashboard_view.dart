@@ -53,8 +53,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
   Future<void> _fetchLiveDashboardData() async {
     try {
+      // 👇 UPDATED: Uses your global backendUrl seamlessly across environments now
       final response = await http
-          .get(Uri.parse(backendUrl))
+          .get(Uri.parse('$backendUrl/dashboard/metrics'))
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -83,10 +84,17 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                 baseColor: Colors.green,
               ),
               DashboardMetric(
-                title: 'Avg Punctuality',
-                value: (metricsMap['averagePunctuality'] ?? 5.0).toString(),
-                subTitle: 'Out of 5.0 rating',
-                icon: Icons.star,
+                title: 'Ongoing Trips',
+                value: (metricsMap['ongoingTrips'] ?? 0).toString(),
+                subTitle: 'Currently in transit',
+                icon: Icons.directions_bus,
+                baseColor: Colors.purple,
+              ),
+              DashboardMetric(
+                title: 'Unassigned',
+                value: (metricsMap['unassignedSchedules'] ?? 0).toString(),
+                subTitle: 'Needs dispatch',
+                icon: Icons.assignment_late,
                 baseColor: Colors.orange,
               ),
               DashboardMetric(
@@ -104,8 +112,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             _companyTrips = companyList
                 .map((json) => CompanyTripMetric.fromJson(json))
                 .toList();
-            _currentAlertPage =
-                0; // Reset alert pagination window index context on manual sync roll
+            _currentAlertPage = 0;
             _errorMessage = null;
             _isLoading = false;
           });
@@ -144,8 +151,11 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         double paddingTotal = 32.0;
+
         double dynamicWidth = constraints.maxWidth > 1200
-            ? (constraints.maxWidth - (paddingTotal + 48)) / 4
+            ? (constraints.maxWidth - (paddingTotal + 64)) / 5
+            : constraints.maxWidth > 900
+            ? (constraints.maxWidth - (paddingTotal + 32)) / 3
             : constraints.maxWidth > 640
             ? (constraints.maxWidth - (paddingTotal + 16)) / 2
             : constraints.maxWidth - paddingTotal;
@@ -317,7 +327,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                 )
               : Column(
                   children: [
-                    // Element Core Data Loop
                     ...paginatedList.map(
                       (log) => Container(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -376,7 +385,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                     ),
                     const SizedBox(height: 12),
 
-                    // ─── INTEGRATED SUB-PAGINATION CONTROLLER LAYER ───
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -450,7 +458,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                     child: Text(
                       'No active client records retrieved.',
                       style: TextStyle(
-                        color: Colors.grey.shade500,
+                        color: Colors.grey.shade50,
                         fontSize: 13,
                       ),
                     ),
