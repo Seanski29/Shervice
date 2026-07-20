@@ -73,7 +73,7 @@ def diagnostic_database_check():
 
 # ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
 
-@admin_bp.route('/api/trips', methods=['GET'])
+@admin_bp.route('/trips', methods=['GET'])
 def get_admin_schedules():
     """Fetches all trip schedules and manually resolves the missing OIC company relationship map"""
     try:
@@ -107,8 +107,8 @@ def get_admin_schedules():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ─────────── GLOBAL DASHBOARD ANALYTICS MONITOR ───────────
 
+# ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
 @admin_bp.route('/api/dashboard/metrics', methods=['GET'])
 def get_dashboard_metrics():
     """Calculates unified fleet parameters, active counts, and weekly completed trip metrics live"""
@@ -213,52 +213,9 @@ def get_dashboard_metrics():
         print(f"❌ Dashboard Metrics Engine Failure: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-
-# ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
-
-@admin_bp.route('/api/evaluations/mutual', methods=['GET', 'POST'])
-def handle_mutual_evaluations():
-    """Handles bidirectional reviews under one table: OICs rating Shervice, and Staff rating Client companies"""
-    try:
-        if request.method == 'POST':
-            data = request.get_json() or {}
-            
-            new_eval = {
-                "trip_id": int(data.get("trip_id")),
-                "oic_id": int(data.get("oic_id")),
-                "overall_rating": int(data.get("overall_rating", 5)),
-                "comments": data.get("comments", "").strip(),
-                "evaluator_type": data.get("evaluator_type", "OIC"), # Expected values: 'OIC' or 'Staff'
-                "submit_date": data.get("submit_date", datetime.utcnow().strftime('%Y-%m-%d'))
-            }
-            
-            if not new_eval["comments"]:
-                return jsonify({"success": False, "message": "Comments cannot be empty."}), 400
-                
-            supabase.table('oic_evaluation').insert(new_eval).execute()
-            return jsonify({"success": True, "message": "Evaluation scorecard saved successfully!"}), 201
-
-        # GET Method: Pull all records and stitch company names together manually in memory
-        evals_res = supabase.table('oic_evaluation').select('*').order('submit_date', desc=True).execute()
-        raw_evals = evals_res.data or []
-        
-        oic_res = supabase.table('oic_profile').select('oic_id, company_name').execute()
-        oic_map = {item['oic_id']: item['company_name'] for item in oic_res.data if 'oic_id' in item} if oic_res.data else {}
-
-        for eval_row in raw_evals:
-            current_oic_id = eval_row.get('oic_id')
-            eval_row['company_name'] = oic_map.get(current_oic_id, "GT LANTIN")
-
-        return jsonify({"success": True, "evaluations": raw_evals}), 200
-        
-    except Exception as e:
-        print(f"❌ Mutual Evaluations Transaction Crash: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
 # ─────────── VEHICLE SPECIFICATIONS MANAGEMENT ───────────
 
-@admin_bp.route('/api/vehicles/update/<vehicle_id>', methods=['PUT'])
+@admin_bp.route('/vehicles/update/<vehicle_id>', methods=['PUT'])
 def update_vehicle_details(vehicle_id):
     try:
         data = request.get_json() or {}
@@ -284,7 +241,7 @@ def update_vehicle_details(vehicle_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@admin_bp.route('/api/vehicles/delete/<vehicle_id>', methods=['DELETE'])
+@admin_bp.route('/vehicles/delete/<vehicle_id>', methods=['DELETE'])
 def delete_vehicle_record(vehicle_id):
     try:
         supabase.table('maintenance_log').delete().eq("vehicle_id", int(vehicle_id)).execute()
@@ -297,7 +254,7 @@ def delete_vehicle_record(vehicle_id):
 
 # ─────────── DRIVER PROFILE LEDGER SYSTEM ───────────
 
-@admin_bp.route('/api/auth/update-driver/<user_id>', methods=['PUT'])
+@admin_bp.route('/auth/update-driver/<user_id>', methods=['PUT'])
 def update_driver_profile(user_id):
     try:
         data = request.get_json() or {}
@@ -338,7 +295,7 @@ def update_driver_profile(user_id):
 
 # ─────────── USER INTERFACE ACCOUNT MASTER KEYS ───────────
 
-@admin_bp.route('/api/auth/update-user/<user_id>', methods=['PUT'])
+@admin_bp.route('/auth/update-user/<user_id>', methods=['PUT'])
 def update_system_user(user_id):
     try:
         data = request.get_json() or {}
@@ -379,7 +336,7 @@ def update_system_user(user_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@admin_bp.route('/api/auth/delete-user/<user_id>', methods=['DELETE'])
+@admin_bp.route('/auth/delete-user/<user_id>', methods=['DELETE'])
 def delete_system_user(user_id):
     try:
         supabase.table("oic_profile").delete().eq("user_id", user_id).execute()

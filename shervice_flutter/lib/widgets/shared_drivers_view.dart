@@ -11,7 +11,8 @@ import 'driver_rating_badge.dart';
 class SharedDriversView extends StatefulWidget {
   final bool canManage;
   final Widget customHeader;
-  final Function(BuildContext context, DriverProfileModel? driver)? onDriverTapped;
+  final Function(BuildContext context, DriverProfileModel? driver)?
+  onDriverTapped;
 
   const SharedDriversView({
     super.key,
@@ -126,7 +127,10 @@ class SharedDriversViewState extends State<SharedDriversView> {
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16.0),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: 16.0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -153,8 +157,15 @@ class SharedDriversViewState extends State<SharedDriversView> {
                     },
                     decoration: InputDecoration(
                       hintText: 'Search by name or letter...',
-                      hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                      prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                      hintStyle: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade500,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        size: 18,
+                        color: Color(0xFF64748B),
+                      ),
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       contentPadding: const EdgeInsets.symmetric(
@@ -171,7 +182,10 @@ class SharedDriversViewState extends State<SharedDriversView> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF3B82F6),
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
@@ -195,8 +209,15 @@ class SharedDriversViewState extends State<SharedDriversView> {
                       child: DropdownButton<String>(
                         isExpanded: true,
                         value: _currentSort,
-                        icon: const Icon(Icons.sort, size: 18, color: Color(0xFF64748B)),
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                        icon: const Icon(
+                          Icons.sort,
+                          size: 18,
+                          color: Color(0xFF64748B),
+                        ),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF0F172A),
+                        ),
                         items: _sortOptions.map((String value) {
                           return DropdownMenuItem<String>(
                             value: value,
@@ -223,154 +244,167 @@ class SharedDriversViewState extends State<SharedDriversView> {
           // Driver List
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+                  )
                 : _filteredDrivers.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.people_outline,
-                              size: 64,
-                              color: Colors.grey.shade400,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No active drivers found.',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                              ),
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No active drivers found.',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _paginatedDrivers.length,
+                    itemBuilder: (context, index) {
+                      final driver = _paginatedDrivers[index];
+                      final Color statusColor = (driver.status == 'Active')
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFF59E0B);
+
+                      return Container(
+                        margin: const EdgeInsets.only(
+                          bottom: 8,
+                        ), // reduced from 12
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.02),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _paginatedDrivers.length,
-                        itemBuilder: (context, index) {
-                          final driver = _paginatedDrivers[index];
-                          final Color statusColor = (driver.status == 'Active')
-                              ? const Color(0xFF10B981)
-                              : const Color(0xFFF59E0B);
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8), // reduced from 12
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.02),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                )
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () {
-                                  if (widget.onDriverTapped != null) {
-                                    widget.onDriverTapped!(context, driver);
-                                  }
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, // reduced from 16
-                                    vertical: 8,   // reduced from 12
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () {
+                              if (widget.onDriverTapped != null) {
+                                widget.onDriverTapped!(context, driver);
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12, // reduced from 16
+                                vertical: 8, // reduced from 12
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Left indicator – smaller height
+                                  Container(
+                                    width: 4,
+                                    height: 36, // reduced from 50
+                                    margin: const EdgeInsets.only(right: 12),
+                                    decoration: BoxDecoration(
+                                      color: statusColor,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                   ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      // Left indicator – smaller height
-                                      Container(
-                                        width: 4,
-                                        height: 36, // reduced from 50
-                                        margin: const EdgeInsets.only(right: 12),
-                                        decoration: BoxDecoration(
-                                          color: statusColor,
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Flexible(
-                                                  child: Text(
-                                                    driver.name,
-                                                    style: const TextStyle(
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Color(0xFF0F172A),
-                                                      fontSize: 15, // reduced from 16
-                                                    ),
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
+                                            Flexible(
+                                              child: Text(
+                                                driver.name,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF0F172A),
+                                                  fontSize:
+                                                      15, // reduced from 16
                                                 ),
-                                                const SizedBox(width: 6),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                     horizontal: 6,
                                                     vertical: 1,
                                                   ),
-                                                  decoration: BoxDecoration(
-                                                    color: statusColor.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(10),
-                                                  ),
-                                                  child: Text(
-                                                    driver.status,
-                                                    style: TextStyle(
-                                                      color: statusColor,
-                                                      fontSize: 8, // reduced from 9
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: statusColor.withOpacity(
+                                                  0.1,
                                                 ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 2), // reduced from 4
-                                            Wrap(
-                                              spacing: 10, // reduced from 14
-                                              runSpacing: 2,
-                                              children: [
-                                                DriverRatingBadge(
-                                                  key: UniqueKey(),
-                                                  driverUuid: driver.userId,
-                                                  backendUrl: backendUrl,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: Text(
+                                                driver.status,
+                                                style: TextStyle(
+                                                  color: statusColor,
+                                                  fontSize: 8, // reduced from 9
+                                                  fontWeight: FontWeight.bold,
                                                 ),
-                                                _infoChip(
-                                                  Icons.badge_outlined,
-                                                  "License: ${driver.licenseNumber}",
-                                                ),
-                                                _infoChip(
-                                                  Icons.calendar_today_outlined,
-                                                  "Expiry: ${driver.licenseExpiry}",
-                                                ),
-                                              ],
+                                              ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      const Icon(
-                                        Icons.arrow_forward_ios,
-                                        size: 14,
-                                        color: Color(0xFF94A3B8),
-                                      ),
-                                    ],
+                                        const SizedBox(
+                                          height: 2,
+                                        ), // reduced from 4
+                                        Wrap(
+                                          spacing: 10, // reduced from 14
+                                          runSpacing: 2,
+                                          children: [
+                                            DriverRatingBadge(
+                                              key: UniqueKey(),
+                                              driverUuid: driver.userId,
+                                              backendUrl: backendUrl,
+                                            ),
+                                            _infoChip(
+                                              Icons.badge_outlined,
+                                              "License: ${driver.licenseNumber}",
+                                            ),
+                                            _infoChip(
+                                              Icons.calendar_today_outlined,
+                                              "Expiry: ${driver.licenseExpiry}",
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.arrow_forward_ios,
+                                    size: 14,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                ],
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
 
           // Pagination (unchanged)
@@ -408,7 +442,10 @@ class SharedDriversViewState extends State<SharedDriversView> {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(8),

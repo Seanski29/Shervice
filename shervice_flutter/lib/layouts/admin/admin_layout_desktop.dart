@@ -116,7 +116,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                         const Text(
                           'Admin Portal',
                           style: TextStyle(
-                            color: Colors.white54,
+                            color: Colors.white,
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
