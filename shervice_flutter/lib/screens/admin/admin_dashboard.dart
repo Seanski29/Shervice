@@ -6,9 +6,9 @@ class AdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SharedDashboardView(
-      showClientTrips: true, // Admins track company metrics
-      headerWidget: Text(
+    return SharedDashboardView(
+      role: AdminDashboardRole(), // Injecting the polymorphic Admin Role
+      headerWidget: const Text(
         'Fleet Overview',
         style: TextStyle(
           fontSize: 24,

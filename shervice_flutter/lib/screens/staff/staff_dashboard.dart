@@ -14,7 +14,7 @@ class StaffDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SharedDashboardView(
-      showClientTrips: false, // Staff only tracks general vehicle operations
+      role: StaffDashboardRole(), // Injecting the polymorphic Staff Role
       headerWidget: Row(
         children: [
           Text('Welcome, $staffName', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),

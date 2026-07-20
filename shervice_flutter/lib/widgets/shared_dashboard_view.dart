@@ -9,14 +9,115 @@ import '../models/maintenance_alert.dart';
 import '../models/company_trip_metric.dart';
 import '../../constant.dart';
 
+// ─── POLYMORPHISM: THE ABSTRACT BASE CLASS ───
+abstract class DashboardRole {
+  bool get showClientTrips;
+  List<DashboardMetric> getMetrics(Map<String, dynamic> metricsMap);
+}
+
+// ─── POLYMORPHISM: ADMIN IMPLEMENTATION ───
+class AdminDashboardRole implements DashboardRole {
+  @override
+  bool get showClientTrips => true;
+
+  @override
+  List<DashboardMetric> getMetrics(Map<String, dynamic> metricsMap) {
+    return [
+      DashboardMetric(
+        title: 'Active Drivers',
+        value: (metricsMap['totalDrivers'] ?? 0).toString(),
+        subTitle: 'Currently deployed',
+        icon: Icons.people,
+        baseColor: Colors.blue,
+      ),
+      DashboardMetric(
+        title: 'Active Vehicles',
+        value: (metricsMap['activeVehicles'] ?? 0).toString(),
+        subTitle: 'On the road',
+        icon: Icons.directions_bus,
+        baseColor: Colors.green,
+      ),
+      DashboardMetric(
+        title: 'Total Passengers',
+        value: (metricsMap['totalPassengers'] ?? 0).toString(),
+        subTitle: 'Transported today',
+        icon: Icons.groups,
+        baseColor: Colors.purple,
+      ),
+      DashboardMetric(
+        title: 'Maintenance Alerts',
+        value: (metricsMap['maintenanceAlerts'] ?? 0).toString(),
+        subTitle: 'Attention required',
+        icon: Icons.build_circle_outlined,
+        baseColor: Colors.red,
+      ),
+      DashboardMetric(
+        title: 'Compliance Alerts',
+        value: (metricsMap['complianceAlerts'] ?? 0).toString(),
+        subTitle: 'Expiring in < 30 days',
+        icon: Icons.warning_amber_rounded,
+        baseColor: Colors.orange,
+      ),
+    ];
+  }
+}
+
+// ─── POLYMORPHISM: STAFF IMPLEMENTATION ───
+class StaffDashboardRole implements DashboardRole {
+  @override
+  bool get showClientTrips => false;
+
+  @override
+  List<DashboardMetric> getMetrics(Map<String, dynamic> metricsMap) {
+    return [
+      DashboardMetric(
+        title: 'Active Drivers',
+        value: (metricsMap['totalDrivers'] ?? 0).toString(),
+        subTitle: 'Ready for dispatch',
+        icon: Icons.people,
+        baseColor: Colors.blue,
+      ),
+      DashboardMetric(
+        title: 'Active Vehicles',
+        value: (metricsMap['activeVehicles'] ?? 0).toString(),
+        subTitle: 'Available fleet',
+        icon: Icons.directions_car,
+        baseColor: Colors.green,
+      ),
+      DashboardMetric(
+        title: 'Ongoing Trips',
+        value: (metricsMap['ongoingTrips'] ?? 0).toString(),
+        subTitle: 'In transit',
+        icon: Icons.route,
+        baseColor: Colors.teal,
+      ),
+      DashboardMetric(
+        title: 'Unassigned Trips',
+        value: (metricsMap['unassignedTrips'] ?? 0).toString(),
+        subTitle: 'Needs dispatch',
+        icon: Icons.assignment_late_outlined,
+        baseColor: Colors.orange,
+      ),
+      DashboardMetric(
+        title: 'Maintenance Alerts',
+        value: (metricsMap['maintenanceAlerts'] ?? 0).toString(),
+        subTitle: 'Locked out',
+        icon: Icons.build_circle_outlined,
+        baseColor: Colors.red,
+      ),
+    ];
+  }
+}
+
+// ─── THE VIEW COMPONENT ───
 class SharedDashboardView extends StatefulWidget {
   final Widget headerWidget;
-  final bool showClientTrips;
+  final DashboardRole role;
 
   const SharedDashboardView({
     super.key,
     required this.headerWidget,
-    required this.showClientTrips,
+    required this.role,
   });
 
   @override
@@ -30,7 +131,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   List<MaintenanceAlert> _alerts = [];
   List<CompanyTripMetric> _companyTrips = [];
 
-  // ─── MAINTENANCE PAGINATION TRACKING PARAMETERS (From Backend Code) ───
   int _currentAlertPage = 0;
   final int _alertsPerPage = 3;
 
@@ -53,11 +153,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
   Future<void> _fetchLiveDashboardData() async {
     try {
-      // Construct the URL using the global constant
       final String url = '$backendUrl/dashboard/metrics';
-
-      debugPrint("🔍 Fetching Dashboard from: $url");
-
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
@@ -72,45 +168,14 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
           if (!mounted) return;
           setState(() {
-            _metrics = [
-              DashboardMetric(
-                title: 'Active Drivers',
-                value: (metricsMap['totalDrivers'] ?? 0).toString(),
-                subTitle: 'Registered profiles',
-                icon: Icons.people,
-                baseColor: Colors.blue,
-              ),
-              DashboardMetric(
-                title: 'Active Vehicles',
-                value: (metricsMap['activeVehicles'] ?? 0).toString(),
-                subTitle: 'Ready for operation',
-                icon: Icons.directions_car,
-                baseColor: Colors.green,
-              ),
-              DashboardMetric(
-                title: 'Avg Punctuality',
-                value: (metricsMap['averagePunctuality'] ?? 5.0).toString(),
-                subTitle: 'Out of 5.0 rating',
-                icon: Icons.star,
-                baseColor: Colors.orange,
-              ),
-              DashboardMetric(
-                title: 'Maintenance Alerts',
-                value: (metricsMap['maintenanceAlerts'] ?? 0).toString(),
-                subTitle: 'Attention required',
-                icon: Icons.warning_rounded,
-                baseColor: Colors.red,
-              ),
-            ];
-
+            _metrics = widget.role.getMetrics(metricsMap);
             _alerts = alertsList
                 .map((log) => MaintenanceAlert.fromJson(log))
                 .toList();
             _companyTrips = companyList
                 .map((json) => CompanyTripMetric.fromJson(json))
                 .toList();
-            _currentAlertPage =
-                0; // Reset alert pagination window index context
+            _currentAlertPage = 0;
             _errorMessage = null;
             _isLoading = false;
           });
@@ -128,7 +193,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     }
   }
 
-  // ─── MAINTENANCE SUB-PAGINATION DATA SLICERS ───
   int get _totalAlertPages => (_alerts.length / _alertsPerPage).ceil();
 
   List<MaintenanceAlert> get _paginatedAlerts {
@@ -149,12 +213,25 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Horizontal padding of the ListView is 16 on each side (total 32)
         double paddingTotal = 32.0;
-        double dynamicWidth = constraints.maxWidth > 1200
-            ? (constraints.maxWidth - (paddingTotal + 48)) / 4
-            : constraints.maxWidth > 640
-            ? (constraints.maxWidth - (paddingTotal + 16)) / 2
-            : constraints.maxWidth - paddingTotal;
+        double screenWidth = constraints.maxWidth;
+        double dynamicWidth;
+
+        // 👇 NEW LOGIC: Forces 5 cards in a row on large screens to eliminate white space
+        if (screenWidth > 1200) {
+          // 5 columns means 4 spaces of 16px (64px total gap width)
+          dynamicWidth = (screenWidth - paddingTotal - 64) / 5;
+        } else if (screenWidth > 900) {
+          // 3 columns means 2 spaces of 16px (32px total gap width)
+          dynamicWidth = (screenWidth - paddingTotal - 32) / 3;
+        } else if (screenWidth > 600) {
+          // 2 columns means 1 space of 16px
+          dynamicWidth = (screenWidth - paddingTotal - 16) / 2;
+        } else {
+          // Mobile: 1 column
+          dynamicWidth = screenWidth - paddingTotal;
+        }
 
         return RefreshIndicator(
           onRefresh: _fetchLiveDashboardData,
@@ -170,7 +247,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               _buildKpiGrid(dynamicWidth),
               const SizedBox(height: 24),
               _buildMaintenanceCard(),
-              if (widget.showClientTrips) ...[
+              if (widget.role.showClientTrips) ...[
                 const SizedBox(height: 24),
                 _buildClientTripsCard(),
               ],
@@ -209,7 +286,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           .map(
             (m) => Container(
               width: width,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(
+                14,
+              ), // Reduced slightly so text fits in 5 columns
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -248,11 +327,11 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                   Text(
                     m.value,
                     style: const TextStyle(
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF0F172A),
                     ),
-                  ),
+                  ), // Font size reduced from 24 to 22 for better fit
                   const SizedBox(height: 2),
                   Text(
                     m.subTitle,
@@ -267,6 +346,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     );
   }
 
+  // (The rest of the widgets below remain exactly the same)
   Widget _buildMaintenanceCard() {
     final paginatedList = _paginatedAlerts;
 
@@ -282,8 +362,8 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
+            children: const [
+              Text(
                 'Recent Vehicle Maintenance Logs',
                 style: TextStyle(
                   fontSize: 16,
@@ -306,7 +386,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                 )
               : Column(
                   children: [
-                    // Render paginated data dynamically using the clean UI format
                     ...paginatedList.map(
                       (log) => Container(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -363,7 +442,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 8),
                     const Divider(
                       height: 1,
@@ -371,10 +449,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       color: Color(0xFFF1F5F9),
                     ),
                     const SizedBox(height: 12),
-
-                    // ─── INTEGRATED SUB-PAGINATION CONTROLLER LAYER ───
                     FittedBox(
-                      // Ensures pagination won't overflow on small mobiles
                       fit: BoxFit.scaleDown,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -395,7 +470,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                                 onPressed: _currentAlertPage > 0
                                     ? () => setState(() => _currentAlertPage--)
                                     : null,
-                                tooltip: 'Previous logs page',
                               ),
                               Text(
                                 '${_currentAlertPage + 1} / $_totalAlertPages',
@@ -410,7 +484,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                                     _currentAlertPage < _totalAlertPages - 1
                                     ? () => setState(() => _currentAlertPage++)
                                     : null,
-                                tooltip: 'Next logs page',
                               ),
                             ],
                           ),
