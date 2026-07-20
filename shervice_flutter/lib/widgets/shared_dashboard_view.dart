@@ -16,48 +16,20 @@ abstract class DashboardRole {
 }
 
 // ─── POLYMORPHISM: ADMIN IMPLEMENTATION ───
+// ─── POLYMORPHISM: ADMIN IMPLEMENTATION ───
 class AdminDashboardRole implements DashboardRole {
   @override
-  bool get showClientTrips => true;
+  bool get showClientTrips => true; // Keeps the client weekly trips chart visible for Admin
 
   @override
   List<DashboardMetric> getMetrics(Map<String, dynamic> metricsMap) {
+    // 👇 Now exactly mirrors the Staff metrics
     return [
-      DashboardMetric(
-        title: 'Active Drivers',
-        value: (metricsMap['totalDrivers'] ?? 0).toString(),
-        subTitle: 'Currently deployed',
-        icon: Icons.people,
-        baseColor: Colors.blue,
-      ),
-      DashboardMetric(
-        title: 'Active Vehicles',
-        value: (metricsMap['activeVehicles'] ?? 0).toString(),
-        subTitle: 'On the road',
-        icon: Icons.directions_bus,
-        baseColor: Colors.green,
-      ),
-      DashboardMetric(
-        title: 'Total Passengers',
-        value: (metricsMap['totalPassengers'] ?? 0).toString(),
-        subTitle: 'Transported today',
-        icon: Icons.groups,
-        baseColor: Colors.purple,
-      ),
-      DashboardMetric(
-        title: 'Maintenance Alerts',
-        value: (metricsMap['maintenanceAlerts'] ?? 0).toString(),
-        subTitle: 'Attention required',
-        icon: Icons.build_circle_outlined,
-        baseColor: Colors.red,
-      ),
-      DashboardMetric(
-        title: 'Compliance Alerts',
-        value: (metricsMap['complianceAlerts'] ?? 0).toString(),
-        subTitle: 'Expiring in < 30 days',
-        icon: Icons.warning_amber_rounded,
-        baseColor: Colors.orange,
-      ),
+      DashboardMetric(title: 'Active Drivers', value: (metricsMap['totalDrivers'] ?? 0).toString(), subTitle: 'Ready for dispatch', icon: Icons.people, baseColor: Colors.blue),
+      DashboardMetric(title: 'Active Vehicles', value: (metricsMap['activeVehicles'] ?? 0).toString(), subTitle: 'Available fleet', icon: Icons.directions_car, baseColor: Colors.green),
+      DashboardMetric(title: 'Ongoing Trips', value: (metricsMap['ongoingTrips'] ?? 0).toString(), subTitle: 'In transit', icon: Icons.route, baseColor: Colors.teal),
+      DashboardMetric(title: 'Unassigned Trips', value: (metricsMap['unassignedTrips'] ?? 0).toString(), subTitle: 'Needs dispatch', icon: Icons.assignment_late_outlined, baseColor: Colors.orange),
+      DashboardMetric(title: 'Maintenance Alerts', value: (metricsMap['maintenanceAlerts'] ?? 0).toString(), subTitle: 'Locked out', icon: Icons.build_circle_outlined, baseColor: Colors.red),
     ];
   }
 }

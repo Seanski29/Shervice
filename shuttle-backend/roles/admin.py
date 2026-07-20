@@ -124,50 +124,43 @@ def get_admin_schedules():
 @app.route('/api/dashboard/metrics', methods=['GET'])
 def get_dashboard_metrics():
     try:
-        # 1. Calculate Active Drivers
-        # (Assuming you are counting drivers with employment_status = 'Active')
-        drivers = supabase.table('driver_profile').select('driver_id', count='exact').eq('employment_status', 'Active').execute()
-        total_drivers = drivers.count if drivers else 0
+        # 1. Active Drivers (Ensure 'Active' matches your DB string exactly)
+        drivers_res = supabase.table('driver_profile').select('*', count='exact').eq('employment_status', 'Active').execute()
+        total_drivers = drivers_res.count if drivers_res else 0
 
-        # 2. Calculate Active Vehicles
-        vehicles = supabase.table('vehicle').select('vehicle_id', count='exact').eq('is_available', True).execute()
-        active_vehicles = vehicles.count if vehicles else 0
+        # 2. Active Vehicles
+        vehicles_res = supabase.table('vehicle').select('*', count='exact').eq('is_available', True).execute()
+        active_vehicles = vehicles_res.count if vehicles_res else 0
 
-        # 3. Calculate Maintenance Alerts
-        maintenance = supabase.table('maintenance_log').select('maintenance_id', count='exact').eq('is_resolved', False).execute()
-        maintenance_alerts = maintenance.count if maintenance else 0
+        # 3. Ongoing Trips (Ensure 'Ongoing' matches your trip_status in the DB)
+        ongoing_res = supabase.table('trip_schedule').select('*', count='exact').eq('trip_status', 'Ongoing').execute()
+        ongoing_trips = ongoing_res.count if ongoing_res else 0
 
-        # 👇 NEW: Calculate Unassigned Trips
-        # Trips where either the driver (user_id) or vehicle (vehicle_id) is missing
-        unassigned = supabase.table('trip_schedule').select('trip_id', count='exact').or_('user_id.is.null,vehicle_id.is.null').execute()
-        unassigned_trips = unassigned.count if unassigned else 0
+        # 4. Unassigned Trips (Strict PostgREST syntax for OR conditions)
+        unassigned_res = supabase.table('trip_schedule').select('*', count='exact').or_("trip_status.eq.Pending Staff Assignment").execute()
+        unassigned_trips = unassigned_res.count if unassigned_res else 0
 
-        # 👇 NEW: Calculate Ongoing Trips
-        # Trips where the status is currently in transit (adjust 'Ongoing' to match your actual database status string)
-        ongoing = supabase.table('trip_schedule').select('trip_id', count='exact').eq('trip_status', 'Ongoing').execute()
-        ongoing_trips = ongoing.count if ongoing else 0
+        # 5. Maintenance Alerts
+        maintenance_res = supabase.table('maintenance_log').select('*', count='exact').eq('is_resolved', False).execute()
+        maintenance_alerts = maintenance_res.count if maintenance_res else 0
 
-        # 👇 NEW: Calculate Admin Specifics (Passengers & Compliance)
-        # Total Passengers (Example: sum of passengers for today)
-        # Compliance Alerts (Example: count of vehicles where franchise expires soon)
-        # (You can implement the actual date math for compliance later, passing dummy 0 for now if you just want to fix the staff view)
-        
         return jsonify({
             "success": True,
             "metrics": {
                 "totalDrivers": total_drivers,
                 "activeVehicles": active_vehicles,
-                "ongoingTrips": ongoing_trips,          # Matches Staff Dashboard requirement
-                "unassignedTrips": unassigned_trips,    # Matches Staff Dashboard requirement
-                "maintenanceAlerts": maintenance_alerts,
-                "totalPassengers": 0,                   # Matches Admin Dashboard requirement
-                "complianceAlerts": 0                   # Matches Admin Dashboard requirement
+                "ongoingTrips": ongoing_trips,
+                "unassignedTrips": unassigned_trips,
+                "maintenanceAlerts": maintenance_alerts
             },
-            "alerts": [], # (Your existing maintenance log fetch goes here)
-            "company_weekly_metrics": [] # (Your existing company metrics fetch goes here)
+            # Fetch your alerts and company metrics here as you were previously
+            "alerts": [], 
+            "company_weekly_metrics": [] 
         }), 200
 
     except Exception as e:
+        # Print the error to your terminal so you can see if a DB query is crashing
+        print(f"DASHBOARD ERROR: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
