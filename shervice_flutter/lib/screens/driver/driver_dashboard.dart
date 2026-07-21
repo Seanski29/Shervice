@@ -104,7 +104,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Passenger Evaluation',
+                'Evaluation',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -381,7 +381,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
             child: ElevatedButton.icon(
               onPressed: () =>
                   _showPassengerQR(_activeTrip!['trip_id'].toString()),
-              icon: const Icon(Icons.qr_code, color: Colors.blue, size: 18),
               label: const Text(
                 'Show Passenger QR',
                 style: TextStyle(
@@ -536,7 +535,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.qr_code_scanner, color: Color(0xFF3B82F6)),
-            tooltip: 'Scan Vehicle QR',
+            tooltip: 'Scan QR',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
