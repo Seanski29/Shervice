@@ -382,7 +382,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
               onPressed: () =>
                   _showPassengerQR(_activeTrip!['trip_id'].toString()),
               label: const Text(
-                'Show Passenger QR',
+                'Show QR',
                 style: TextStyle(
                   color: Colors.blue,
                   fontWeight: FontWeight.bold,
@@ -534,7 +534,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.qr_code_scanner, color: Color(0xFF3B82F6)),
+            icon: const Icon(Icons.qr_code_scanner, color: Color.fromARGB(255, 240, 241, 244)),
             tooltip: 'Scan QR',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),

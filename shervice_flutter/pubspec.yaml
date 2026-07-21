@@ -38,6 +38,6 @@ flutter:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/logo.jpg"
+  image_path: "assets/logo2.jpg"
   adaptive_icon_background: "#1E293B"          # optional – dark blue background
-  adaptive_icon_foreground: "assets/logo.jpg"  # optional – same logo
+  adaptive_icon_foreground: "assets/logo2.jpg"  # optional – same logo

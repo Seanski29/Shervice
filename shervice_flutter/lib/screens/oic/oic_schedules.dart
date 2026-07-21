@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -19,6 +20,21 @@ class _OicSchedulesState extends State<OicSchedules> {
   List<dynamic> _myTrips = [];
   DateTime _focusedMonth = DateTime.now();
   DateTime? _selectedDate;
+  bool _calendarExpanded = false;
+
+  // ─── SEARCH & SORT ───
+  String _searchQuery = '';
+  String _sortOption = 'Date (Newest)';
+  final List<String> _sortOptions = [
+    'Date (Newest)',
+    'Date (Oldest)',
+    'Route Name',
+    'Status (Priority)', // 👈 Custom status order
+  ];
+
+  // ─── PAGINATION ───
+  int _currentPage = 0;
+  final int _itemsPerPage = 6; // 👈 changed to 6
 
   @override
   void initState() {
@@ -37,6 +53,7 @@ class _OicSchedulesState extends State<OicSchedules> {
           setState(() {
             _myTrips = data['data'];
             _isLoading = false;
+            _currentPage = 0;
           });
           return;
         }
@@ -76,15 +93,75 @@ class _OicSchedulesState extends State<OicSchedules> {
     });
   }
 
-  List<dynamic> get _recentSchedules {
-    final sorted = [..._myTrips]
-      ..sort((a, b) {
-        final aDate = _parseDate(a['schedule_date']);
-        final bDate = _parseDate(b['schedule_date']);
-        if (aDate == null || bDate == null) return 0;
-        return bDate.compareTo(aDate);
-      });
-    return sorted.take(4).toList();
+  List<dynamic> get _filteredAndSortedTrips {
+    // Filter
+    List<dynamic> filtered = _myTrips.where((trip) {
+      final route = (trip['route_name'] ?? '').toString().toLowerCase();
+      final status = (trip['trip_status'] ?? '').toString().toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return route.contains(query) || status.contains(query);
+    }).toList();
+
+    // Sort
+    switch (_sortOption) {
+      case 'Date (Newest)':
+        filtered.sort((a, b) {
+          final da = _parseDate(a['schedule_date']);
+          final db = _parseDate(b['schedule_date']);
+          if (da == null || db == null) return 0;
+          return db.compareTo(da);
+        });
+        break;
+      case 'Date (Oldest)':
+        filtered.sort((a, b) {
+          final da = _parseDate(a['schedule_date']);
+          final db = _parseDate(b['schedule_date']);
+          if (da == null || db == null) return 0;
+          return da.compareTo(db);
+        });
+        break;
+      case 'Route Name':
+        filtered.sort((a, b) {
+          final ra = (a['route_name'] ?? '').toString().toLowerCase();
+          final rb = (b['route_name'] ?? '').toString().toLowerCase();
+          return ra.compareTo(rb);
+        });
+        break;
+      case 'Status (Priority)':
+        filtered.sort((a, b) {
+          // Custom priority: Pending → Rejected → Completed → Ongoing
+          final statusA = (a['trip_status'] ?? '').toString().toLowerCase();
+          final statusB = (b['trip_status'] ?? '').toString().toLowerCase();
+
+          final priority = {
+            'pending staff assignment': 0,
+            'rejected': 1,
+            'completed': 2,
+            'ongoing': 3,
+            'scheduled': 4, // fallback
+          };
+          final pA = priority[statusA] ?? 5;
+          final pB = priority[statusB] ?? 5;
+          return pA.compareTo(pB);
+        });
+        break;
+    }
+    return filtered;
+  }
+
+  // ─── Pagination helpers ───
+  int get _totalPages => (_filteredAndSortedTrips.length / _itemsPerPage).ceil();
+
+  List<dynamic> get _paginatedTrips {
+    final start = _currentPage * _itemsPerPage;
+    final end = min(start + _itemsPerPage, _filteredAndSortedTrips.length);
+    return _filteredAndSortedTrips.sublist(start, end);
+  }
+
+  void _goToPage(int page) {
+    if (page >= 0 && page < _totalPages) {
+      setState(() => _currentPage = page);
+    }
   }
 
   DateTime? _parseDate(dynamic value) {
@@ -135,7 +212,7 @@ class _OicSchedulesState extends State<OicSchedules> {
           child: ListView.separated(
             shrinkWrap: true,
             itemCount: schedules.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final trip = schedules[index];
               final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
@@ -145,10 +222,10 @@ class _OicSchedulesState extends State<OicSchedules> {
               Color statusBg = isRejected ? const Color(0xFFFEF2F2) : (isPending ? const Color(0xFFFEF3C7) : const Color(0xFFECFDF5));
 
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: Row(
@@ -159,16 +236,16 @@ class _OicSchedulesState extends State<OicSchedules> {
                         children: [
                           Text(
                             trip['route_name'] ?? 'Unknown Route',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '${trip['schedule_date']} • ${_formatTime(trip['departure_time'])} → ${_formatTime(trip['estimated_arrival_time'])}',
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
                           ),
                           Text(
                             '👥 ${trip['passenger_count'] ?? 0}  •  📍 ${trip['route_distance'] ?? 0} km',
-                            style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                            style: const TextStyle(fontSize: 9, color: Color(0xFF64748B)),
                           ),
                         ],
                       ),
@@ -177,23 +254,23 @@ class _OicSchedulesState extends State<OicSchedules> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                           decoration: BoxDecoration(
                             color: statusBg,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             statusStr,
                             style: TextStyle(
                               color: statusColor,
-                              fontSize: 8,
+                              fontSize: 7,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                         if (isPending || isRejected)
                           IconButton(
-                            icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 16),
+                            icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 14),
                             onPressed: () {
                               Navigator.pop(context);
                               _showEditScheduleModal(context, trip);
@@ -227,7 +304,8 @@ class _OicSchedulesState extends State<OicSchedules> {
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
-    final double horizontalPadding = isMobile ? 12.0 : 24.0;
+    final double horizontalPadding = isMobile ? 10.0 : 20.0;
+    final totalItems = _filteredAndSortedTrips.length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -235,7 +313,7 @@ class _OicSchedulesState extends State<OicSchedules> {
         onRefresh: _fetchMyTrips,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12.0),
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 10.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -249,7 +327,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                         const Text(
                           'My Trip Requests',
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF0F172A),
                             letterSpacing: -0.5,
@@ -257,9 +335,9 @@ class _OicSchedulesState extends State<OicSchedules> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Calendar view of your schedules and dispatches.',
+                          'Manage schedules and dispatches.',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w400,
                             color: const Color(0xFF64748B),
                           ),
@@ -267,16 +345,16 @@ class _OicSchedulesState extends State<OicSchedules> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   SizedBox(
-                    width: 36,
-                    height: 36,
+                    width: 32,
+                    height: 32,
                     child: IconButton(
                       onPressed: () {
                         setState(() => _isLoading = true);
                         _fetchMyTrips();
                       },
-                      icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6), size: 20),
+                      icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6), size: 18),
                       tooltip: 'Refresh',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -285,32 +363,32 @@ class _OicSchedulesState extends State<OicSchedules> {
                   const SizedBox(width: 4),
                   ElevatedButton.icon(
                     onPressed: () => _showNewScheduleModal(context),
-                    icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                    icon: const Icon(Icons.add, size: 14, color: Colors.white),
                     label: const Text(
                       'New',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: 12,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3B82F6),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       elevation: 0,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // ── STATS CHIPS ──
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: [
                   _statChip(Icons.list_alt, _totalTrips.toString(), 'Total', const Color(0xFF3B82F6)),
                   _statChip(Icons.hourglass_top, _pendingTrips.toString(), 'Pending', const Color(0xFFF59E0B)),
@@ -318,14 +396,130 @@ class _OicSchedulesState extends State<OicSchedules> {
                   _statChip(Icons.cancel, _rejectedTrips.toString(), 'Rejected', const Color(0xFFEF4444)),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
-              // ── RECENT SCHEDULES ──
+              // ── SEARCH + SORT ROW ──
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: TextField(
+                        onChanged: (val) => setState(() {
+                          _searchQuery = val;
+                          _currentPage = 0;
+                        }),
+                        decoration: InputDecoration(
+                          hintText: 'Search trips...',
+                          hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          prefixIcon: const Icon(Icons.search, size: 14, color: Color(0xFF64748B)),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? GestureDetector(
+                                  onTap: () => setState(() {
+                                    _searchQuery = '';
+                                    _currentPage = 0;
+                                  }),
+                                  child: const Icon(Icons.clear, size: 14, color: Color(0xFF64748B)),
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _sortOption,
+                        icon: const Icon(Icons.sort, size: 14, color: Color(0xFF64748B)),
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF0F172A)),
+                        items: _sortOptions.map((s) {
+                          return DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 11)));
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _sortOption = val;
+                              _currentPage = 0;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // ── TRIP LIST (filtered + sorted + paginated) ──
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: _isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
+                      )
+                    : totalItems == 0
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: Text(
+                                'No trips found.',
+                                style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                              ),
+                            ),
+                          )
+                        : Column(
+                            children: [
+                              ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: _paginatedTrips.length,
+                                separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                                itemBuilder: (context, index) {
+                                  final trip = _paginatedTrips[index];
+                                  return _buildTripRow(trip);
+                                },
+                              ),
+                              if (_totalPages > 1)
+                                _buildPagination(),
+                            ],
+                          ),
+              ),
+              const SizedBox(height: 10),
+
+              // ── COLLAPSIBLE CALENDAR ──
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                   boxShadow: [
                     BoxShadow(
@@ -336,50 +530,61 @@ class _OicSchedulesState extends State<OicSchedules> {
                   ],
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Recent Schedules',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                    ),
-                    const SizedBox(height: 8),
-                    if (_isLoading)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
-                      )
-                    else if (_recentSchedules.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Center(
-                          child: Text('No schedules yet.', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                    // ── Calendar toggle header ──
+                    InkWell(
+                      onTap: () => setState(() => _calendarExpanded = !_calendarExpanded),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _calendarExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                              color: const Color(0xFF64748B),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Calendar',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: const Icon(Icons.chevron_left, size: 16),
+                              onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.chevron_right, size: 16),
+                              onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                            ),
+                          ],
                         ),
-                      )
-                    else
-                      Column(
-                        children: _recentSchedules.map((trip) => _buildRecentCard(trip)).toList(),
+                      ),
+                    ),
+                    if (_calendarExpanded)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                        child: _buildCalendarGrid(),
                       ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 12),
-
-              // ── COMPACT CALENDAR ──
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: _buildCalendar(),
               ),
             ],
           ),
@@ -390,47 +595,64 @@ class _OicSchedulesState extends State<OicSchedules> {
 
   Widget _statChip(IconData icon, String value, String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
           Text(
             value,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
           ),
           const SizedBox(width: 2),
           Text(
             label,
-            style: const TextStyle(fontSize: 9, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+            style: const TextStyle(fontSize: 8, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRecentCard(Map<String, dynamic> trip) {
+  Widget _buildTripRow(Map<String, dynamic> trip) {
     final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
     final isPending = statusStr.toLowerCase().contains('pending');
     final isRejected = statusStr.toLowerCase().contains('rejected');
     final isScheduled = statusStr.toLowerCase() == 'scheduled';
+    final isOngoing = statusStr.toLowerCase() == 'ongoing';
 
     Color statusColor;
     String statusLabel;
-    if (isRejected) {
-      statusColor = const Color(0xFFEF4444);
+    if (isPending) {
+      statusColor = const Color(0xFFF59E0B); // amber
+      statusLabel = 'PENDING';
+    } else if (isRejected) {
+      statusColor = const Color(0xFFEF4444); // red
       statusLabel = 'REJECTED';
-    } else if (isPending) {
+    }
+    // Let's use a simpler approach: map based on string.
+    // I'll rewrite:
+    String lower = statusStr.toLowerCase();
+    if (lower.contains('pending')) {
       statusColor = const Color(0xFFF59E0B);
       statusLabel = 'PENDING';
-    } else if (isScheduled) {
+    } else if (lower.contains('rejected')) {
+      statusColor = const Color(0xFFEF4444);
+      statusLabel = 'REJECTED';
+    } else if (lower == 'completed') {
       statusColor = const Color(0xFF10B981);
+      statusLabel = 'COMPLETED';
+    } else if (lower == 'ongoing') {
+      statusColor = const Color(0xFF3B82F6);
+      statusLabel = 'ONGOING';
+    } else if (lower == 'scheduled') {
+      statusColor = const Color(0xFF8B5CF6);
       statusLabel = 'SCHEDULED';
     } else {
       statusColor = const Color(0xFF64748B);
@@ -438,13 +660,7 @@ class _OicSchedulesState extends State<OicSchedules> {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Expanded(
@@ -462,38 +678,94 @@ class _OicSchedulesState extends State<OicSchedules> {
                   '${trip['schedule_date']} • ${_formatTime(trip['departure_time'])} → ${_formatTime(trip['estimated_arrival_time'])}',
                   style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
                 ),
+                Text(
+                  '👥 ${trip['passenger_count'] ?? 0}  •  📍 ${trip['route_distance'] ?? 0} km',
+                  style: const TextStyle(fontSize: 9, color: Color(0xFF64748B)),
+                ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              statusLabel,
-              style: TextStyle(
-                fontSize: 8,
-                fontWeight: FontWeight.bold,
-                color: statusColor,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
               ),
-            ),
+              if (isPending || isRejected)
+                IconButton(
+                  icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 14),
+                  onPressed: () => _showEditScheduleModal(context, trip),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                ),
+            ],
           ),
-          if (isPending || isRejected)
-            IconButton(
-              icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 14),
-              onPressed: () => _showEditScheduleModal(context, trip),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            ),
         ],
       ),
     );
   }
 
-  // ─── COMPACT CALENDAR ───
-  Widget _buildCalendar() {
+  Widget _buildPagination() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '${(_currentPage * _itemsPerPage) + 1}–${min((_currentPage + 1) * _itemsPerPage, _filteredAndSortedTrips.length)} of ${_filteredAndSortedTrips.length}',
+            style: const TextStyle(color: Color(0xFF64748B), fontSize: 10),
+          ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left, size: 16),
+                onPressed: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                color: _currentPage > 0 ? const Color(0xFF3B82F6) : Colors.grey.shade300,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '${_currentPage + 1}/$_totalPages',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF3B82F6),
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, size: 16),
+                onPressed: _currentPage < _totalPages - 1 ? () => _goToPage(_currentPage + 1) : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                color: _currentPage < _totalPages - 1 ? const Color(0xFF3B82F6) : Colors.grey.shade300,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── COMPACT CALENDAR GRID ───
+  Widget _buildCalendarGrid() {
     final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysBefore = firstDay.weekday % 7;
     final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
@@ -502,33 +774,6 @@ class _OicSchedulesState extends State<OicSchedules> {
 
     return Column(
       children: [
-        // ── Header ──
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-            ),
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left, size: 16),
-                  onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right, size: 16),
-                  onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
         // ── Weekday headers ──
         Row(
           children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -536,22 +781,22 @@ class _OicSchedulesState extends State<OicSchedules> {
                     child: Center(
                       child: Text(
                         day,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 8, color: Color(0xFF475569)),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 7, color: Color(0xFF475569)),
                       ),
                     ),
                   ))
               .toList(),
         ),
         const SizedBox(height: 2),
-        // ── Days grid (compact) ──
+        // ── Days grid ──
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 7,
-            crossAxisSpacing: 2,
-            mainAxisSpacing: 2,
-            childAspectRatio: 0.7,
+            crossAxisSpacing: 1,
+            mainAxisSpacing: 1,
+            childAspectRatio: 0.6,
           ),
           itemCount: totalCells,
           itemBuilder: (context, index) {
@@ -590,40 +835,41 @@ class _OicSchedulesState extends State<OicSchedules> {
                     width: isToday ? 1.2 : (isSelected ? 1.2 : 0.5),
                   ),
                 ),
-                padding: const EdgeInsets.all(1),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      date.day.toString(),
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: isSelected
-                            ? Colors.white
-                            : (isCurrentMonth
-                                ? const Color(0xFF0F172A)
-                                : const Color(0xFF94A3B8)),
-                      ),
-                    ),
-                    if (isOccupied)
-                      Container(
-                        margin: const EdgeInsets.only(top: 1),
-                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0.5),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.white : const Color(0xFF3B82F6),
-                          borderRadius: BorderRadius.circular(4),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        date.day.toString(),
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected
+                              ? Colors.white
+                              : (isCurrentMonth
+                                  ? const Color(0xFF0F172A)
+                                  : const Color(0xFF94A3B8)),
                         ),
-                        child: Text(
-                          schedules.length > 1 ? '${schedules.length}' : '•',
-                          style: TextStyle(
-                            fontSize: 6,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? const Color(0xFF3B82F6) : Colors.white,
+                      ),
+                      if (isOccupied)
+                        Container(
+                          margin: const EdgeInsets.only(top: 1),
+                          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0.5),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.white : const Color(0xFF3B82F6),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            schedules.length > 1 ? '${schedules.length}' : '•',
+                            style: TextStyle(
+                              fontSize: 5,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? const Color(0xFF3B82F6) : Colors.white,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );

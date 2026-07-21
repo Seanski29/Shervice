@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import '../../models/dashboard_metric.dart';
 import '../../models/maintenance_alert.dart';
 import '../../models/company_trip_metric.dart';
-// 👇 1. Imported your global backendUrl so it doesn't break on deployment
 import '../../constant.dart';
 
 class SharedDashboardView extends StatefulWidget {
@@ -30,7 +29,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   List<MaintenanceAlert> _alerts = [];
   List<CompanyTripMetric> _companyTrips = [];
 
-  // ─── MAINTENANCE PAGINATION TRACKING PARAMETERS ───
   int _currentAlertPage = 0;
   final int _alertsPerPage = 3;
 
@@ -42,18 +40,18 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
   Color _proceduralColorAssigner(int index) {
     final List<Color> designPalette = [
-      Colors.blue.shade600,
-      Colors.orange.shade500,
-      Colors.green.shade500,
-      Colors.purple.shade500,
-      Colors.teal.shade500,
+      const Color(0xFF3B82F6),
+      const Color(0xFF10B981),
+      const Color(0xFFF59E0B),
+      const Color(0xFF8B5CF6),
+      const Color(0xFFEF4444),
+      const Color(0xFF06B6D4),
     ];
     return designPalette[index % designPalette.length];
   }
 
   Future<void> _fetchLiveDashboardData() async {
     try {
-      // 👇 2. Pointing directly to your global backendUrl constant
       final response = await http
           .get(Uri.parse('$backendUrl/dashboard/metrics'))
           .timeout(const Duration(seconds: 10));
@@ -68,42 +66,41 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
           if (!mounted) return;
           setState(() {
-            // 👇 3. Updated UI cards to match Python's 'ongoingTrips' and 'unassignedSchedules'
             _metrics = [
               DashboardMetric(
                 title: 'Active Drivers',
                 value: (metricsMap['totalDrivers'] ?? 0).toString(),
                 subTitle: 'Registered profiles',
-                icon: Icons.people,
-                baseColor: Colors.blue,
+                icon: Icons.people_alt,
+                baseColor: const Color(0xFF3B82F6),
               ),
               DashboardMetric(
                 title: 'Active Vehicles',
                 value: (metricsMap['activeVehicles'] ?? 0).toString(),
                 subTitle: 'Ready for operation',
                 icon: Icons.directions_car,
-                baseColor: Colors.green,
+                baseColor: const Color(0xFF10B981),
               ),
               DashboardMetric(
                 title: 'Ongoing Trips',
                 value: (metricsMap['ongoingTrips'] ?? 0).toString(),
                 subTitle: 'Currently in transit',
                 icon: Icons.directions_bus,
-                baseColor: Colors.purple,
+                baseColor: const Color(0xFF8B5CF6),
               ),
               DashboardMetric(
                 title: 'Unscheduled',
                 value: (metricsMap['unassignedSchedules'] ?? 0).toString(),
                 subTitle: 'Pending assignment',
                 icon: Icons.assignment_late,
-                baseColor: Colors.orange,
+                baseColor: const Color(0xFFF59E0B),
               ),
               DashboardMetric(
                 title: 'Maintenance Alerts',
                 value: (metricsMap['maintenanceAlerts'] ?? 0).toString(),
                 subTitle: 'Attention required',
-                icon: Icons.warning_rounded,
-                baseColor: Colors.red,
+                icon: Icons.build_circle,
+                baseColor: const Color(0xFFEF4444),
               ),
             ];
 
@@ -144,41 +141,71 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: Colors.blue)),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
       );
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        double paddingTotal = 32.0;
+        final bool isMobile = constraints.maxWidth < 700;
+        final double horizontalPadding = isMobile ? 10.0 : 16.0;
+        final double spacing = isMobile ? 8.0 : 12.0;
 
-        // 👇 4. Restored the math to perfectly fit 5 metric cards side-by-side
-        double dynamicWidth = constraints.maxWidth > 1200
-            ? (constraints.maxWidth - (paddingTotal + 64)) / 5
+        int columns = constraints.maxWidth > 1200
+            ? 5
             : constraints.maxWidth > 900
-            ? (constraints.maxWidth - (paddingTotal + 32)) / 3
+            ? 3
             : constraints.maxWidth > 640
-            ? (constraints.maxWidth - (paddingTotal + 16)) / 2
-            : constraints.maxWidth - paddingTotal;
+            ? 2
+            : 1;
+
+        double dynamicWidth =
+            (constraints.maxWidth -
+                (horizontalPadding * 2) -
+                (spacing * (columns - 1))) /
+            columns;
+        dynamicWidth = dynamicWidth.floorToDouble();
 
         return RefreshIndicator(
           onRefresh: _fetchLiveDashboardData,
           child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 24.0,
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 12.0,
             ),
             children: [
               if (_errorMessage != null) _buildErrorBanner(),
               widget.headerWidget,
-              const SizedBox(height: 24),
-              _buildKpiGrid(dynamicWidth),
-              const SizedBox(height: 24),
-              _buildMaintenanceCard(),
-              if (widget.showClientTrips) ...[
-                const SizedBox(height: 24),
-                _buildClientTripsCard(),
-              ],
+              const SizedBox(height: 12),
+              _buildKpiGrid(dynamicWidth, spacing),
+              const SizedBox(height: 12),
+              // ─── Row: Maintenance + Client Trips ───
+              isMobile
+                  ? Column(
+                      children: [
+                        _buildMaintenanceCard(),
+                        if (widget.showClientTrips) ...[
+                          const SizedBox(height: 12),
+                          _buildClientTripsCard(),
+                        ],
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: _buildMaintenanceCard(),
+                        ),
+                        if (widget.showClientTrips) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: _buildClientTripsCard(),
+                          ),
+                        ],
+                      ],
+                    ),
             ],
           ),
         );
@@ -188,86 +215,106 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
   Widget _buildErrorBanner() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade100),
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFFCA5A5)),
       ),
-      child: Text(
-        _errorMessage!,
-        style: TextStyle(
-          color: Colors.red.shade700,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 14),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(
+                color: Color(0xFF991B1B),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildKpiGrid(double width) {
+  Widget _buildKpiGrid(double width, double spacing) {
     return Wrap(
-      spacing: 16.0,
-      runSpacing: 16.0,
-      children: _metrics
-          .map(
-            (m) => Container(
-              width: width,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+      spacing: spacing,
+      runSpacing: spacing,
+      children: _metrics.map((m) {
+        final Color color = m.baseColor;
+        return Container(
+          width: width,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      SizedBox(
-                        width: 120,
-                        child: Text(
-                          m.title,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
+                  Expanded(
+                    child: Text(
+                      m.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: m.baseColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Icon(m.icon, color: m.baseColor, size: 16),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    m.value,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    m.subTitle,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(m.icon, color: color, size: 14),
                   ),
                 ],
               ),
-            ),
-          )
-          .toList(),
+              const SizedBox(height: 4),
+              Text(
+                m.value,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                m.subTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -275,11 +322,18 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     final paginatedList = _paginatedAlerts;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,42 +341,48 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Recent Vehicle Maintenance Logs',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Live Stream',
+              const Expanded(
+                child: Text(
+                  'Maintenance Alerts',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.blue,
-                    fontSize: 11,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
               ),
+              if (_alerts.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${_alerts.length}',
+                    style: const TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
           _alerts.isEmpty
               ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20.0),
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
                   child: Center(
                     child: Text(
-                      "No active maintenance alerts logged.",
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      "All vehicles are optimal.",
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 )
@@ -330,28 +390,28 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                   children: [
                     ...paginatedList.map(
                       (log) => Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade100),
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.grey.shade50,
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
+                                color: const Color(0xFFFEF2F2),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Icon(
-                                Icons.build_circle_outlined,
-                                color: Colors.red,
-                                size: 20,
+                                Icons.car_repair,
+                                color: Color(0xFFEF4444),
+                                size: 16,
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,13 +420,16 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                                     log.vehicleId,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 14,
+                                      fontSize: 12,
+                                      color: Color(0xFF0F172A),
                                     ),
                                   ),
                                   Text(
-                                    'Issue: ${log.description}',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
+                                    log.description,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF64748B),
                                       fontSize: 11,
                                     ),
                                   ),
@@ -377,54 +440,74 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 8),
-                    const Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: Color(0xFFF1F5F9),
-                    ),
-                    const SizedBox(height: 12),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Showing ${(_currentAlertPage * _alertsPerPage) + 1} - ${min((_currentAlertPage + 1) * _alertsPerPage, _alerts.length)} of ${_alerts.length} alerts',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                    if (_alerts.length > _alertsPerPage) ...[
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${(_currentAlertPage * _alertsPerPage) + 1} - ${min((_currentAlertPage + 1) * _alertsPerPage, _alerts.length)} of ${_alerts.length}',
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.chevron_left, size: 20),
-                              onPressed: _currentAlertPage > 0
-                                  ? () => setState(() => _currentAlertPage--)
-                                  : null,
-                              tooltip: 'Previous logs page',
-                            ),
-                            Text(
-                              '${_currentAlertPage + 1} / $_totalAlertPages',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.chevron_left, size: 16),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 24,
+                                  minHeight: 24,
+                                ),
+                                onPressed: _currentAlertPage > 0
+                                    ? () => setState(() => _currentAlertPage--)
+                                    : null,
+                                color: _currentAlertPage > 0
+                                    ? const Color(0xFF3B82F6)
+                                    : Colors.grey.shade300,
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.chevron_right, size: 20),
-                              onPressed:
-                                  _currentAlertPage < _totalAlertPages - 1
-                                  ? () => setState(() => _currentAlertPage++)
-                                  : null,
-                              tooltip: 'Next logs page',
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '${_currentAlertPage + 1} / $_totalAlertPages',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF3B82F6),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_right, size: 16),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 24,
+                                  minHeight: 24,
+                                ),
+                                onPressed:
+                                    _currentAlertPage < _totalAlertPages - 1
+                                    ? () => setState(() => _currentAlertPage++)
+                                    : null,
+                                color: _currentAlertPage < _totalAlertPages - 1
+                                    ? const Color(0xFF3B82F6)
+                                    : Colors.grey.shade300,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
         ],
@@ -434,33 +517,41 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
   Widget _buildClientTripsCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Weekly Passenger Trips by Client',
+            'Client Weekly Dispatches',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Color(0xFF0F172A),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
           _companyTrips.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24.0),
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
                   child: Center(
                     child: Text(
-                      'No active client records retrieved.',
+                      'No client trips this week.',
                       style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 13,
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -469,68 +560,73 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _companyTrips.length,
-                  separatorBuilder: (context, index) => const Divider(
-                    height: 24,
-                    thickness: 1,
-                    color: Color(0xFFF1F5F9),
+                  separatorBuilder: (_, __) => const Divider(
+                    height: 12,
+                    thickness: 0.5,
+                    color: Color(0xFFE2E8F0),
                   ),
                   itemBuilder: (context, index) {
                     final item = _companyTrips[index];
-                    final color = _proceduralColorAssigner(index);
+                    final Color color = _proceduralColorAssigner(index);
                     return Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
                             color: color.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Icon(Icons.business, color: color, size: 20),
+                          child: Icon(
+                            Icons.business_center,
+                            color: color,
+                            size: 16,
+                          ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 item.companyName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                                  fontSize: 12,
+                                  color: Color(0xFF0F172A),
                                 ),
                               ),
-                              const SizedBox(height: 6),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(2),
-                                child: LinearProgressIndicator(
-                                  value: item.utilization,
-                                  backgroundColor: Colors.grey.shade200,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    color,
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(2),
+                                      child: LinearProgressIndicator(
+                                        value: item.utilization,
+                                        backgroundColor:
+                                            const Color(0xFFF1F5F9),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              color,
+                                            ),
+                                        minHeight: 3,
+                                      ),
+                                    ),
                                   ),
-                                  minHeight: 4,
-                                ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${item.tripCount}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: color,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${item.tripCount} Trips',
-                            style: TextStyle(
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
                           ),
                         ),
                       ],

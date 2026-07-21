@@ -30,6 +30,9 @@ class _OicDashboardState extends State<OicDashboard> {
   bool _isLoading = true;
   List<dynamic> _allTrips = [];
 
+  // ─── DATE FILTER ───
+  DateTime? _filterDate = DateTime.now(); // default to today
+
   // ─── PAGINATION ───
   int _pendingPage = 0;
   int _approvedPage = 0;
@@ -37,12 +40,17 @@ class _OicDashboardState extends State<OicDashboard> {
   int _completedPage = 0;
   final int _itemsPerPage = 10;
 
-  // ─── SORT STATE ───
+  // ─── SORT & SEARCH ───
   String _pendingSort = 'Date (Newest)';
   String _approvedSort = 'Date (Newest)';
   String _dispatchedSort = 'Date (Newest)';
   String _completedSort = 'Date (Newest)';
   final List<String> _sortOptions = ['Date (Newest)', 'Date (Oldest)', 'Trip ID'];
+
+  String _pendingSearch = '';
+  String _approvedSearch = '';
+  String _dispatchedSearch = '';
+  String _completedSearch = '';
 
   // ─── LIFECYCLE ───
   @override
@@ -56,25 +64,19 @@ class _OicDashboardState extends State<OicDashboard> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final res = await http.get(Uri.parse('$backendUrl/trips'));
+      final res = await http.get(
+        Uri.parse('$backendUrl/schedules/oic/${widget.oicId}'),
+      );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final List<dynamic> fetched = data['trips'] ?? [];
-        final matching = fetched.where((t) {
-          final dbOicId = t['oic_id']?.toString() ?? '';
-          final target = widget.oicId.toString().trim();
-          if (dbOicId == target) return true;
-          final dbCompany = (t['oic_profile'] ?? {})['company_name']
-                  ?.toString()
-                  .toLowerCase()
-                  .trim() ??
-              '';
-          return dbCompany == widget.companyName.toLowerCase().trim();
-        }).toList();
+        final List<dynamic> fetchedTrips = data['data'] ?? [];
         setState(() {
-          _allTrips = matching;
+          _allTrips = fetchedTrips;
           _isLoading = false;
         });
+      } else {
+        _showSnackBar('Failed to load trips. Server error ${res.statusCode}.', Colors.red);
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint('❌ OIC sync error: $e');
@@ -91,25 +93,27 @@ class _OicDashboardState extends State<OicDashboard> {
     }
     setState(() => _isLoading = true);
     try {
-      final res = await http.post(
-        Uri.parse('$backendUrl/dispatch/submit'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'trip_id': _selectedTrip!['trip_id'] ?? _selectedTrip!['id'],
-          'passenger_count': int.tryParse(_passengerCount) ?? 0,
-          'company_name': widget.companyName,
-        }),
-      ).timeout(const Duration(seconds: 10));
+      final res = await http
+          .post(
+            Uri.parse('$backendUrl/dispatch/submit'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'trip_id': _selectedTrip!['trip_id'] ?? _selectedTrip!['id'],
+              'passenger_count': int.tryParse(_passengerCount) ?? 0,
+              'company_name': widget.companyName,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
       if (res.statusCode == 200 || res.statusCode == 201) {
         _showSnackBar('Trip dispatched!', Colors.green);
         _resetFormState();
         await _fetchLiveSchedules();
       } else {
         _showSnackBar('Error: ${res.statusCode}', Colors.red);
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       _showSnackBar('Dispatch failed.', Colors.red);
-    } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -203,11 +207,53 @@ class _OicDashboardState extends State<OicDashboard> {
     );
   }
 
+  // ─── DATE FILTER TOGGLE ───
+  Widget _buildDateFilterChip() {
+    final isToday = _filterDate != null;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _filterDate = _filterDate == null ? DateTime.now() : null;
+          // Reset pagination for all tabs
+          _pendingPage = 0;
+          _approvedPage = 0;
+          _dispatchedPage = 0;
+          _completedPage = 0;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isToday ? const Color(0xFFEFF6FF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isToday ? const Color(0xFF3B82F6) : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_today, size: 12, color: Color(0xFF3B82F6)),
+            const SizedBox(width: 4),
+            Text(
+              isToday ? 'Today' : 'All Dates',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3B82F6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── BUILD ───
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 850;
-    final double pad = isMobile ? 10.0 : 20.0;
+    final double pad = isMobile ? 8.0 : 16.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -215,7 +261,7 @@ class _OicDashboardState extends State<OicDashboard> {
         onRefresh: _fetchLiveSchedules,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: pad, vertical: 10.0),
+          padding: EdgeInsets.symmetric(horizontal: pad, vertical: 8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -229,17 +275,17 @@ class _OicDashboardState extends State<OicDashboard> {
                         Text(
                           'Welcome, ${widget.oicName}',
                           style: const TextStyle(
-                            fontSize: 22,
+                            fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF0F172A),
                             letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
+                        const Text(
                           'Dispatch Management',
-                          style: const TextStyle(
-                            fontSize: 13,
+                          style: TextStyle(
+                            fontSize: 12,
                             fontWeight: FontWeight.w400,
                             color: Color(0xFF64748B),
                           ),
@@ -249,14 +295,14 @@ class _OicDashboardState extends State<OicDashboard> {
                   ),
                   const SizedBox(width: 6),
                   SizedBox(
-                    width: 36,
-                    height: 36,
+                    width: 32,
+                    height: 32,
                     child: IconButton(
                       onPressed: () {
                         setState(() => _isLoading = true);
                         _fetchLiveSchedules();
                       },
-                      icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6), size: 20),
+                      icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6), size: 18),
                       tooltip: 'Refresh',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -264,14 +310,14 @@ class _OicDashboardState extends State<OicDashboard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
 
               // ── COMPANY CHIP ──
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.2)),
                 ),
                 child: Text(
@@ -279,15 +325,15 @@ class _OicDashboardState extends State<OicDashboard> {
                   style: const TextStyle(
                     color: Color(0xFF3B82F6),
                     fontWeight: FontWeight.w600,
-                    fontSize: 11,
+                    fontSize: 10,
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // ── TABS ──
               Container(
-                padding: const EdgeInsets.all(3),
+                padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(8),
@@ -295,18 +341,22 @@ class _OicDashboardState extends State<OicDashboard> {
                 child: Row(
                   children: [
                     _buildTabButton('pending', 'Pending', Icons.hourglass_top, Colors.orange.shade700),
-                    _buildTabButton('approved', 'Approved', Icons.event_available, Colors.blue.shade700),
+                    _buildTabButton('approved', 'Scheduled', Icons.event_available, Colors.blue.shade700),
                     _buildTabButton('dispatched', 'Ongoing', Icons.local_shipping, Colors.green.shade700),
                     _buildTabButton('completed', 'Completed', Icons.check_circle, Colors.purple.shade700),
                   ],
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
+
+              // ── DATE FILTER CHIP ──
+              _buildDateFilterChip(),
+              const SizedBox(height: 8),
 
               // ── CONTENT ──
               _isLoading
                   ? const Padding(
-                      padding: EdgeInsets.all(32.0),
+                      padding: EdgeInsets.all(24.0),
                       child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
                     )
                   : _currentPath == 'pending'
@@ -327,16 +377,16 @@ class _OicDashboardState extends State<OicDashboard> {
 
   // ─── TAB VIEWS ───
   Widget _buildPendingView(bool isMobile) =>
-      _buildTabContent('pending staff assignment', 'Pending', isMobile, _pendingPage, (p) => setState(() => _pendingPage = p), _pendingSort, (s) => setState(() => _pendingSort = s));
+      _buildTabContent('pending staff assignment', 'Pending', isMobile, _pendingPage, (p) => setState(() => _pendingPage = p), _pendingSort, (s) => setState(() => _pendingSort = s), _pendingSearch, (s) => setState(() => _pendingSearch = s));
 
   Widget _buildApprovedView(bool isMobile) =>
-      _buildTabContent('scheduled', 'Scheduled', isMobile, _approvedPage, (p) => setState(() => _approvedPage = p), _approvedSort, (s) => setState(() => _approvedSort = s));
+      _buildTabContent('scheduled', 'Scheduled', isMobile, _approvedPage, (p) => setState(() => _approvedPage = p), _approvedSort, (s) => setState(() => _approvedSort = s), _approvedSearch, (s) => setState(() => _approvedSearch = s));
 
   Widget _buildDispatchedView(bool isMobile) =>
-      _buildTabContent('ongoing', 'Ongoing', isMobile, _dispatchedPage, (p) => setState(() => _dispatchedPage = p), _dispatchedSort, (s) => setState(() => _dispatchedSort = s));
+      _buildTabContent('ongoing', 'Ongoing', isMobile, _dispatchedPage, (p) => setState(() => _dispatchedPage = p), _dispatchedSort, (s) => setState(() => _dispatchedSort = s), _dispatchedSearch, (s) => setState(() => _dispatchedSearch = s));
 
   Widget _buildCompletedView(bool isMobile) =>
-      _buildTabContent('completed', 'Completed', isMobile, _completedPage, (p) => setState(() => _completedPage = p), _completedSort, (s) => setState(() => _completedSort = s));
+      _buildTabContent('completed', 'Completed', isMobile, _completedPage, (p) => setState(() => _completedPage = p), _completedSort, (s) => setState(() => _completedSort = s), _completedSearch, (s) => setState(() => _completedSearch = s));
 
   Widget _buildTabContent(
     String statusFilter,
@@ -346,56 +396,106 @@ class _OicDashboardState extends State<OicDashboard> {
     Function(int) onPageChanged,
     String currentSort,
     Function(String) onSortChanged,
+    String searchQuery,
+    Function(String) onSearchChanged,
   ) {
+    // Apply date filter, status filter, and search filter
     final filtered = _allTrips.where((t) {
+      // Status filter
       final s = (t['trip_status'] ?? '').toString().toLowerCase().trim();
-      return s == statusFilter;
-    }).toList();
+      if (s != statusFilter) return false;
 
-    if (filtered.isEmpty) return _buildEmptyState('No $statusLabel trips');
+      // Date filter
+      if (_filterDate != null) {
+        final dateStr = t['schedule_date']?.toString() ?? '';
+        final todayStr =
+            '${_filterDate!.year}-${_filterDate!.month.toString().padLeft(2, '0')}-${_filterDate!.day.toString().padLeft(2, '0')}';
+        if (!dateStr.startsWith(todayStr)) return false;
+      }
+
+      // Search filter
+      final route = (t['route_name'] ?? '').toString().toLowerCase();
+      final driver = (t['driver_name'] ?? t['user_account']?['full_name'] ?? '').toString().toLowerCase();
+      final query = searchQuery.toLowerCase();
+      return route.contains(query) || driver.contains(query);
+    }).toList();
 
     final sorted = _sortTrips(filtered, currentSort);
 
     return Column(
       children: [
-        // ── SORT DROPDOWN ──
-        Align(
-          alignment: Alignment.centerRight,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: currentSort,
-                icon: const Icon(Icons.sort, size: 16, color: Color(0xFF64748B)),
-                style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A)),
-                items: _sortOptions.map((s) {
-                  return DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12)));
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) onSortChanged(val);
-                },
+        // ─── SEARCH + SORT ROW ───
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Container(
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: TextField(
+                  onChanged: onSearchChanged,
+                  controller: TextEditingController(text: searchQuery)..selection = TextSelection.fromPosition(TextPosition(offset: searchQuery.length)),
+                  decoration: InputDecoration(
+                    hintText: 'Search trips...',
+                    hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    prefixIcon: const Icon(Icons.search, size: 14, color: Color(0xFF64748B)),
+                    suffixIcon: searchQuery.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () => onSearchChanged(''),
+                            child: const Icon(Icons.clear, size: 14, color: Color(0xFF64748B)),
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 6),
+            Container(
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: currentSort,
+                  icon: const Icon(Icons.sort, size: 14, color: Color(0xFF64748B)),
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF0F172A)),
+                  items: _sortOptions.map((s) {
+                    return DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 11)));
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) onSortChanged(val);
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        _buildPaginatedGrid(
-          items: sorted,
-          isMobile: isMobile,
-          currentPage: currentPage,
-          onPageChanged: onPageChanged,
-          itemBuilder: (trip) => _buildColoredCard(trip, overrideStatus: statusLabel),
-        ),
+        const SizedBox(height: 6),
+        // ─── GRID OR EMPTY STATE ───
+        filtered.isEmpty
+            ? _buildEmptyState('No $statusLabel trips match your search')
+            : _buildPaginatedGrid(
+                items: sorted,
+                isMobile: isMobile,
+                currentPage: currentPage,
+                onPageChanged: onPageChanged,
+                itemBuilder: (trip) => _buildUltraCompactCard(trip, overrideStatus: statusLabel),
+              ),
       ],
     );
   }
 
-  // ─── DISPATCH TAB ───
+  // ─── DISPATCH TAB (unchanged) ───
   Widget _buildManageTripView(bool isMobile) {
     final scheduled = _allTrips.where((t) {
       final s = (t['trip_status'] ?? '').toString().toLowerCase().trim();
@@ -409,9 +509,9 @@ class _OicDashboardState extends State<OicDashboard> {
       children: [
         const Text(
           'Select Scheduled Trip',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         if (scheduled.isEmpty)
           _buildEmptyState('No scheduled trips to dispatch.')
         else
@@ -419,18 +519,18 @@ class _OicDashboardState extends State<OicDashboard> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: scheduled.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 6),
+            separatorBuilder: (_, __) => const SizedBox(height: 4),
             itemBuilder: (ctx, i) {
               final trip = scheduled[i];
-              final driver = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
-              final vehicle = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle';
+              final driver = trip['driver_name'] ?? trip['user_account']?['full_name'] ?? 'Unassigned';
+              final vehicle = trip['plate_number'] ?? trip['vehicle']?['plate_number'] ?? 'No Shuttle';
               final pax = trip['passenger_count'] ?? 0;
               final isSelected = selectedId == trip['trip_id'];
 
               return GestureDetector(
                 onTap: () => setState(() => _selectedTrip = trip),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                   decoration: BoxDecoration(
                     color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
                     borderRadius: BorderRadius.circular(6),
@@ -446,18 +546,18 @@ class _OicDashboardState extends State<OicDashboard> {
                           children: [
                             Text(
                               'TRIP-${trip['trip_id']}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 1),
                             Text(
                               trip['route_name'] ?? 'Unassigned',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 1),
                             Wrap(
-                              spacing: 6,
+                              spacing: 4,
                               children: [
                                 _infoChip(Icons.person, driver),
                                 _infoChip(Icons.directions_car, vehicle),
@@ -468,14 +568,14 @@ class _OicDashboardState extends State<OicDashboard> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(
                           color: Colors.green.shade50,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           'SCHEDULED',
-                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                          style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Colors.green.shade700),
                         ),
                       ),
                     ],
@@ -488,7 +588,7 @@ class _OicDashboardState extends State<OicDashboard> {
     );
 
     Widget panel = Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -500,12 +600,12 @@ class _OicDashboardState extends State<OicDashboard> {
               children: [
                 const Text(
                   'Dispatch Trip',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                 ),
-                const SizedBox(height: 6),
-                Text(
+                const SizedBox(height: 4),
+                const Text(
                   'Select a trip above.',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                 ),
               ],
             )
@@ -514,9 +614,9 @@ class _OicDashboardState extends State<OicDashboard> {
               children: [
                 Text(
                   'Dispatch #${_selectedTrip!['trip_id']}',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 TextField(
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
@@ -524,7 +624,7 @@ class _OicDashboardState extends State<OicDashboard> {
                     hintText: 'Enter count',
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
                       borderSide: BorderSide(color: Colors.grey.shade300),
@@ -540,20 +640,20 @@ class _OicDashboardState extends State<OicDashboard> {
                   ),
                   onChanged: (v) => _passengerCount = v,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3B82F6),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       elevation: 0,
                     ),
                     onPressed: _dispatchTripWithHeadcount,
                     child: const Text(
                       'Dispatch',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                     ),
                   ),
                 ),
@@ -562,22 +662,22 @@ class _OicDashboardState extends State<OicDashboard> {
     );
 
     return isMobile
-        ? Column(children: [list, const SizedBox(height: 16), panel])
+        ? Column(children: [list, const SizedBox(height: 12), panel])
         : Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: list),
-              const SizedBox(width: 20),
+              const SizedBox(width: 16),
               Expanded(child: panel),
             ],
           );
   }
 
-  // ─── NEW COLORED CARD WITH FILLED BOX ───
-  Widget _buildColoredCard(dynamic trip, {String? overrideStatus}) {
+  // ─── ULTRA-COMPACT CARD ───
+  Widget _buildUltraCompactCard(dynamic trip, {String? overrideStatus}) {
     final status = (overrideStatus ?? trip['trip_status'] ?? 'Scheduled').toString().toLowerCase();
-    final driver = (trip['user_account'] ?? {})['full_name'] ?? 'Unassigned';
-    final vehicle = (trip['vehicle'] ?? {})['plate_number'] ?? 'No Shuttle';
+    final driver = trip['driver_name'] ?? trip['user_account']?['full_name'] ?? 'Unassigned';
+    final vehicle = trip['plate_number'] ?? trip['vehicle']?['plate_number'] ?? 'No Shuttle';
     final dep = _formatTime(trip['departure_time']);
     final arr = _formatTime(trip['estimated_arrival_time']);
     final pax = trip['passenger_count'] ?? 0;
@@ -614,29 +714,30 @@ class _OicDashboardState extends State<OicDashboard> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: statusColor.withOpacity(0.3), width: 0.5),
       ),
       child: Row(
         children: [
-          // Left: main info (Trip ID + Route, driver, vehicle, time)
           Expanded(
             flex: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Row(
                   children: [
                     Flexible(
                       child: Text(
                         'TRIP-${trip['trip_id']} • ${trip['route_name'] ?? 'Unassigned'}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: const Color(0xFF0F172A),
+                          color: Color(0xFF0F172A),
+                          height: 1.2,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -649,23 +750,23 @@ class _OicDashboardState extends State<OicDashboard> {
                   spacing: 6,
                   runSpacing: 2,
                   children: [
-                    _infoChip(Icons.person, driver),
-                    _infoChip(Icons.directions_car, vehicle),
-                    _infoChip(Icons.access_time, '$dep → $arr'),
+                    _tinyChip(Icons.person, driver),
+                    _tinyChip(Icons.directions_car, vehicle),
+                    _tinyChip(Icons.access_time, '$dep → $arr'),
                   ],
                 ),
               ],
             ),
           ),
-          // Right: passenger count + distance + status badge
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Row(
                 children: [
-                  _infoChip(Icons.people, '$pax pax'),
-                  const SizedBox(width: 8),
-                  _infoChip(Icons.straighten, '$distance km'),
+                  _tinyChip(Icons.people, '$pax pax'),
+                  const SizedBox(width: 6),
+                  _tinyChip(Icons.straighten, '$distance km'),
                 ],
               ),
               const SizedBox(height: 4),
@@ -673,12 +774,12 @@ class _OicDashboardState extends State<OicDashboard> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   statusLabel,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: statusColor,
                   ),
@@ -691,15 +792,32 @@ class _OicDashboardState extends State<OicDashboard> {
     );
   }
 
-  Widget _infoChip(IconData icon, String text) => Row(
+  Widget _tinyChip(IconData icon, String text) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: const Color(0xFF64748B)),
+          Icon(icon, size: 11, color: const Color(0xFF64748B)),
           const SizedBox(width: 3),
           Text(
             text,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 11,
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+            ),
+          ),
+        ],
+      );
+
+  Widget _infoChip(IconData icon, String text) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: const Color(0xFF64748B)),
+          const SizedBox(width: 2),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 10,
               color: Color(0xFF64748B),
               fontWeight: FontWeight.w500,
             ),
@@ -709,9 +827,9 @@ class _OicDashboardState extends State<OicDashboard> {
 
   // ─── HELPERS ───
   Widget _buildEmptyState(String msg) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Center(
-          child: Text(msg, style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
+          child: Text(msg, style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500)),
         ),
       );
 
@@ -740,7 +858,7 @@ class _OicDashboardState extends State<OicDashboard> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: pageItems.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 6),
+        separatorBuilder: (_, __) => const SizedBox(height: 4),
         itemBuilder: (_, i) => itemBuilder(pageItems[i]),
       );
     } else {
@@ -749,8 +867,8 @@ class _OicDashboardState extends State<OicDashboard> {
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
           childAspectRatio: 3.8,
         ),
         itemCount: pageItems.length,
@@ -769,36 +887,36 @@ class _OicDashboardState extends State<OicDashboard> {
 
   Widget _buildPagination(int start, int end, int totalPages, int currentPage, Function(int) onChanged, int total) =>
       Padding(
-        padding: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.only(top: 6),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('${start + 1}–$end of $total', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+            Text('${start + 1}–$end of $total', style: const TextStyle(color: Color(0xFF64748B), fontSize: 10)),
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, size: 16),
+                  icon: const Icon(Icons.chevron_left, size: 14),
                   onPressed: currentPage > 0 ? () => onChanged(currentPage - 1) : null,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                   color: currentPage > 0 ? const Color(0xFF3B82F6) : Colors.grey.shade300,
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     '${currentPage + 1}/$totalPages',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF3B82F6), fontSize: 11),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF3B82F6), fontSize: 10),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right, size: 16),
+                  icon: const Icon(Icons.chevron_right, size: 14),
                   onPressed: currentPage < totalPages - 1 ? () => onChanged(currentPage + 1) : null,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                   color: currentPage < totalPages - 1 ? const Color(0xFF3B82F6) : Colors.grey.shade300,
                 ),
               ],

@@ -35,7 +35,13 @@ class _StaffSchedulesState extends State<StaffSchedules> {
 
   String _searchQuery = '';
   String _statusFilter = 'All';
-  final List<String> _statusOptions = ['All', 'Scheduled', 'Unassigned'];
+  // 👇 FIX: Added 'Rejected' to the dropdown filter options
+  final List<String> _statusOptions = [
+    'All',
+    'Scheduled',
+    'Unassigned',
+    'Rejected',
+  ];
 
   @override
   void initState() {
@@ -89,18 +95,38 @@ class _StaffSchedulesState extends State<StaffSchedules> {
 
     if (_statusFilter != 'All') {
       trips = trips.where((trip) {
+        final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
+        final isRejected = statusStr.toLowerCase().contains('rejected');
+        final isUnassigned =
+            (trip['user_id'] == null || trip['vehicle_id'] == null) &&
+            !isRejected;
         final isScheduled =
-            trip['user_id'] != null && trip['vehicle_id'] != null;
+            trip['user_id'] != null &&
+            trip['vehicle_id'] != null &&
+            !isRejected;
+
         if (_statusFilter == 'Scheduled') return isScheduled;
-        if (_statusFilter == 'Unassigned') return !isScheduled;
+        if (_statusFilter == 'Unassigned') return isUnassigned;
+        // 👇 FIX: Implemented logic to filter the list specifically by Rejected items
+        if (_statusFilter == 'Rejected') return isRejected;
+
         return true;
       }).toList();
     }
 
     // ── SORT: unassigned first ──
     trips.sort((a, b) {
-      final aUnassigned = a['user_id'] == null || a['vehicle_id'] == null;
-      final bUnassigned = b['user_id'] == null || b['vehicle_id'] == null;
+      final aStatus = a['trip_status']?.toString().toLowerCase() ?? '';
+      final bStatus = b['trip_status']?.toString().toLowerCase() ?? '';
+
+      final aRejected = aStatus.contains('rejected');
+      final bRejected = bStatus.contains('rejected');
+
+      final aUnassigned =
+          (a['user_id'] == null || a['vehicle_id'] == null) && !aRejected;
+      final bUnassigned =
+          (b['user_id'] == null || b['vehicle_id'] == null) && !bRejected;
+
       if (aUnassigned && !bUnassigned) return -1;
       if (!aUnassigned && bUnassigned) return 1;
       return 0;
@@ -110,12 +136,23 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   }
 
   int get _totalTrips => _assignedTrips.length;
-  int get _scheduledTrips => _assignedTrips
-      .where((t) => t['user_id'] != null && t['vehicle_id'] != null)
-      .length;
-  int get _unassignedTrips => _assignedTrips
-      .where((t) => t['user_id'] == null || t['vehicle_id'] == null)
-      .length;
+
+  int get _rejectedTrips => _assignedTrips.where((t) {
+    final statusStr = t['trip_status']?.toString() ?? 'Unknown';
+    return statusStr.toLowerCase().contains('rejected');
+  }).length;
+
+  int get _scheduledTrips => _assignedTrips.where((t) {
+    final statusStr = t['trip_status']?.toString() ?? 'Unknown';
+    final isRejected = statusStr.toLowerCase().contains('rejected');
+    return t['user_id'] != null && t['vehicle_id'] != null && !isRejected;
+  }).length;
+
+  int get _unassignedTrips => _assignedTrips.where((t) {
+    final statusStr = t['trip_status']?.toString() ?? 'Unknown';
+    final isRejected = statusStr.toLowerCase().contains('rejected');
+    return (t['user_id'] == null || t['vehicle_id'] == null) && !isRejected;
+  }).length;
 
   void _showTripDetailsModal(DateTime date, List<dynamic> trips) {
     showDialog(
@@ -160,7 +197,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
       body: RefreshIndicator(
         onRefresh: _fetchStaffDashboardData,
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12.0),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: 12.0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -181,12 +221,12 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
+                        const Text(
                           'Manage trip assignments and monitor dispatch status.',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
-                            color: const Color(0xFF64748B),
+                            color: Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -216,9 +256,31 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _statChip(Icons.event, _totalTrips.toString(), 'Total', const Color(0xFF3B82F6)),
-                  _statChip(Icons.check_circle, _scheduledTrips.toString(), 'Scheduled', const Color(0xFF10B981)),
-                  _statChip(Icons.warning, _unassignedTrips.toString(), 'Unassigned', const Color(0xFFF59E0B)),
+                  _statChip(
+                    Icons.event,
+                    _totalTrips.toString(),
+                    'Total',
+                    const Color(0xFF3B82F6),
+                  ),
+                  _statChip(
+                    Icons.check_circle,
+                    _scheduledTrips.toString(),
+                    'Scheduled',
+                    const Color(0xFF10B981),
+                  ),
+                  _statChip(
+                    Icons.warning,
+                    _unassignedTrips.toString(),
+                    'Unassigned',
+                    const Color(0xFFF59E0B),
+                  ),
+                  // 👇 FIX: Added the new Rejected statistics chip
+                  _statChip(
+                    Icons.cancel,
+                    _rejectedTrips.toString(),
+                    'Rejected',
+                    const Color(0xFFEF4444),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -237,14 +299,25 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                     child: SizedBox(
                       height: 38,
                       child: TextField(
-                        onChanged: (value) => setState(() => _searchQuery = value),
+                        onChanged: (value) =>
+                            setState(() => _searchQuery = value),
                         decoration: InputDecoration(
                           hintText: 'Search...',
-                          hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                          prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF64748B)),
+                          hintStyle: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.search,
+                            size: 16,
+                            color: Color(0xFF64748B),
+                          ),
                           filled: true,
                           fillColor: const Color(0xFFF8FAFC),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 6,
+                            horizontal: 10,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide: BorderSide(color: Colors.grey.shade300),
@@ -255,7 +328,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF3B82F6),
+                              width: 1.5,
+                            ),
                           ),
                         ),
                       ),
@@ -279,8 +355,15 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                           child: DropdownButton<String>(
                             isExpanded: true,
                             value: _statusFilter,
-                            icon: const Icon(Icons.filter_alt_outlined, size: 16, color: Color(0xFF64748B)),
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A)),
+                            icon: const Icon(
+                              Icons.filter_alt_outlined,
+                              size: 16,
+                              color: Color(0xFF64748B),
+                            ),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF0F172A),
+                            ),
                             items: _statusOptions.map((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
@@ -301,7 +384,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                     GestureDetector(
                       onTap: () => setState(() => _selectedDate = null),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(10),
@@ -309,13 +395,17 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.close, size: 14, color: Color(0xFF3B82F6)),
+                            const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Color(0xFF3B82F6),
+                            ),
                             const SizedBox(width: 4),
-                            Text(
+                            const Text(
                               'Clear',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: const Color(0xFF3B82F6),
+                                color: Color(0xFF3B82F6),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -333,24 +423,28 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     children: [
-                      Icon(Icons.event, size: 16, color: const Color(0xFF3B82F6)),
+                      const Icon(
+                        Icons.event,
+                        size: 16,
+                        color: Color(0xFF3B82F6),
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         _formatDateOnly(_selectedDate!),
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3B82F6),
+                          color: Color(0xFF3B82F6),
                         ),
                       ),
                       const Spacer(),
                       GestureDetector(
                         onTap: () => setState(() => _selectedDate = null),
-                        child: Text(
+                        child: const Text(
                           'View All',
                           style: TextStyle(
                             fontSize: 12,
-                            color: const Color(0xFF3B82F6),
+                            color: Color(0xFF3B82F6),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -362,23 +456,27 @@ class _StaffSchedulesState extends State<StaffSchedules> {
               // ── MAIN CONTENT ──
               Expanded(
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF3B82F6),
+                        ),
+                      )
                     : isMobile
-                        ? Column(
-                            children: [
-                              _buildCompactCalendarGrid(),
-                              const SizedBox(height: 12),
-                              Expanded(child: _buildTripListView()),
-                            ],
-                          )
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(flex: 1, child: _buildCompactCalendarGrid()),
-                              const SizedBox(width: 16),
-                              Expanded(flex: 2, child: _buildTripListView()),
-                            ],
-                          ),
+                    ? Column(
+                        children: [
+                          _buildCompactCalendarGrid(),
+                          const SizedBox(height: 12),
+                          Expanded(child: _buildTripListView()),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 1, child: _buildCompactCalendarGrid()),
+                          const SizedBox(width: 16),
+                          Expanded(flex: 2, child: _buildTripListView()),
+                        ],
+                      ),
               ),
             ],
           ),
@@ -411,10 +509,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
           const SizedBox(width: 2),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF64748B),
+              color: Color(0xFF64748B),
             ),
           ),
         ],
@@ -461,7 +559,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   IconButton(
                     icon: const Icon(Icons.chevron_left, size: 18),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
                     onPressed: () => setState(
                       () => _selectedMonth = DateTime(
                         _selectedMonth.year,
@@ -472,7 +573,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   IconButton(
                     icon: const Icon(Icons.chevron_right, size: 18),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
                     onPressed: () => setState(
                       () => _selectedMonth = DateTime(
                         _selectedMonth.year,
@@ -563,8 +667,8 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                       color: isToday
                           ? const Color(0xFFF59E0B)
                           : (isSelected
-                              ? const Color(0xFF3B82F6)
-                              : const Color(0xFFE2E8F0)),
+                                ? const Color(0xFF3B82F6)
+                                : const Color(0xFFE2E8F0)),
                       width: isToday ? 1.5 : (isSelected ? 1.5 : 1),
                     ),
                     borderRadius: BorderRadius.circular(4),
@@ -578,8 +682,8 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                         color: isSelected
                             ? Colors.white
                             : (hasTrips
-                                ? const Color(0xFF3B82F6)
-                                : const Color(0xFF0F172A)),
+                                  ? const Color(0xFF3B82F6)
+                                  : const Color(0xFF0F172A)),
                       ),
                     ),
                   ),
@@ -623,7 +727,11 @@ class _StaffSchedulesState extends State<StaffSchedules> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.list_alt, color: Color(0xFF475569), size: 18),
+                    const Icon(
+                      Icons.list_alt,
+                      color: Color(0xFF475569),
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       _selectedDate == null ? 'All Trips' : 'Scheduled',
@@ -636,7 +744,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(20),
@@ -667,7 +778,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                         const SizedBox(height: 8),
                         Text(
                           _selectedDate == null
-                              ? 'No trips scheduled.'
+                              ? 'No trips found for this filter.'
                               : 'No trips on this date.',
                           style: TextStyle(
                             color: Colors.grey.shade500,
@@ -679,12 +790,23 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
                     itemCount: filteredTrips.length,
                     itemBuilder: (context, index) {
                       final trip = filteredTrips[index];
+                      final statusStr =
+                          trip['trip_status']?.toString() ?? 'Unknown';
+                      final isRejected = statusStr.toLowerCase().contains(
+                        'rejected',
+                      );
                       final bool needsAssignment =
-                          trip['user_id'] == null || trip['vehicle_id'] == null;
+                          (trip['user_id'] == null ||
+                              trip['vehicle_id'] == null) &&
+                          !isRejected;
+
                       return TripCard(
                         trip: trip,
                         backendUrl: backendUrl,
@@ -791,8 +913,16 @@ class _TripDetailsDialogState extends State<TripDetailsDialog> {
                       itemCount: widget.trips.length,
                       itemBuilder: (context, index) {
                         final trip = widget.trips[index];
+                        final statusStr =
+                            trip['trip_status']?.toString() ?? 'Unknown';
+                        final isRejected = statusStr.toLowerCase().contains(
+                          'rejected',
+                        );
                         final bool needsAssignment =
-                            trip['user_id'] == null || trip['vehicle_id'] == null;
+                            (trip['user_id'] == null ||
+                                trip['vehicle_id'] == null) &&
+                            !isRejected;
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: TripCard(
@@ -904,7 +1034,10 @@ class TripCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -927,16 +1060,19 @@ class TripCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 6,
             children: [
-              _infoChip(Icons.access_time, _formatTimeRange(
-                trip['departure_time'],
-                trip['estimated_arrival_time'],
-              )),
+              _infoChip(
+                Icons.access_time,
+                _formatTimeRange(
+                  trip['departure_time'],
+                  trip['estimated_arrival_time'],
+                ),
+              ),
               _infoChip(Icons.business, trip['client_company'] ?? 'Unknown'),
               _infoChip(Icons.people, '${trip['passenger_count'] ?? 0} pax'),
               _infoChip(Icons.straighten, '${trip['route_distance'] ?? 0} km'),
-              if (trip['driver_name'] != null)
+              if (trip['driver_name'] != null && !isUnassigned && !isRejected)
                 _infoChip(Icons.person, trip['driver_name']),
-              if (trip['vehicle_plate'] != null)
+              if (trip['vehicle_plate'] != null && !isUnassigned && !isRejected)
                 _infoChip(Icons.directions_car, trip['vehicle_plate']),
             ],
           ),
@@ -954,7 +1090,11 @@ class TripCard extends StatelessWidget {
                         if (isModal) Navigator.pop(context);
                         _showAssignModal(context);
                       },
-                      icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 16),
+                      icon: const Icon(
+                        Icons.assignment_ind,
+                        color: Colors.white,
+                        size: 16,
+                      ),
                       label: const Text(
                         'Assign',
                         style: TextStyle(color: Colors.white, fontSize: 13),
@@ -975,10 +1115,17 @@ class TripCard extends StatelessWidget {
                     height: 38,
                     child: OutlinedButton.icon(
                       onPressed: () => _rejectTrip(context),
-                      icon: const Icon(Icons.cancel, color: Color(0xFFEF4444), size: 16),
+                      icon: const Icon(
+                        Icons.cancel,
+                        color: Color(0xFFEF4444),
+                        size: 16,
+                      ),
                       label: const Text(
                         'Reject',
-                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 13),
+                        style: TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontSize: 13,
+                        ),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFFEF4444)),
@@ -1045,7 +1192,10 @@ class TripCard extends StatelessWidget {
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text(
               "Reject",
-              style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Color(0xFFEF4444),
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -1168,7 +1318,9 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
       content: _isLoadingOptions
           ? const SizedBox(
               height: 100,
-              child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
+              child: Center(
+                child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+              ),
             )
           : SizedBox(
               width: isMobile ? double.infinity : 400,
@@ -1177,8 +1329,8 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                 children: [
                   Text(
                     "Date: ${widget.trip['schedule_date']}",
-                    style: TextStyle(
-                      color: const Color(0xFF64748B),
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
@@ -1193,18 +1345,27 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                       ),
                       child: const Text(
                         "⚠️ No drivers available",
-                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 13),
+                        style: TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontSize: 13,
+                        ),
                       ),
                     )
                   else
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
                         labelText: "Driver",
-                        labelStyle: TextStyle(fontSize: 13, color: const Color(0xFF64748B)),
+                        labelStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF64748B),
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
                       ),
@@ -1230,18 +1391,27 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                       ),
                       child: const Text(
                         "⚠️ No vehicles available",
-                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 13),
+                        style: TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontSize: 13,
+                        ),
                       ),
                     )
                   else
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
                         labelText: "Vehicle",
-                        labelStyle: TextStyle(fontSize: 13, color: const Color(0xFF64748B)),
+                        labelStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF64748B),
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
                       ),
@@ -1292,7 +1462,10 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                 )
               : const Text(
                   "Confirm",
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
         ),
       ],
