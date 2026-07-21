@@ -123,7 +123,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: Colors.white),
                 ),
                 child: QrImageView(
                   data: evalUrl,
@@ -152,7 +152,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFFF8FAFC),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+        ),
       );
     }
 
@@ -162,7 +164,10 @@ class _DriverDashboardState extends State<DriverDashboard> {
         onRefresh: _fetchAssignedTripData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16.0),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: 16.0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -326,7 +331,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isOngoing ? Colors.green.shade400 : Colors.orange.shade400,
+                  color: isOngoing
+                      ? Colors.green.shade400
+                      : Colors.orange.shade400,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -478,8 +485,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
 
   Widget _buildVehicleDetailsCard() {
     final plate = _activeTrip!['plate_number']?.toString() ?? 'UNASSIGNED';
-    final model =
-        _activeTrip!['model']?.toString() ?? 'Contact Staff Dispatcher';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -522,19 +527,12 @@ class _DriverDashboardState extends State<DriverDashboard> {
                     color: Color(0xFF0F172A),
                   ),
                 ),
-                Text(
-                  model,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                  ),
-                ),
               ],
             ),
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.qr_code_scanner, color: Color.fromARGB(255, 240, 241, 244)),
+            icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
             tooltip: 'Scan QR',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),

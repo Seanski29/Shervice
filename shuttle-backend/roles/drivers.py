@@ -69,11 +69,10 @@ def get_driver_active_trip(driver_name):
             'route_distance': trip.get('route_distance', 0.0),
             # Vehicle Mappings
             'plate_number': vehicle_info.get('plate_number', 'No Plate Assigned'),
-            'model': vehicle_info.get('model', 'Unknown Vehicle model')
         }
 
         return jsonify({"success": True, "active_trip": formatted_trip}), 200
         
     except Exception as e:
         print(f"❌ Driver Active Trip Sync Exception: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 
