@@ -206,7 +206,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
-  // 👇 1. THE NEW "LOG ISSUE" DIALOG (Asset-Centric)
   void _showLogIssueDialog(Map<String, dynamic> vehicle) {
     final formKey = GlobalKey<FormState>();
     String description = '';
@@ -483,7 +482,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
-  // 👇 2. THE NEW "MARK REPAIRED" DIALOG (PUT Route)
   void _showMarkRepairedDialog(Map<String, dynamic> log, int vehicleId) {
     DateTime? repairDate = DateTime.now();
     TimeOfDay? repairTime = TimeOfDay.now();
@@ -675,7 +673,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
-  // 👇 3. THE NEW MANAGER MODAL
   void _showMaintenanceManagerModal(
     BuildContext context,
     Map<String, dynamic> vehicle,
@@ -1010,7 +1007,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
               Wrap(
                 spacing: 12,
                 children: [
-                  // 👇 REMOVED the generic "Log Maintenance" button from here!
                   if (_isAdmin)
                     ElevatedButton.icon(
                       onPressed: () => _showUserModal(context, user: null),
@@ -1264,7 +1260,17 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  // 👇 UPDATED: Action Button for Maintenance
+
+                                  // 👇 NEW: Predictive Machine Learning Widget dynamically loaded per vehicle ID
+                                  VehicleMlDiagnosticView(
+                                    vehicleId:
+                                        int.tryParse(
+                                          v['vehicle_id'].toString(),
+                                        ) ??
+                                        0,
+                                  ),
+                                  const SizedBox(height: 12),
+
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: ElevatedButton.icon(
@@ -1544,7 +1550,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
         response = await http
             .put(
               Uri.parse(
-                '$backendUrl/vehicles/update/${widget.vehicle!['vehicle_id']}', // 👇 UPDATED to global backendUrl
+                '$backendUrl/vehicles/update/${widget.vehicle!['vehicle_id']}',
               ),
               headers: {'Content-Type': 'application/json'},
               body: bodyData,
@@ -1553,9 +1559,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
       } else {
         response = await http
             .post(
-              Uri.parse(
-                '$backendUrl/vehicles',
-              ), // 👇 UPDATED to global backendUrl
+              Uri.parse('$backendUrl/vehicles'),
               headers: {'Content-Type': 'application/json'},
               body: bodyData,
             )
@@ -1870,6 +1874,175 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                       ),
               ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+// 👇 NEW PREDICTIVE ML CLASS APPENDED HERE
+class VehicleMlDiagnosticView extends StatefulWidget {
+  final int vehicleId;
+
+  const VehicleMlDiagnosticView({super.key, required this.vehicleId});
+
+  @override
+  State<VehicleMlDiagnosticView> createState() =>
+      _VehicleMlDiagnosticViewState();
+}
+
+class _VehicleMlDiagnosticViewState extends State<VehicleMlDiagnosticView> {
+  bool _loading = true;
+  bool _hasError = false;
+
+  bool _predictedFailure = false;
+  double _riskProbability = 0.0;
+  Map<String, dynamic> _metrics = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMlDiagnosticData();
+  }
+
+  Future<void> _fetchMlDiagnosticData() async {
+    if (widget.vehicleId <= 0) {
+      setState(() {
+        _loading = false;
+        _hasError = true;
+      });
+      return;
+    }
+
+    try {
+      final res = await http.get(
+        Uri.parse('$backendUrl/vehicles/predict/${widget.vehicleId}'),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          _predictedFailure = data['needs_maintenance_prediction'] ?? false;
+          _riskProbability = (data['risk_index'] ?? 0.0) as double;
+          _metrics = data['telemetry_metrics'] ?? {};
+          _loading = false;
+          _hasError = false;
+        });
+      } else {
+        setState(() {
+          _loading = false;
+          _hasError = true;
+        });
+      }
+    } catch (_) {
+      setState(() {
+        _loading = false;
+        _hasError = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.0),
+        child: LinearProgressIndicator(),
+      );
+    }
+
+    if (_hasError) {
+      return const Text(
+        "Could not load ML diagnostic telemetry analysis.",
+        style: TextStyle(color: Colors.grey, fontSize: 12),
+      );
+    }
+
+    // Color scaling based on the risk percentage
+    final Color healthColor = _riskProbability > 0.70
+        ? Colors.red
+        : (_riskProbability > 0.40 ? Colors.orange : Colors.green);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: healthColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: healthColor.withOpacity(0.5), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.psychology, color: healthColor, size: 22),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "Predictive Fleet Intelligence",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: healthColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  "${(_riskProbability * 100).toStringAsFixed(1)}% Risk",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: healthColor,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _predictedFailure
+                ? "⚠️ Elevated structural breakdown probability detected. Proactive maintenance advised."
+                : "✅ Vehicle structural parameters operating stable within target baseline tolerances.",
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 12),
+          const Divider(),
+          const SizedBox(height: 8),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _metricChip(
+                "Total Mileage",
+                "${_metrics['total_mileage_km'] ?? 0} km",
+              ),
+              _metricChip("Completed Trips", "${_metrics['total_trips'] ?? 0}"),
+              _metricChip(
+                "Past Repairs",
+                "${_metrics['past_repairs_count'] ?? 0}",
+              ),
+              _metricChip("Age", "${_metrics['age_years'] ?? 0} Yrs"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metricChip(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
       ],
     );

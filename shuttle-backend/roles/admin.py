@@ -15,36 +15,61 @@ def get_admin_client():
     return create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
 
-# ─────────── DIAGNOSTIC DATABASE CHECKS ───────────
-
+# ─────────── DIAGNOSTIC DATABASE CHECKS (DRIVERS USE THIS) ───────────
 @admin_bp.route('/api/test-db', methods=['GET'])
 def diagnostic_database_check():
+    """Fetches all driver profiles, calculates ratings, and links them to the Flutter UI"""
     try:
+        # 1. Fetch Drivers
         test_query = supabase.table('driver_profile').select(
             '*, user_account(username)'
         ).execute()
-        
         raw_data = test_query.data or []
-        flattened_drivers = []
 
+        # 2. Fetch Trips to map trip_id -> driver user_id
+        trips_res = supabase.table('trip_schedule').select('trip_id, user_id').execute()
+        trip_to_driver = {t['trip_id']: t['user_id'] for t in trips_res.data if t.get('user_id')}
+
+        # 3. Fetch Passenger Evaluations to calculate averages
+        evals_res = supabase.table('passenger_evaluation').select('trip_id, safety_score, punctuality_score, professionalism_score').execute()
+        
+        # Aggregate evaluation averages per driver UUID
+        driver_scores = {}
+        for ev in evals_res.data or []:
+            t_id = ev.get('trip_id')
+            driver_id = trip_to_driver.get(t_id)
+            if driver_id:
+                s = float(ev.get('safety_score') or 0)
+                p = float(ev.get('punctuality_score') or 0)
+                pr = float(ev.get('professionalism_score') or 0)
+                eval_avg = (s + p + pr) / 3.0
+                
+                if driver_id not in driver_scores:
+                    driver_scores[driver_id] = []
+                driver_scores[driver_id].append(eval_avg)
+
+        flattened_drivers = []
         for row in raw_data:
+            # Link account email
             linked_account = row.get('user_account') or {}
-            driver_email = linked_account.get('username', '')
+            row['username'] = linked_account.get('username', '')
             
-            row['username'] = driver_email
+            # 4. Attach calculated rating for Flutter sorting!
+            d_uuid = row.get('user_id')
+            scores = driver_scores.get(d_uuid, [])
+            row['rating'] = sum(scores) / len(scores) if scores else 0.0
+            
             flattened_drivers.append(row)
 
         return jsonify({
             "connection_status": "SUCCESS",
-            "message": "Flask successfully linked driver profiles and unified user account email blocks!",
-            "table_queried": "driver_profile join user_account",
+            "message": "Driver profiles and ratings successfully aggregated!",
             "total_rows_found": len(flattened_drivers),
-            "sample_data_payload": flattened_drivers[:100]
+            "sample_data_payload": flattened_drivers
         }), 200
     except Exception as e:
-        print(f"❌ Diagnostic database connection or table join failed: {e}")
+        print(f"❌ Diagnostic database connection failed: {e}")
         return jsonify({"connection_status": "FAILED", "error_details": str(e)}), 500
-
 
 # ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
 
@@ -127,12 +152,25 @@ def get_dashboard_metrics():
                     "description": log.get('description', 'No details provided.')
                 })
 
-        # 5. Calculate Dynamic Satisfaction Scores directly from OIC Evaluation values
-        oic_evals = supabase.table('oic_evaluation').select('overall_rating').execute()
-        oic_ratings = [r['overall_rating'] for r in oic_evals.data if r.get('overall_rating')] if oic_evals.data else []
-        avg_satisfaction = sum(oic_ratings) / len(oic_ratings) if oic_ratings else 5.0
+        # 5. Count Ongoing Trips (Replaces Punctuality)
+        # Added broad exact-match terms to ensure nothing gets missed
+        ongoing_query = supabase.table('trip_schedule').select('trip_id')\
+            .in_('trip_status', ['Ongoing', 'ongoing', 'ONGOING', 'In Progress', 'in progress', 'IN PROGRESS'])\
+            .execute()
+        ongoing_trips_count = len(ongoing_query.data) if ongoing_query.data else 0
 
-        # 6. Fetch Company Weekly Utilization Metrics Live
+        # 6. Count Unassigned Schedules
+        # Targeting "Pending Staff Assignment" and standard "Scheduled" formats
+        pending_query = supabase.table('trip_schedule').select('trip_id, user_id, vehicle_id')\
+            .in_('trip_status', ['Pending Staff Assignment', 'pending staff assignment', 'Pending', 'pending', 'Scheduled', 'scheduled'])\
+            .execute()
+        
+        unassigned_count = 0
+        if pending_query.data:
+            # Safely catch trips missing a driver OR missing a vehicle
+            unassigned_count = sum(1 for t in pending_query.data if t.get('user_id') is None or t.get('vehicle_id') is None)
+
+        # 7. Fetch Company Weekly Utilization Metrics Live
         company_weekly_metrics = []
         try:
             companies_fetch = supabase.table('oic_profile').select('company_name').execute()
@@ -164,7 +202,8 @@ def get_dashboard_metrics():
             "metrics": {
                 "totalDrivers": total_drivers,
                 "activeVehicles": active_vehicles,
-                "averagePunctuality": avg_satisfaction,
+                "ongoingTrips": ongoing_trips_count,
+                "unassignedSchedules": unassigned_count,
                 "maintenanceAlerts": maintenance_alerts_count
             },
             "alerts": formatted_alerts,

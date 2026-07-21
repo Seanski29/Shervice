@@ -26,13 +26,13 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   bool _isSidebarExpanded = true;
 
   List<Widget> get _screens => [
-        const AdminDashboard(),
-        const AdminSchedules(),
-        const AdminDriver(),
-        const AdminFleet(),
-        const AdminUsers(),
-        AdminSettings(adminId: widget.adminId),
-      ];
+    const AdminDashboard(),
+    const AdminSchedules(),
+    const AdminDriver(),
+    const AdminFleet(),
+    const AdminUsers(),
+    AdminSettings(adminId: widget.adminId),
+  ];
 
   void _toggleSidebar() {
     setState(() => _isSidebarExpanded = !_isSidebarExpanded);
@@ -182,7 +182,6 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
               tooltip: 'Expand',
             ),
           if (!_isSidebarExpanded) const SizedBox(width: 4),
-          const WelcomeMessage(role: 'Admin'),
           const Spacer(),
           NotificationBell(
             role: 'Admin',
@@ -193,8 +192,8 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
           ),
           const SizedBox(width: 16),
           const LegalPoliciesButton(
-          iconColor: Colors.grey, // matches notification bell color
-        ),
+            iconColor: Colors.grey, // matches notification bell color
+          ),
         ],
       ),
     );
@@ -275,69 +274,4 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   }
 }
 
-// ─── WELCOME MESSAGE (auto‑disappears after 5 seconds) ───
-class WelcomeMessage extends StatefulWidget {
-  final String role;
-  const WelcomeMessage({super.key, required this.role});
-
-  @override
-  State<WelcomeMessage> createState() => _WelcomeMessageState();
-}
-
-class _WelcomeMessageState extends State<WelcomeMessage>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<Offset> _slideAnimation;
-  late final Animation<double> _fadeAnimation;
-  bool _visible = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, -0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
-
-    _controller.forward();
-
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        setState(() => _visible = false);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_visible) return const SizedBox.shrink();
-
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: Text(
-          'Welcome, ${widget.role}',
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}
+// ─── WELCOME MESSAGE (auto‑disappears after 5 seconds) ──
