@@ -224,7 +224,7 @@ class _OicSchedulesState extends State<OicSchedules> {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
@@ -308,7 +308,7 @@ class _OicSchedulesState extends State<OicSchedules> {
     final totalItems = _filteredAndSortedTrips.length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _fetchMyTrips,
         child: SingleChildScrollView(
@@ -324,12 +324,12 @@ class _OicSchedulesState extends State<OicSchedules> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'My Trip Requests',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
+                            color: Theme.of(context).colorScheme.onSurface,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -470,9 +470,9 @@ class _OicSchedulesState extends State<OicSchedules> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.02),
@@ -518,9 +518,9 @@ class _OicSchedulesState extends State<OicSchedules> {
               // ── COLLAPSIBLE CALENDAR ──
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.02),
@@ -766,6 +766,7 @@ class _OicSchedulesState extends State<OicSchedules> {
 
   // ─── COMPACT CALENDAR GRID ───
   Widget _buildCalendarGrid() {
+    final theme = Theme.of(context);
     final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysBefore = firstDay.weekday % 7;
     final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
@@ -781,7 +782,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                     child: Center(
                       child: Text(
                         day,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 7, color: Color(0xFF475569)),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 7, color: theme.textTheme.bodySmall?.color),
                       ),
                     ),
                   ))
@@ -823,7 +824,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                   color: isSelected
                       ? const Color(0xFF3B82F6)
                       : (isOccupied
-                          ? const Color(0xFFEFF6FF)
+                          ? theme.colorScheme.primaryContainer
                           : Colors.transparent),
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(
@@ -847,7 +848,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                           color: isSelected
                               ? Colors.white
                               : (isCurrentMonth
-                                  ? const Color(0xFF0F172A)
+                                  ? theme.colorScheme.onSurface
                                   : const Color(0xFF94A3B8)),
                         ),
                       ),

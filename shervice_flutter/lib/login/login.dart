@@ -1,11 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:http/http.dart' as http;
 import '../constant.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
 // 1. ADD IMPORT FOR SESSION MANAGER
 import '../session_manager.dart';
@@ -31,175 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
   double _bgAlignX = 0.0;
   double _bgAlignY = 0.0;
 
-  bool _isFacebookLoading = false;
 
-  // --- FACEBOOK LOGIN FUNCTION ---
-  Future<void> _loginWithFacebook() async {
-    setState(() => _isFacebookLoading = true);
-    final navigator = Navigator.of(context);
 
-    try {
-      // The webAndDesktopInitialize block has been moved to main.dart!
 
-      final LoginResult result = await FacebookAuth.instance.login(
-        permissions: ['email', 'public_profile'],
-      );
-
-      if (result.status == LoginStatus.success) {
-        final userData = await FacebookAuth.instance.getUserData(
-          fields: "name,email",
-        );
-
-        final response = await http.post(
-          Uri.parse('$backendUrl/auth/facebook'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'email': userData['email'],
-            'full_name': userData['name'],
-          }),
-        );
-
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-
-        if ((response.statusCode == 200 || response.statusCode == 201) &&
-            responseData['success'] == true) {
-          final userDataResponse = responseData['data'];
-          final String role = userDataResponse['role'];
-
-          if (role == 'admin') {
-            final String realAdminId =
-                (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
-                    .toString();
-            // 👇 SAVE ADMIN SESSION
-            await SessionManager.saveUserSession(
-              'admin',
-              realAdminId,
-              'Admin',
-              'GT LANTIN',
-            );
-            if (mounted) {
-              navigator.pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => AdminLayout(adminId: realAdminId),
-                ),
-              );
-            }
-          } else if (role == 'oic') {
-            final String realUserId =
-                (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
-                    .toString();
-            final String oicDisplayName =
-                (userDataResponse['name'] ??
-                        userDataResponse['full_name'] ??
-                        'OIC')
-                    .toString();
-            final String oicCompany =
-                (userDataResponse['company'] ?? 'Internal').toString();
-
-            // 👇 SAVE OIC SESSION
-            await SessionManager.saveUserSession(
-              'oic',
-              realUserId,
-              oicDisplayName,
-              oicCompany,
-            );
-            if (mounted) {
-              navigator.pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => OicLayout(
-                    oicId: realUserId,
-                    oicName: oicDisplayName,
-                    companyName: oicCompany,
-                  ),
-                ),
-              );
-            }
-          } else if (role == 'staff') {
-            final String realUserId =
-                (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
-                    .toString();
-            final String staffDisplayName =
-                (userDataResponse['name'] ??
-                        userDataResponse['full_name'] ??
-                        'Staff Member')
-                    .toString();
-            final String staffCompany =
-                (userDataResponse['company'] ?? 'Internal').toString();
-
-            // 👇 SAVE STAFF SESSION
-            await SessionManager.saveUserSession(
-              'staff',
-              realUserId,
-              staffDisplayName,
-              staffCompany,
-            );
-            if (mounted) {
-              navigator.pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => StaffLayout(
-                    staffId: realUserId,
-                    staffName: staffDisplayName,
-                    companyName: staffCompany,
-                  ),
-                ),
-              );
-            }
-          } else if (role == 'driver') {
-            final String realUserId =
-                (userDataResponse['user_id'] ?? userDataResponse['id'] ?? '')
-                    .toString();
-            final String driverDisplayName =
-                (userDataResponse['name'] ??
-                        userDataResponse['full_name'] ??
-                        'Driver')
-                    .toString();
-            final String driverCompany =
-                (userDataResponse['company'] ?? 'Internal').toString();
-
-            // 👇 SAVE DRIVER SESSION
-            await SessionManager.saveUserSession(
-              'driver',
-              realUserId,
-              driverDisplayName,
-              driverCompany,
-            );
-            if (mounted) {
-              navigator.pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => DriverLayout(
-                    driverId: realUserId,
-                    driverName: driverDisplayName,
-                    companyName: driverCompany,
-                  ),
-                ),
-              );
-            }
-          } else {
-            _showSnackBar(
-              'Unrecognized user role assigned.',
-              Colors.red.shade600,
-            );
-          }
-        } else {
-          _showSnackBar(
-            responseData['message'] ?? 'Facebook auth rejected by server.',
-            Colors.red.shade600,
-          );
-        }
-      } else if (result.status == LoginStatus.cancelled) {
-        _showSnackBar("Facebook login cancelled.", Colors.orange.shade600);
-      } else {
-        _showSnackBar(
-          "Facebook Login Failed: ${result.message}",
-          Colors.red.shade600,
-        );
-      }
-    } catch (e) {
-      _showSnackBar("Facebook authentication error: $e", Colors.red.shade600);
-    } finally {
-      if (mounted) setState(() => _isFacebookLoading = false);
-    }
-  }
 
   // --- DYNAMIC LOGIN LOGIC FUNCTION ---
   Future<void> _handleLogin() async {
@@ -241,19 +72,24 @@ class _LoginScreenState extends State<LoginScreen> {
         if (role == 'admin') {
           final String realAdminId =
               (userData['user_id'] ?? userData['id'] ?? '').toString();
+            final String adminDisplayName =
+              (userData['name'] ?? userData['full_name'] ?? 'Admin').toString();
 
           // 👇 SAVE ADMIN SESSION
           await SessionManager.saveUserSession(
             'admin',
             realAdminId,
-            'Admin',
+            adminDisplayName,
             'GT LANTIN',
           );
 
           if (mounted) {
             navigator.pushReplacement(
               MaterialPageRoute(
-                builder: (context) => AdminLayout(adminId: realAdminId),
+                builder: (context) => AdminLayout(
+                  adminId: realAdminId,
+                  adminName: adminDisplayName,
+                ),
               ),
             );
           }
@@ -380,8 +216,21 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final theme = Theme.of(context);
+    final lightTheme = ThemeData(
+      brightness: Brightness.light,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF2563EB),
+        brightness: Brightness.light,
+      ),
+      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+      cardColor: Colors.white,
+      useMaterial3: true,
+    );
 
-    return Scaffold(
+    return Theme(
+      data: lightTheme,
+      child: Scaffold(
       body: MouseRegion(
         onHover: (PointerHoverEvent event) {
           setState(() {
@@ -396,10 +245,10 @@ class _LoginScreenState extends State<LoginScreen> {
             gradient: RadialGradient(
               center: Alignment(_bgAlignX, _bgAlignY),
               radius: 1.5,
-              colors: const [
+              colors: [
                 Colors.white,
-                Color(0xFFECFDF5),
-                Color(0xFF284AA7),
+                const Color(0xFFECFDF5),
+                const Color(0xFF284AA7),
               ],
               stops: const [0.0, 0.06, 1.0],
             ),
@@ -411,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 constraints: const BoxConstraints(maxWidth: 400),
                 padding: const EdgeInsets.all(32.0),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: theme.cardColor.withValues(alpha: 0.94),
                   borderRadius: BorderRadius.circular(32),
                   border: Border.all(color: Colors.blue.shade200),
                   boxShadow: [
@@ -427,7 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: theme.cardColor,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: Colors.blue.shade100,
@@ -457,6 +306,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 30),
                     TextField(
                       controller: _emailController,
+                      style: theme.textTheme.bodyLarge,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: "Email Address",
@@ -469,6 +319,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextField(
                       controller: _passwordController,
                       obscureText: !_showPassword,
+                      style: theme.textTheme.bodyLarge,
                       decoration: InputDecoration(
                         labelText: "Password",
                         border: OutlineInputBorder(
@@ -504,39 +355,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 42,
-                      child: ElevatedButton.icon(
-                        onPressed: _isFacebookLoading
-                            ? null
-                            : _loginWithFacebook,
-                        icon: _isFacebookLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.facebook, color: Colors.white),
-                        label: Text(
-                          _isFacebookLoading
-                              ? "Connecting..."
-                              : "Continue with Facebook",
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1877F2),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 16),
                     const Text(
                       "GT LANTIN SHUTTLE SERVICES",
@@ -546,9 +364,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-          ),
         ),
       ),
-    );
+    ),
+    ),
+  );
   }
 }

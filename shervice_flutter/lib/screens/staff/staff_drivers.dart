@@ -44,7 +44,7 @@ class _StaffDriversState extends State<StaffDrivers> {
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SharedDriversView(
         // The unique value key tells Flutter to destroy the old layout cache and fetch fresh data
         key: ValueKey('staff_drivers_list_$_refreshSeed'),

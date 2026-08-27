@@ -11,11 +11,17 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/legal_policies_button.dart';
+import '../../widgets/admin_profile_button.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
   final String adminId;
-  const AdminDesktopLayout({super.key, required this.adminId});
+  final String adminName;
+
+  const AdminDesktopLayout({
+    super.key,
+    required this.adminId,
+    this.adminName = 'Admin',
+  });
 
   @override
   State<AdminDesktopLayout> createState() => _AdminDesktopLayoutState();
@@ -25,14 +31,15 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
 
-  List<Widget> get _screens => [
-    const AdminDashboard(),
-    const AdminSchedules(),
-    const AdminDriver(),
-    const AdminFleet(),
-    const AdminUsers(),
-    AdminSettings(adminId: widget.adminId),
-  ];
+  late final List<Widget> _screens = [
+        const AdminDashboard(),
+        const AdminSchedules(),
+        const AdminDriver(),
+        const AdminFleet(),
+        const AdminUsers(),
+        AdminSettings(adminId: widget.adminId),
+        // Note: You can add AdminFeedbacks() here if you want it mapped to a sidebar index!
+      ];
 
   void _toggleSidebar() {
     setState(() => _isSidebarExpanded = !_isSidebarExpanded);
@@ -42,10 +49,11 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   Widget build(BuildContext context) {
     return SherviceFloatingStack(
       userRole: 'Admin',
-      userName: 'System Admin',
+      userName: widget.adminName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        // 👇 Dynamic Scaffold Background
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor, 
         body: SafeArea(
           child: Row(
             children: [
@@ -53,7 +61,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
               Expanded(
                 child: Column(
                   children: [
-                    _buildHeader(),
+                    _buildHeader(context), // Passed context for theme evaluation
                     Expanded(child: _screens[_selectedIndex]),
                   ],
                 ),
@@ -65,7 +73,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     );
   }
 
-  // ─── SIDEBAR ───
+  // ─── SIDEBAR (Kept static dark blue as per brand guidelines) ───
   Widget _buildSidebar() {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -142,16 +150,8 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                 _buildNavItem(0, 'Overview', Icons.grid_view),
                 _buildNavItem(1, 'Schedules', Icons.calendar_month_outlined),
                 _buildNavItem(2, 'Driver Profiles', Icons.people_outline),
-                _buildNavItem(
-                  3,
-                  'Vehicle Status',
-                  Icons.directions_car_outlined,
-                ),
-                _buildNavItem(
-                  4,
-                  'System Users',
-                  Icons.admin_panel_settings_outlined,
-                ),
+                _buildNavItem(3, 'Vehicle Status', Icons.directions_car_outlined),
+                _buildNavItem(4, 'System Users', Icons.admin_panel_settings_outlined),
                 _buildNavItem(5, 'System Settings', Icons.settings_outlined),
               ],
             ),
@@ -163,13 +163,21 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     );
   }
 
-  // ─── HEADER (now 5% off‑white) ───
-  Widget _buildHeader() {
+  // ─── HEADER (Now fully responsive to Dark Mode) ───
+  Widget _buildHeader(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       height: 70,
       decoration: BoxDecoration(
-        color: Colors.white, // 5% off-white (was medium gray)
-        border: Border(bottom: BorderSide(color: Colors.white)),
+        // 👇 Dynamic Card Color (White in light mode, Dark Slate in dark mode)
+        color: Theme.of(context).cardColor, 
+        border: Border(
+          bottom: BorderSide(
+            // 👇 Dynamic Border Color
+            color: Theme.of(context).dividerColor, 
+          ),
+        ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -177,7 +185,8 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
           // ─── TOGGLE BUTTON (only when sidebar is collapsed) ───
           if (!_isSidebarExpanded)
             IconButton(
-              icon: const Icon(Icons.menu, color: Colors.black87),
+              // 👇 Dynamic Icon Color
+              icon: Icon(Icons.menu, color: isDark ? Colors.white70 : Colors.black87),
               onPressed: _toggleSidebar,
               tooltip: 'Expand',
             ),
@@ -186,13 +195,14 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
           NotificationBell(
             role: 'Admin',
             userId: widget.adminId,
-            userName: 'Admin',
+            userName: widget.adminName,
             companyName: '',
             iconSize: 28,
           ),
           const SizedBox(width: 16),
-          const LegalPoliciesButton(
-            iconColor: Colors.grey, // matches notification bell color
+          AdminProfileButton(
+            adminId: widget.adminId,
+            adminName: widget.adminName,
           ),
         ],
       ),
@@ -224,18 +234,25 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade600,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                   onPressed: () async {
                     await SessionManager.clearSession();
+                    if (!mounted) return;
                     Navigator.pop(ctx);
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(builder: (_) => const LoginScreen()),
                     );
                   },
-                  child: const Text('Logout'),
+                  child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -274,4 +291,60 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   }
 }
 
-// ─── WELCOME MESSAGE (auto‑disappears after 5 seconds) ──
+// ─── WELCOME MESSAGE (auto‑disappears after 5 seconds) ───
+class SlideInWelcomeWidget extends StatefulWidget {
+  final String role;
+  const SlideInWelcomeWidget({super.key, required this.role});
+
+  @override
+  State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
+}
+
+class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _offsetAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
+    _offsetAnimation = Tween<Offset>(begin: const Offset(1.5, 0.0), end: Offset.zero).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
+
+    _controller.forward().then((_) {
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) _controller.reverse();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _offsetAnimation,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          border: Border.all(color: Colors.green.shade200),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Welcome, ${widget.role}!',
+              style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

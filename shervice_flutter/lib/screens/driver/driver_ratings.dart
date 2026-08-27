@@ -39,7 +39,7 @@ class DriverRatings extends StatelessWidget {
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+          decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: Theme.of(context).dividerColor)),
           child: Column(
             children: [
               _buildMetricBar('Punctuality', 0.98, Colors.green),

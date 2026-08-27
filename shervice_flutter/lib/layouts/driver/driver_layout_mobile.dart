@@ -7,7 +7,7 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/legal_policies_button.dart';
+import '../../widgets/user_profile_button.dart';
 
 class DriverLayoutMobile extends StatefulWidget {
   final String driverId;
@@ -28,7 +28,7 @@ class DriverLayoutMobile extends StatefulWidget {
 class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
   int _selectedIndex = 0;
 
-  List<Widget> get _screens => [
+  late final List<Widget> _screens = [
         DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
         DriverSchedules(driverId: widget.driverId),
         DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
@@ -43,17 +43,17 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SherviceFloatingStack(
       userRole: 'Driver',
       userName: widget.driverName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
           backgroundColor: const Color(0xFF1E293B),
           elevation: 0,
           centerTitle: true, // 👈 center the title
-          leading: const LegalPoliciesButton(iconColor: Colors.white70), // 👈 far left
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -84,6 +84,7 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
               companyName: widget.companyName,
               iconSize: 28,
             ),
+            UserProfileButton(name: widget.driverName, role: 'Driver', company: widget.companyName),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
               onPressed: () => _confirmLogout(context),
@@ -104,7 +105,7 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
         boxShadow: [
           BoxShadow(

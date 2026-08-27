@@ -30,6 +30,7 @@ class _StaffAttendanceState extends State<StaffAttendance> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final filteredLogs = _attendanceLogs.where((log) => log['name'].toString().toLowerCase().contains(_filterQuery.toLowerCase())).toList();
 
     return SingleChildScrollView(
@@ -44,7 +45,7 @@ class _StaffAttendanceState extends State<StaffAttendance> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Physiological Monitoring', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  Text('Physiological Monitoring', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -66,7 +67,7 @@ class _StaffAttendanceState extends State<StaffAttendance> {
           ),
           const SizedBox(height: 24),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+            decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: theme.dividerColor)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -81,7 +82,7 @@ class _StaffAttendanceState extends State<StaffAttendance> {
                         width: 280, height: 40,
                         child: TextField(
                           onChanged: (val) => setState(() => _filterQuery = val),
-                          decoration: InputDecoration(hintText: 'Filter by driver name...', prefixIcon: const Icon(Icons.search, size: 18), filled: true, fillColor: Colors.white, contentPadding: EdgeInsets.zero, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200))),
+                          decoration: InputDecoration(hintText: 'Filter by driver name...', prefixIcon: Icon(Icons.search, size: 18, color: theme.iconTheme.color), filled: true, fillColor: theme.inputDecorationTheme.fillColor, contentPadding: EdgeInsets.zero, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: theme.dividerColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: theme.dividerColor))),
                         ),
                       )
                     ],
@@ -137,7 +138,7 @@ class _StaffAttendanceState extends State<StaffAttendance> {
   Widget _buildQuickStatCard(String title, String mainValue, String subValue, Color valueColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4)]),
+      decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: Theme.of(context).dividerColor), boxShadow: [BoxShadow(color: Theme.of(context).shadowColor.withValues(alpha: 0.02), blurRadius: 4)]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

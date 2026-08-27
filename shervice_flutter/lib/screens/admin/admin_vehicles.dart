@@ -206,7 +206,7 @@ class _AdminFleetState extends State<AdminFleet> {
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _fetchVehicles,
         child: Padding(
@@ -221,12 +221,12 @@ class _AdminFleetState extends State<AdminFleet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Fleet Management',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
+                            color: Theme.of(context).colorScheme.onSurface,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -293,7 +293,7 @@ class _AdminFleetState extends State<AdminFleet> {
                           hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                           prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
                           filled: true,
-                          fillColor: const Color(0xFFF8FAFC),
+                          fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 8,
                             horizontal: 12,
@@ -324,7 +324,7 @@ class _AdminFleetState extends State<AdminFleet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: Theme.of(context).colorScheme.surface,
                           border: Border.all(color: Colors.grey.shade300),
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -395,9 +395,9 @@ class _AdminFleetState extends State<AdminFleet> {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: Theme.of(context).cardColor,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  border: Border.all(color: Theme.of(context).dividerColor),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.02),
@@ -867,7 +867,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
 
     return AlertDialog(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Text(
         isEditMode ? 'Vehicle Specification Sheet' : 'Register New Vehicle',

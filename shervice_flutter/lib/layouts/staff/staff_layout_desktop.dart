@@ -12,7 +12,7 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/legal_policies_button.dart';
+import '../../widgets/user_profile_button.dart';
 
 
 class StaffLayoutDesktop extends StatefulWidget {
@@ -34,13 +34,12 @@ class StaffLayoutDesktop extends StatefulWidget {
 class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
-  bool _showWelcome = true;
 
   void _toggleSidebar() {
     setState(() => _isSidebarExpanded = !_isSidebarExpanded);
   }
 
-  List<Widget> get _screens => [
+  late final List<Widget> _screens = [
         StaffDashboard(
           staffName: widget.staffName,
           companyName: widget.companyName,
@@ -60,12 +59,13 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SherviceFloatingStack(
       userRole: 'Staff',
       userName: widget.staffName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: theme.scaffoldBackgroundColor,
         body: Row(
           children: [
             _buildSidebar(),
@@ -267,13 +267,6 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
             ),
           if (!_isSidebarExpanded) const SizedBox(width: 4),
           const Spacer(),
-          if (_showWelcome) ...[
-            SlideInWelcomeWidget(
-              role: widget.staffName,
-              onHidden: () => setState(() => _showWelcome = false),
-            ),
-            const SizedBox(width: 16),
-          ],
           NotificationBell(
             role: 'Staff',
             userId: widget.staffId,
@@ -282,9 +275,8 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
             iconSize: 28,
           ),
           const SizedBox(width: 16),
-                  const LegalPoliciesButton(
-          iconColor: Colors.grey, // matches notification bell color
-        ),
+          UserProfileButton(name: widget.staffName, role: 'Staff', company: widget.companyName),
+          const SizedBox(width: 16),
         ],
       ),
     );

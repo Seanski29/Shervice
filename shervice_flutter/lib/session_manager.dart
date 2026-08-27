@@ -36,6 +36,10 @@ class SessionManager {
   // Clear session on logout
   static Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.remove('role');
+    await prefs.remove('userId');
+    await prefs.remove('userName');
+    await prefs.remove('companyName');
+    await prefs.remove('isLoggedIn');
   }
 }

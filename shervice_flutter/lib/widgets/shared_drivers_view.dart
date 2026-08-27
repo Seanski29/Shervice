@@ -125,6 +125,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
+    final theme = Theme.of(context);
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -159,26 +160,26 @@ class SharedDriversViewState extends State<SharedDriversView> {
                       hintText: 'Search by name or letter...',
                       hintStyle: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey.shade500,
+                        color: theme.hintColor,
                       ),
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         Icons.search,
                         size: 18,
-                        color: Color(0xFF64748B),
+                        color: theme.iconTheme.color,
                       ),
                       filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
+                      fillColor: theme.inputDecorationTheme.fillColor,
                       contentPadding: const EdgeInsets.symmetric(
                         vertical: 8,
                         horizontal: 12,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(color: theme.dividerColor),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(color: theme.dividerColor),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -201,22 +202,21 @@ class SharedDriversViewState extends State<SharedDriversView> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      border: Border.all(color: Colors.grey.shade300),
+                      color: theme.inputDecorationTheme.fillColor,
+                      border: Border.all(color: theme.dividerColor),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         isExpanded: true,
                         value: _currentSort,
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.sort,
                           size: 18,
-                          color: Color(0xFF64748B),
+                          color: theme.iconTheme.color,
                         ),
-                        style: const TextStyle(
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           fontSize: 13,
-                          color: Color(0xFF0F172A),
                         ),
                         items: _sortOptions.map((String value) {
                           return DropdownMenuItem<String>(
@@ -282,9 +282,9 @@ class SharedDriversViewState extends State<SharedDriversView> {
                           bottom: 8,
                         ), // reduced from 12
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: Theme.of(context).dividerColor),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.02),
@@ -332,9 +332,9 @@ class SharedDriversViewState extends State<SharedDriversView> {
                                             Flexible(
                                               child: Text(
                                                 driver.name,
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF0F172A),
+                                                  color: Theme.of(context).colorScheme.onSurface,
                                                   fontSize:
                                                       15, // reduced from 16
                                                 ),
@@ -419,8 +419,8 @@ class SharedDriversViewState extends State<SharedDriversView> {
                 children: [
                   Text(
                     'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredDrivers.length)} of ${_filteredDrivers.length} drivers',
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodySmall?.color,
                       fontSize: 13,
                     ),
                   ),
@@ -435,7 +435,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          side: BorderSide(color: Colors.grey.shade300),
+                          side: BorderSide(color: Theme.of(context).dividerColor),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                         ),
                         child: const Text('Previous'),

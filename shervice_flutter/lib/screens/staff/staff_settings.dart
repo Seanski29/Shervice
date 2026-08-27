@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
+import '../../widgets/dark_mode_toggle.dart';
+import '../../widgets/legal_policies_button.dart';
 
 class StaffSettings extends StatefulWidget {
   final String staffId;
@@ -82,18 +82,24 @@ class _StaffSettingsState extends State<StaffSettings> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const DarkModeToggle(),
+            const SizedBox(height: 24),
+            const LegalPoliciesLinks(),
+            const SizedBox(height: 24),
             // Profile Card Header
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.grey.shade200),
               ),
@@ -120,10 +126,10 @@ class _StaffSettingsState extends State<StaffSettings> {
                       children: [
                         Text(
                           widget.staffName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: null,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -167,7 +173,7 @@ class _StaffSettingsState extends State<StaffSettings> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.grey.shade200),
               ),
@@ -176,12 +182,11 @@ class _StaffSettingsState extends State<StaffSettings> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "Change Account Password",
-                      style: TextStyle(
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(height: 16),

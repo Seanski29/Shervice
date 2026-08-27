@@ -50,7 +50,7 @@ def get_shervice_system_prompt(user_name, user_role):
     DRIVER:
         DASHBOARD:CAN SEE THE MOST RELEVANT INFO ABOUT THE TRIP AND SHOW HIS QR FOR FEEDBACK
         MY SCHEDULE: CAN SEE UPCOMING AND FINISHED TRIPS AND START AND FINISH TRIPS
-        PROFILE: CAN SEE SOME DRIVER INFO AND CAN CHANGE PASSWORD AND LINK FACEBOOK ACCOUNT
+        PROFILE: CAN SEE SOME DRIVER INFO AND CAN CHANGE PASSWORD
     
     OUTPUT FORMAT:
     You must answer using the systems actual names and roles used in the GT LANTIN Shuttle Service System. Do NOT make up names or roles.

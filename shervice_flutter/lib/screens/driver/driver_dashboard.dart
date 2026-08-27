@@ -157,7 +157,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _fetchAssignedTripData,
         child: SingleChildScrollView(

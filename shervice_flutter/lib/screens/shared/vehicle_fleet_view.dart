@@ -219,7 +219,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => AlertDialog(
-          backgroundColor: const Color(0xFFF8FAFC),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
@@ -492,7 +492,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => AlertDialog(
-          backgroundColor: const Color(0xFFF8FAFC),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
@@ -714,7 +714,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
           });
 
           return AlertDialog(
-            backgroundColor: const Color(0xFFF8FAFC),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
             ),
@@ -1621,7 +1621,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
     final bool isEditMode = widget.vehicle != null;
 
     return AlertDialog(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Text(
         isEditMode

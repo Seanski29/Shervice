@@ -32,17 +32,28 @@ class _AdminDriverState extends State<AdminDriver> {
   }
 
   void _confirmPurgeDriver(BuildContext context, DriverProfileModel driver) {
+    // Check dark mode state for the dialog
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Deletion'),
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text(
+          'Confirm Deletion',
+          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
+        ),
         content: Text(
           'Are you sure you want to permanently erase ${driver.name} from the fleet network?',
+          style: TextStyle(color: isDark ? Colors.grey.shade300 : Colors.black87),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -84,26 +95,31 @@ class _AdminDriverState extends State<AdminDriver> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if Dark Mode is active
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      // Dynamic Scaffold Background
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SharedDriversView(
         key: ValueKey('admin_drivers_list_$_refreshSeed'),
         canManage: true,
         onDriverTapped: (ctx, model) => _showDriverModal(ctx, model),
 
-        // ✅ Header matches AdminSchedules exactly: Row with title/subtitle on left, button on right.
+        // Header matches AdminSchedules exactly: Row with title/subtitle on left, button on right.
         customHeader: Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Driver Management',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+                      // Dynamic text color
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -113,7 +129,8 @@ class _AdminDriverState extends State<AdminDriver> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: const Color(0xFF64748B),
+                      // Dynamic subtitle color
+                      color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
                     ),
                   ),
                 ],

@@ -9,8 +9,7 @@ import '../../../widgets/notification_bell.dart';
 import '../../../widgets/shervice_floating_stack.dart';
 import '../../../constant.dart';
 import '../../session_manager.dart';
-import '../../../widgets/legal_policies_button.dart'; 
-import '../../widgets/legal_policies_button.dart';
+import '../../../widgets/user_profile_button.dart';
 
 class OicLayoutDesktop extends StatefulWidget {
   final String oicId;
@@ -31,7 +30,20 @@ class OicLayoutDesktop extends StatefulWidget {
 class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
-  bool _showWelcome = true;
+  late final List<Widget> _screens = [
+    OicDashboard(
+      oicName: widget.oicName,
+      companyName: widget.companyName,
+      oicId: widget.oicId,
+    ),
+    OicSchedules(oicId: widget.oicId),
+    OicTrips(oicId: widget.oicId),
+    OicSettings(
+      oicId: widget.oicId,
+      oicName: widget.oicName,
+      companyName: widget.companyName,
+    ),
+  ];
 
   void _toggleSidebar() {
     setState(() => _isSidebarExpanded = !_isSidebarExpanded);
@@ -39,27 +51,13 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> screens = [
-      OicDashboard(
-        oicName: widget.oicName,
-        companyName: widget.companyName,
-        oicId: widget.oicId,
-      ),
-      OicSchedules(oicId: widget.oicId),
-      OicTrips(oicId: widget.oicId),
-      OicSettings(
-        oicId: widget.oicId,
-        oicName: widget.oicName,
-        companyName: widget.companyName,
-      ),
-    ];
-
+    final theme = Theme.of(context);
     return SherviceFloatingStack(
       userRole: 'OIC',
       userName: widget.oicName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: theme.scaffoldBackgroundColor,
         body: Row(
           children: [
             _buildSidebar(),
@@ -67,7 +65,7 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
               child: Column(
                 children: [
                   _buildHeader(),
-                  Expanded(child: screens[_selectedIndex]),
+                  Expanded(child: _screens[_selectedIndex]),
                 ],
               ),
             ),
@@ -185,11 +183,7 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: isActive ? Colors.white : Colors.white70,
-              size: 20,
-            ),
+            Icon(icon, color: isActive ? Colors.white : Colors.white70, size: 20),
             if (_isSidebarExpanded) ...[
               const SizedBox(width: 16),
               Text(
@@ -209,7 +203,7 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
   Widget _buildHeader() => Container(
         height: 70,
         decoration: BoxDecoration(
-          color: Colors.white, // stayed white (not off‑white)
+          color: Theme.of(context).cardColor,
           border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -224,13 +218,6 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
               ),
             if (!_isSidebarExpanded) const SizedBox(width: 4),
             const Spacer(),
-            if (_showWelcome) ...[
-              SlideInWelcomeWidget(
-                role: widget.oicName,
-                onHidden: () => setState(() => _showWelcome = false),
-              ),
-              const SizedBox(width: 10),
-            ],
             NotificationBell(
               role: 'OIC',
               userId: widget.oicId,
@@ -239,9 +226,7 @@ class _OicLayoutDesktopState extends State<OicLayoutDesktop> {
               iconSize: 28,
             ),
             const SizedBox(width: 16),
-                    const LegalPoliciesButton(
-          iconColor: Colors.grey, // matches notification bell color
-        ),
+            UserProfileButton(name: widget.oicName, role: 'OIC', company: widget.companyName),
           ],
         ),
       );

@@ -9,14 +9,19 @@ import '../../screens/admin/admin_feedbacks.dart';
 import '../../login/login.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
-import '../../widgets/legal_policies_button.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
+import '../../widgets/admin_profile_button.dart';
 
 class AdminMobileLayout extends StatefulWidget {
   final String adminId;
+  final String adminName;
 
-  const AdminMobileLayout({super.key, required this.adminId});
+  const AdminMobileLayout({
+    super.key,
+    required this.adminId,
+    this.adminName = 'Admin',
+  });
 
   @override
   State<AdminMobileLayout> createState() => _AdminMobileLayoutState();
@@ -59,15 +64,14 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
   Widget build(BuildContext context) {
     return SherviceFloatingStack(
       userRole: 'Admin',
-      userName: 'System Admin',
+      userName: widget.adminName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           backgroundColor: const Color(0xFF1E293B),
           elevation: 0,
           centerTitle: true,
-          leading: const LegalPoliciesButton(iconColor: Colors.white70),
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -97,6 +101,11 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
               companyName: '',
               iconSize: 28,
             ),
+            const SizedBox(width: 8),
+            AdminProfileButton(
+              adminId: widget.adminId,
+              adminName: widget.adminName,
+            ),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
               onPressed: () => _handleLogout(context),
@@ -118,7 +127,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
   Widget _buildCustomBottomNav() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
         boxShadow: [
           BoxShadow(

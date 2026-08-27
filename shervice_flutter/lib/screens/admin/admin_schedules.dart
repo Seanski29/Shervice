@@ -225,12 +225,12 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Trip Details',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   IconButton(
@@ -288,7 +288,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               value,
               style: TextStyle(
                 fontWeight: FontWeight.w500,
-                color: color ?? const Color(0xFF0F172A),
+                color: color ?? Theme.of(context).colorScheme.onSurface,
                 fontSize: 13,
                 height: isNotes ? 1.4 : 1.2,
               ),
@@ -307,7 +307,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _fetchSchedulesFromDatabase,
         child: SingleChildScrollView(
@@ -323,12 +323,12 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Trip Schedules',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
+                            color: Theme.of(context).colorScheme.onSurface,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -374,9 +374,9 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.02),
@@ -408,7 +408,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                             hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                             prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
                             filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
+                            fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 8,
                               horizontal: 12,
@@ -527,9 +527,9 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
@@ -584,9 +584,9 @@ class _AdminSchedulesState extends State<AdminSchedules> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),

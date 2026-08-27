@@ -256,7 +256,7 @@ class _OicDashboardState extends State<OicDashboard> {
     final double pad = isMobile ? 8.0 : 16.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _fetchLiveSchedules,
         child: SingleChildScrollView(

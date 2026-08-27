@@ -7,14 +7,18 @@ class AdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SharedDashboardView(
+    // Check if Dark Mode is active
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return SharedDashboardView(
       showClientTrips: true, // Admins track company metrics
       headerWidget: Text(
         'Fleet Overview',
         style: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF0F172A),
+          // Dynamic text color
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
           letterSpacing: -0.5,
         ),
       ),

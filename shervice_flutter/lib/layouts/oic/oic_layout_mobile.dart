@@ -8,7 +8,7 @@ import '../../../widgets/notification_bell.dart';
 import '../../../widgets/shervice_floating_stack.dart';
 import '../../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/legal_policies_button.dart';
+import '../../../widgets/user_profile_button.dart';
 
 
 class OicLayoutMobile extends StatefulWidget {
@@ -29,6 +29,20 @@ class OicLayoutMobile extends StatefulWidget {
 
 class _OicLayoutMobileState extends State<OicLayoutMobile> {
   int _selectedIndex = 0;
+  late final List<Widget> _screens = [
+    OicDashboard(
+      oicName: widget.oicName,
+      companyName: widget.companyName,
+      oicId: widget.oicId,
+    ),
+    OicSchedules(oicId: widget.oicId),
+    OicTrips(oicId: widget.oicId),
+    OicSettings(
+      oicId: widget.oicId,
+      oicName: widget.oicName,
+      companyName: widget.companyName,
+    ),
+  ];
 
   final List<String> _titles = ['Manage', 'Schedules', 'Logs', 'Settings'];
   final List<IconData> _icons = [
@@ -40,27 +54,13 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> screens = [
-      OicDashboard(
-        oicName: widget.oicName,
-        companyName: widget.companyName,
-        oicId: widget.oicId,
-      ),
-      OicSchedules(oicId: widget.oicId),
-      OicTrips(oicId: widget.oicId),
-      OicSettings(
-        oicId: widget.oicId,
-        oicName: widget.oicName,
-        companyName: widget.companyName,
-      ),
-    ];
-
+    final theme = Theme.of(context);
     return SherviceFloatingStack(
       userRole: 'OIC',
       userName: widget.oicName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
           backgroundColor: const Color(0xFF1E293B),
           elevation: 0,
@@ -115,14 +115,12 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
               companyName: widget.companyName,
               iconSize: 28,
             ),
+            UserProfileButton(name: widget.oicName, role: 'OIC', company: widget.companyName),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
               onPressed: () => _confirmLogout(context),
             ),
             const SizedBox(width: 4),
-                    const LegalPoliciesButton(
-          iconColor: Colors.grey, // matches notification bell color
-        ),
             
           ],
         ),
@@ -131,12 +129,7 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
             padding: const EdgeInsets.only(bottom: 8.0),
             child: Stack(
               children: [
-                screens[_selectedIndex],
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: SlideInWelcomeWidget(role: widget.oicName),
-                ),
+                _screens[_selectedIndex],
               ],
             ),
           ),

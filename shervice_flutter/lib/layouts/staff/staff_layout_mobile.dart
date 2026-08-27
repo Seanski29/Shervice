@@ -12,7 +12,7 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/legal_policies_button.dart';
+import '../../widgets/user_profile_button.dart';
 
 class StaffLayoutMobile extends StatefulWidget {
   final String staffId;
@@ -32,6 +32,18 @@ class StaffLayoutMobile extends StatefulWidget {
 
 class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
   int _selectedIndex = 0;
+  late final List<Widget> _screens = [
+    StaffDashboard(staffName: widget.staffName, companyName: widget.companyName),
+    StaffVehicle(staffId: widget.staffId),
+    StaffSchedules(staffId: widget.staffId),
+    StaffTrips(staffId: widget.staffId),
+    const StaffDrivers(),
+    StaffSettings(
+      staffId: widget.staffId,
+      staffName: widget.staffName,
+      companyName: widget.companyName,
+    ),
+  ];
 
   // Shortened Titles for Bottom Nav to prevent text from overflowing
   final List<String> _shortTitles = [
@@ -40,47 +52,28 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
     'Requests',
     'History',
     'Drivers',
-    //   'Analytics',
     'Settings',
   ];
 
-  // Icons matching each screen
   final List<IconData> _icons = [
     Icons.grid_view,
     Icons.directions_car_outlined,
     Icons.calendar_month_outlined,
     Icons.assignment_turned_in,
     Icons.people_outline,
-    Icons.how_to_reg,
-    Icons.analytics,
+    Icons.settings_outlined,
   ];
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> screens = [
-      StaffDashboard(
-        staffName: widget.staffName,
-        companyName: widget.companyName,
-      ),
-      StaffVehicle(staffId: widget.staffId),
-      StaffSchedules(staffId: widget.staffId),
-      StaffTrips(staffId: widget.staffId),
-      const StaffDrivers(),
-
-      //const StaffAnalytics(),
-      StaffSettings(
-        staffId: widget.staffId,
-        staffName: widget.staffName,
-        companyName: widget.companyName,
-      ),
-    ];
+    final theme = Theme.of(context);
 
     return SherviceFloatingStack(
       userRole: 'Staff',
       userName: widget.staffName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
           backgroundColor: const Color(0xFF1E293B),
           elevation: 0,
@@ -138,14 +131,12 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
               companyName: widget.companyName,
               iconSize: 28,
             ),
+            UserProfileButton(name: widget.staffName, role: 'Staff', company: widget.companyName),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
               onPressed: () => _confirmLogout(),
             ),
             const SizedBox(width: 4),
-                    const LegalPoliciesButton(
-          iconColor: Colors.grey, // matches notification bell color
-        ),
           ],
         ),
 
@@ -154,13 +145,7 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
             padding: const EdgeInsets.only(bottom: 8.0),
             child: Stack(
               children: [
-                screens[_selectedIndex],
-                // Floating sliding welcome widget for mobile
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: SlideInWelcomeWidget(role: widget.staffName),
-                ),
+                _screens[_selectedIndex],
               ],
             ),
           ),

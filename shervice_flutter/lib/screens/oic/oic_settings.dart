@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
+import '../../widgets/dark_mode_toggle.dart';
+import '../../widgets/legal_policies_button.dart';
 
 class OicSettings extends StatefulWidget {
   final String oicId;
@@ -85,9 +85,10 @@ class _OicSettingsState extends State<OicSettings> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12.0),
@@ -101,12 +102,11 @@ class _OicSettingsState extends State<OicSettings> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Account Settings',
-                        style: TextStyle(
+                        style: theme.textTheme.headlineSmall?.copyWith(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -116,7 +116,7 @@ class _OicSettingsState extends State<OicSettings> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w400,
-                          color: const Color(0xFF64748B),
+                          color: theme.textTheme.bodySmall?.color,
                         ),
                       ),
                     ],
@@ -147,12 +147,12 @@ class _OicSettingsState extends State<OicSettings> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
+                    color: Colors.black.withValues(alpha: 0.02),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -181,10 +181,10 @@ class _OicSettingsState extends State<OicSettings> {
                       children: [
                         Text(
                           widget.oicName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: theme.textTheme.titleMedium?.color,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -215,12 +215,12 @@ class _OicSettingsState extends State<OicSettings> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
+                    color: Colors.black.withValues(alpha: 0.02),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -231,12 +231,11 @@ class _OicSettingsState extends State<OicSettings> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Change Password',
-                      style: TextStyle(
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -305,6 +304,10 @@ class _OicSettingsState extends State<OicSettings> {
                 ),
               ),
             ),
+            const SizedBox(height: 14),
+            const DarkModeToggle(),
+            const SizedBox(height: 14),
+            const LegalPoliciesLinks(),
           ],
         ),
       ),

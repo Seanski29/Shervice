@@ -24,7 +24,7 @@ class _StaffVehicleState extends State<StaffVehicle> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: VehicleFleetView(
         key: ValueKey('staff_fleet_list_$_refreshSeed'),
         userRole: 'staff',

@@ -211,7 +211,7 @@ class _OicTripsState extends State<OicTrips> {
     final totalItems = _filteredAndSortedTrips.length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _fetchDeploymentLogs,
         child: SingleChildScrollView(
@@ -227,12 +227,12 @@ class _OicTripsState extends State<OicTrips> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Trip Details',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
+                            color: Theme.of(context).colorScheme.onSurface,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -324,7 +324,7 @@ class _OicTripsState extends State<OicTrips> {
                     child: Container(
                       height: 32,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
@@ -387,7 +387,7 @@ class _OicTripsState extends State<OicTrips> {
               // ── TRIP LIST ──
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                   boxShadow: [
@@ -434,7 +434,7 @@ class _OicTripsState extends State<OicTrips> {
               // ── COLLAPSIBLE CALENDAR ──
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                   boxShadow: [

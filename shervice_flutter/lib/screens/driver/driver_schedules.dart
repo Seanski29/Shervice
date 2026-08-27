@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
+import '../../widgets/dark_mode_toggle.dart';
 
 class DriverSchedules extends StatefulWidget {
   final String driverId;
@@ -165,7 +166,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
     final totalTrips = _myTrips.length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
           : RefreshIndicator(
@@ -183,12 +184,12 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'My Schedule',
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF0F172A),
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   letterSpacing: -0.5,
                                 ),
                               ),
@@ -343,7 +344,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
@@ -406,7 +407,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isBlue ? const Color(0xFF3B82F6).withOpacity(0.3) : Colors.grey.shade100,
@@ -466,7 +467,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
@@ -644,6 +645,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
 
   // ── COLLAPSIBLE CALENDAR ──
   Widget _buildCalendarSection() {
+    final theme = Theme.of(context);
     final tripDates = _myTrips
         .map((trip) => _parseTripDate(trip['schedule_date']?.toString()))
         .whereType<DateTime>()
@@ -663,7 +665,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
@@ -686,16 +688,16 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                 children: [
                   Icon(
                     _calendarExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                    color: const Color(0xFF64748B),
+                    color: theme.iconTheme.color,
                     size: 20,
                   ),
                   const SizedBox(width: 6),
-                  const Text(
+                  Text(
                     'Calendar',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF0F172A),
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const Spacer(),
@@ -703,7 +705,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                     '${_calendarMonth.monthName} ${_calendarMonth.year}',
                     style: TextStyle(
                       fontSize: 12,
-                      color: const Color(0xFF64748B),
+                      color: theme.textTheme.bodySmall?.color,
                     ),
                   ),
                   const SizedBox(width: 2),
@@ -803,6 +805,28 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                     ],
                   ),
                   const SizedBox(height: 4),
+                  // ─── PREFERENCES ───
+          const Text(
+            'Preferences',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white, // In dark mode, you might want to dynamically change this container color too, or let the scaffold handle it!
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: const DarkModeToggle(),
+          ),
+          const SizedBox(height: 20),
+                  
+                  
                   Row(
                     children: [
                       Icon(Icons.circle, size: 8, color: const Color(0xFFEFF6FF)),
