@@ -57,9 +57,11 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       _isLoading = true;
       _isRefreshing = true;
     });
-    
+
     try {
-      final response = await http.get(Uri.parse('$backendUrl/vehicles')).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse('$backendUrl/vehicles'))
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         _allVehicles = data['data'] ?? [];
@@ -93,13 +95,23 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       final plate = (v['plate_number'] ?? '').toString().toLowerCase();
       final type = (v['bus_type'] ?? '').toString().toLowerCase();
       final engine = (v['engine_no'] ?? '').toString().toLowerCase();
-      final status = (v['health_status'] ?? 'Good Condition').toString();
 
-      final matchesSearch = plate.contains(_searchQuery.toLowerCase()) ||
+      // Fetch status securely and convert to lowercase for matching
+      final status = (v['health_status'] ?? 'Good').toString().toLowerCase();
+
+      final matchesSearch =
+          plate.contains(_searchQuery.toLowerCase()) ||
           type.contains(_searchQuery.toLowerCase()) ||
           engine.contains(_searchQuery.toLowerCase());
-          
-      final matchesStatus = _statusFilter == 'All' || status == _statusFilter;
+
+      // Status filtering logic
+      bool matchesStatus = true;
+      if (_statusFilter == 'Available') {
+        matchesStatus = status == 'good' || status == 'excellent';
+      } else if (_statusFilter == 'Needs Maintenance') {
+        matchesStatus =
+            status.contains('maintenance') || status.contains('repair');
+      }
 
       return matchesSearch && matchesStatus;
     }).toList();
@@ -128,7 +140,8 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     });
   }
 
-  int get _totalPages => max(1, (_filteredVehicles.length / _itemsPerPage).ceil());
+  int get _totalPages =>
+      max(1, (_filteredVehicles.length / _itemsPerPage).ceil());
 
   List<dynamic> get _paginatedVehicles {
     if (_filteredVehicles.isEmpty) return [];
@@ -137,7 +150,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     return _filteredVehicles.sublist(start, end);
   }
 
-  // 👇 ADDED MISSING PAGINATION GETTERS BACK
   void _nextPage() {
     if (_currentPage < _totalPages - 1) setState(() => _currentPage++);
   }
@@ -146,34 +158,37 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     if (_currentPage > 0) setState(() => _currentPage--);
   }
 
-  // --- Dynamic Stats Counting ---
   Iterable<dynamic> get _baseVehicles => _allVehicles.where((v) {
     final plate = (v['plate_number'] ?? '').toString().toLowerCase();
     final type = (v['bus_type'] ?? '').toString().toLowerCase();
-    return plate.contains(_searchQuery.toLowerCase()) || type.contains(_searchQuery.toLowerCase());
+    return plate.contains(_searchQuery.toLowerCase()) ||
+        type.contains(_searchQuery.toLowerCase());
   });
 
+  // Dynamic count updates using robust status matching
   int get _totalVehicles => _baseVehicles.length;
-  int get _availableVehicles => _baseVehicles.where((v) => (v['health_status'] ?? 'Good Condition') == 'Good Condition').length;
-  int get _onDutyVehicles => _baseVehicles.where((v) => (v['health_status'] ?? '') == 'On Duty').length;
-  int get _maintenanceVehicles => _baseVehicles.where((v) => (v['health_status'] ?? '') == 'Maintenance Required').length;
-  int get _repairVehicles => _baseVehicles.where((v) => (v['health_status'] ?? '') == 'Under Repair').length;
+  int get _availableVehicles => _baseVehicles.where((v) {
+    final s = (v['health_status'] ?? 'Good').toString().toLowerCase();
+    return s == 'good' || s == 'excellent';
+  }).length;
+  int get _maintenanceVehicles => _baseVehicles.where((v) {
+    final s = (v['health_status'] ?? '').toString().toLowerCase();
+    return s.contains('maintenance') || s.contains('repair');
+  }).length;
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'On Duty': return const Color(0xFF3B82F6); // Blue
-      case 'Maintenance Required': return const Color(0xFFF59E0B); // Orange
-      case 'Under Repair': return const Color(0xFFEF4444); // Red
-      case 'Good Condition':
-      default: return const Color(0xFF10B981); // Green
-    }
+  Color _getStatusColor(String rawStatus) {
+    final status = rawStatus.toLowerCase();
+    if (status.contains('maintenance') || status.contains('repair'))
+      return const Color(0xFFEF4444);
+    return const Color(0xFF10B981); // Default to green for Good/Excellent
   }
 
   void _confirmPurgeVehicle(Map<String, dynamic> vehicle) {
     if (!_isAdmin) return;
-    final dynamic rawId = vehicle['vehicle_id'] ?? vehicle['id'] ?? vehicle['plate_number'];
+    final dynamic rawId =
+        vehicle['vehicle_id'] ?? vehicle['id'] ?? vehicle['plate_number'];
     if (rawId == null) return;
-    
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
@@ -182,27 +197,53 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Confirm Deletion', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold)),
+        title: Text(
+          'Confirm Deletion',
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: Text(
           'Are you sure you want to permanently erase fleet asset record entry ${vehicle['plate_number'] ?? 'this unit'}?',
-          style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.black87),
+          style: TextStyle(
+            color: isDark ? Colors.grey.shade400 : Colors.black87,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+              ),
+            ),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             onPressed: () async {
               Navigator.pop(context);
               setState(() => _isLoading = true);
               try {
-                final res = await http.delete(Uri.parse('$backendUrl/vehicles/$rawId')).timeout(const Duration(seconds: 10));
+                final res = await http
+                    .delete(Uri.parse('$backendUrl/vehicles/$rawId'))
+                    .timeout(const Duration(seconds: 10));
                 if (res.statusCode == 200) {
-                  _showSnackBar('Fleet unit profile deleted successfully.', Colors.orange);
+                  _showSnackBar(
+                    'Fleet unit profile deleted successfully.',
+                    Colors.orange,
+                  );
                 } else {
-                  _showSnackBar('Deletion failed. Server error status: ${res.statusCode}', Colors.red);
+                  _showSnackBar(
+                    'Deletion failed. Server error status: ${res.statusCode}',
+                    Colors.red,
+                  );
                 }
               } catch (e) {
                 _showSnackBar('Network connection error.', Colors.red);
@@ -211,7 +252,13 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                 _fetchLiveFleetData();
               }
             },
-            child: const Text('Delete permanently', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Delete permanently',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -221,12 +268,18 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color, behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
-  // Dialog triggers mapped to RegisterVehicleDialog
-  void _showVehicleModal(BuildContext context, {Map<String, dynamic>? vehicle}) {
+  void _showVehicleModal(
+    BuildContext context, {
+    Map<String, dynamic>? vehicle,
+  }) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -234,7 +287,9 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
         return RegisterVehicleDialog(
           vehicle: vehicle,
           isAdmin: _isAdmin,
-          onDelete: (vehicle == null || !_isAdmin) ? null : () => _confirmPurgeVehicle(vehicle),
+          onDelete: (vehicle == null || !_isAdmin)
+              ? null
+              : () => _confirmPurgeVehicle(vehicle),
         );
       },
     ).then((_) {
@@ -245,7 +300,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     });
   }
 
-  // --- UI BUILD ---
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 900;
@@ -256,11 +310,13 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       onRefresh: _fetchLiveFleetData,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 24.0),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: 24.0,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ─── HEADER & ACTIONS ───
             isMobile
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,22 +330,22 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _buildTitleArea(isDark),
-                      const Spacer(), 
+                      const Spacer(),
                       _buildSearchAndFilterRow(isDark, isMobile),
                     ],
                   ),
             const SizedBox(height: 24),
 
-            // ─── TOP SUMMARY STATS (Pills) ───
-            if (!_isLoading && _allVehicles.isNotEmpty) 
+            if (!_isLoading && _allVehicles.isNotEmpty)
               _buildTopSummaryStats(isDark, isMobile),
             const SizedBox(height: 24),
 
-            // ─── VEHICLE LIST ───
             if (_isLoading)
               const Padding(
                 padding: EdgeInsets.all(40),
-                child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
+                child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+                ),
               )
             else if (_filteredVehicles.isEmpty)
               _buildEmptyState(isDark)
@@ -298,7 +354,11 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.grey.shade800
+                        : const Color(0xFFE2E8F0),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -309,10 +369,13 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                       itemCount: _paginatedVehicles.length,
                       itemBuilder: (context, index) {
                         final v = _paginatedVehicles[index];
-                        return _buildVehicleCard(v, isDark, index == _paginatedVehicles.length - 1);
+                        return _buildVehicleCard(
+                          v,
+                          isDark,
+                          index == _paginatedVehicles.length - 1,
+                        );
                       },
                     ),
-                    // ─── PAGINATION ───
                     _buildPaginationFooter(isDark),
                   ],
                 ),
@@ -355,7 +418,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // Search Box
         SizedBox(
           width: isMobile ? double.infinity : 220,
           height: 44,
@@ -364,27 +426,48 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
               _searchQuery = value;
               _applyFiltersAndSort();
             },
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontSize: 13,
+            ),
             decoration: InputDecoration(
               hintText: 'Search plate/model...',
               hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-              prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+              prefixIcon: const Icon(
+                Icons.search,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
               filled: true,
               fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 0,
+                horizontal: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
+              ),
             ),
           ),
         ),
-        // Sort Dropdown
         Container(
           height: 44,
           width: isMobile ? double.infinity : 160,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
@@ -392,9 +475,20 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
               isExpanded: true,
               value: _currentSort,
               icon: const Icon(Icons.sort, size: 18, color: Color(0xFF64748B)),
-              style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontWeight: FontWeight.bold,
+              ),
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              items: _sortOptions.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
+              items: _sortOptions
+                  .map(
+                    (String value) => DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    ),
+                  )
+                  .toList(),
               onChanged: (val) {
                 if (val != null) {
                   setState(() {
@@ -406,7 +500,6 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
             ),
           ),
         ),
-        // Refresh Button
         Container(
           height: 44,
           width: 44,
@@ -418,23 +511,41 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
           child: IconButton(
             onPressed: _isRefreshing ? null : _fetchLiveFleetData,
             icon: _isRefreshing
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.blue,
+                    ),
+                  )
                 : const Icon(Icons.refresh, color: Colors.blue, size: 20),
             padding: EdgeInsets.zero,
           ),
         ),
-        // Add Button
         if (_isAdmin)
           SizedBox(
             height: 44,
             child: ElevatedButton.icon(
               onPressed: () => _showVehicleModal(context),
               icon: const Icon(Icons.add, color: Colors.white, size: 18),
-              label: const Text('Add Vehicle', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+              label: const Text(
+                'Add Vehicle',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 elevation: 0,
               ),
             ),
@@ -444,12 +555,29 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
   }
 
   Widget _buildTopSummaryStats(bool isDark, bool isMobile) {
+    // Consolidated stats structure
     final List<Map<String, dynamic>> stats = [
-      {'label': 'Total Fleet', 'value': _totalVehicles.toString(), 'icon': Icons.directions_bus_outlined, 'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600, 'filter': 'All'},
-      {'label': 'Available', 'value': _availableVehicles.toString(), 'icon': Icons.check_circle_outline, 'color': const Color(0xFF10B981), 'filter': 'Good Condition'},
-      {'label': 'On Duty', 'value': _onDutyVehicles.toString(), 'icon': Icons.route_outlined, 'color': const Color(0xFF3B82F6), 'filter': 'On Duty'},
-      {'label': 'Maintenance', 'value': _maintenanceVehicles.toString(), 'icon': Icons.build_circle_outlined, 'color': const Color(0xFFF59E0B), 'filter': 'Maintenance Required'},
-      {'label': 'Under Repair', 'value': _repairVehicles.toString(), 'icon': Icons.cancel_outlined, 'color': const Color(0xFFEF4444), 'filter': 'Under Repair'},
+      {
+        'label': 'Total Fleet',
+        'value': _totalVehicles.toString(),
+        'icon': Icons.directions_bus_outlined,
+        'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+        'filter': 'All',
+      },
+      {
+        'label': 'Available',
+        'value': _availableVehicles.toString(),
+        'icon': Icons.check_circle_outline,
+        'color': const Color(0xFF10B981),
+        'filter': 'Available',
+      },
+      {
+        'label': 'Needs Maint.',
+        'value': _maintenanceVehicles.toString(),
+        'icon': Icons.build_circle_outlined,
+        'color': const Color(0xFFEF4444),
+        'filter': 'Needs Maintenance',
+      },
     ];
 
     Widget buildCard(Map<String, dynamic> stat) {
@@ -465,10 +593,14 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? stat['color'].withOpacity(0.1) : (isDark ? const Color(0xFF1E293B) : Colors.white),
+            color: isSelected
+                ? stat['color'].withOpacity(0.1)
+                : (isDark ? const Color(0xFF1E293B) : Colors.white),
             borderRadius: BorderRadius.circular(40),
             border: Border.all(
-              color: isSelected ? stat['color'] : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+              color: isSelected
+                  ? stat['color']
+                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
               width: isSelected ? 2.0 : 1.0,
             ),
           ),
@@ -483,11 +615,22 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                 children: [
                   Text(
                     stat['value'],
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF0F172A), height: 1.1),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      height: 1.1,
+                    ),
                   ),
                   Text(
                     stat['label'],
-                    style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : const Color(0xFF64748B),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -498,12 +641,20 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     }
 
     if (isMobile) {
-      return Wrap(alignment: WrapAlignment.center, spacing: 12, runSpacing: 12, children: stats.map((stat) => buildCard(stat)).toList());
+      return Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 12,
+        runSpacing: 12,
+        children: stats.map((stat) => buildCard(stat)).toList(),
+      );
     } else {
       return Row(
         children: stats.map((stat) {
           return Expanded(
-            child: Padding(padding: EdgeInsets.only(right: stat == stats.last ? 0 : 16.0), child: buildCard(stat)),
+            child: Padding(
+              padding: EdgeInsets.only(right: stat == stats.last ? 0 : 16.0),
+              child: buildCard(stat),
+            ),
           );
         }).toList(),
       );
@@ -516,11 +667,19 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.directions_car_filled_outlined, size: 64, color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            Icon(
+              Icons.directions_car_filled_outlined,
+              size: 64,
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
             const SizedBox(height: 16),
             Text(
               'No vehicle assets matched parameters.',
-              style: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade500, fontSize: 15, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -528,53 +687,65 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
     );
   }
 
-Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
+  Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
     final String plate = v['plate_number'] ?? 'UNKNOWN';
     final String rawBusType = v['bus_type'] ?? 'Unknown Model';
     final String status = v['health_status'] ?? 'Good Condition';
     final String engine = v['engine_no'] ?? 'N/A';
-    
-    final String modelDisplay = rawBusType.contains(' - ') ? rawBusType.split(' - ').last : rawBusType;
-    final String seatCapacity = rawBusType.contains(' - ') ? rawBusType.split(' - ').first : 'Configured Seats';
+
+    final String modelDisplay = rawBusType.contains(' - ')
+        ? rawBusType.split(' - ').last
+        : rawBusType;
+    final String seatCapacity = rawBusType.contains(' - ')
+        ? rawBusType.split(' - ').first
+        : 'Configured Seats';
 
     final Color statusColor = _getStatusColor(status);
     final borderColor = isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0);
-    
-    final int vehicleId = int.tryParse((v['vehicle_id'] ?? v['id'] ?? '0').toString()) ?? 0;
+
+    final int vehicleId =
+        int.tryParse((v['vehicle_id'] ?? v['id'] ?? '0').toString()) ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(border: isLast ? null : Border(bottom: BorderSide(color: borderColor))),
+      decoration: BoxDecoration(
+        border: isLast ? null : Border(bottom: BorderSide(color: borderColor)),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left indicator bar
           Container(
             width: 4,
             height: 36,
             margin: const EdgeInsets.only(right: 16, top: 4),
-            decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(4)),
+            decoration: BoxDecoration(
+              color: statusColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
-          // Middle Content (Expanded)
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Row: Plate Number, Status Badge, and Edit/Info Button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     InkWell(
-                      onTap: () => _showVehicleModal(context, vehicle: Map<String, dynamic>.from(v)),
+                      onTap: () => _showVehicleModal(
+                        context,
+                        vehicle: Map<String, dynamic>.from(v),
+                      ),
                       child: Text(
-                        plate, 
+                        plate,
                         style: TextStyle(
-                          fontSize: 16, 
-                          fontWeight: FontWeight.bold, 
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          decoration: TextDecoration.underline, // Visual cue that it's clickable for editing
-                        ), 
-                        maxLines: 1, 
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0F172A),
+                          decoration: TextDecoration.underline,
+                        ),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -582,18 +753,35 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                           child: Text(
                             status.toUpperCase(),
-                            style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         if (_isAdmin)
                           IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                            onPressed: () => _confirmPurgeVehicle(Map<String, dynamic>.from(v)),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.redAccent,
+                              size: 20,
+                            ),
+                            onPressed: () => _confirmPurgeVehicle(
+                              Map<String, dynamic>.from(v),
+                            ),
                             tooltip: 'Delete Vehicle',
                           ),
                       ],
@@ -605,53 +793,67 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                   spacing: 12,
                   runSpacing: 6,
                   children: [
-                    _cardIconText(Icons.directions_bus_outlined, modelDisplay, isDark),
+                    _cardIconText(
+                      Icons.directions_bus_outlined,
+                      modelDisplay,
+                      isDark,
+                    ),
                     _cardIconText(Icons.group_outlined, seatCapacity, isDark),
                     _cardIconText(Icons.pin_outlined, "Eng: $engine", isDark),
                   ],
                 ),
                 const SizedBox(height: 16),
-                
-                // Predictive Analytics Intelligence View
-                VehicleMlDiagnosticView(vehicleId: vehicleId),
-                
-                const SizedBox(height: 12),
 
-                // 👇 RESTORED: The "Manage Maintenance" button to open the log history modal!
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      if (vehicleId > 0) {
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (c) => const Center(child: CircularProgressIndicator()),
-                        );
-                        final logs = await _fetchVehicleLogHistory(vehicleId);
-                        if (context.mounted) {
-                          Navigator.pop(context); // Remove loading indicator
-                          _showMaintenanceManagerModal(
-                            context,
-                            Map<String, dynamic>.from(v),
-                            logs,
+                if (!_isAdmin)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        if (vehicleId > 0) {
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (c) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
                           );
+                          final logs = await _fetchVehicleLogHistory(vehicleId);
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            _showMaintenanceManagerModal(
+                              context,
+                              Map<String, dynamic>.from(v),
+                              logs,
+                            );
+                          }
                         }
-                      }
-                    },
-                    icon: const Icon(Icons.build_circle, size: 16, color: Colors.white),
-                    label: const Text(
-                      "Manage Maintenance",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade700,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 0,
+                      },
+                      icon: const Icon(
+                        Icons.build_circle,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        "Manage Maintenance",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade700,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -664,12 +866,20 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B)),
+        Icon(
+          icon,
+          size: 14,
+          color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B),
+        ),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
             text,
-            style: TextStyle(fontWeight: FontWeight.w500, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontSize: 12),
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+              fontSize: 12,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -683,41 +893,79 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-        border: Border(top: BorderSide(color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0))),
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
+          ),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredVehicles.length)} of ${_filteredVehicles.length}',
-            style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 13),
+            style: TextStyle(
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              fontSize: 13,
+            ),
           ),
           Row(
             children: [
               OutlinedButton(
                 onPressed: _currentPage > 0 ? _prevPage : null,
                 style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  side: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  side: BorderSide(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
-                child: Text('Prev', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+                child: Text(
+                  'Prev',
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(color: Colors.blue.shade600, borderRadius: BorderRadius.circular(8)),
-                child: Text('${_currentPage + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade600,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${_currentPage + 1}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               OutlinedButton(
                 onPressed: _currentPage < _totalPages - 1 ? _nextPage : null,
                 style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  side: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  side: BorderSide(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
-                child: Text('Next', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+                child: Text(
+                  'Next',
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
               ),
             ],
           ),
@@ -741,14 +989,27 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
-          final inputBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9);
-          final borderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
+          final inputBg = isDark
+              ? const Color(0xFF0F172A)
+              : const Color(0xFFF1F5F9);
+          final borderColor = isDark
+              ? Colors.grey.shade700
+              : Colors.grey.shade300;
           final textColor = isDark ? Colors.white : Colors.black87;
 
           return AlertDialog(
             backgroundColor: Theme.of(context).cardColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            title: Text('Log Issue: ${vehicle['plate_number']}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            title: Text(
+              'Log Issue: ${vehicle['plate_number']}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
             content: Form(
               key: formKey,
               child: SizedBox(
@@ -759,12 +1020,29 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.shade300)),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade300),
+                        ),
                         child: Row(
                           children: [
-                            Icon(Icons.warning_amber_rounded, color: Colors.orange.shade600),
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.orange.shade600,
+                            ),
                             const SizedBox(width: 12),
-                            Expanded(child: Text("Logging this issue marks the vehicle as 'Maintenance Required'.", style: TextStyle(fontSize: 13, color: isDark ? Colors.grey.shade300 : Colors.black87))),
+                            Expanded(
+                              child: Text(
+                                "Logging this issue marks the vehicle as 'Maintenance Required'.",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark
+                                      ? Colors.grey.shade300
+                                      : Colors.black87,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -774,13 +1052,42 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                         dropdownColor: Theme.of(context).cardColor,
                         style: TextStyle(color: textColor, fontSize: 14),
                         decoration: InputDecoration(
-                          labelText: 'Issue Category', labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                          filled: true, fillColor: inputBg,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                          labelText: 'Issue Category',
+                          labelStyle: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
+                          filled: true,
+                          fillColor: inputBg,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
                         ),
-                        items: ['General', 'Engine', 'Exterior', 'Interior', 'Electrical', 'Tires/Wheels'].map((s) => DropdownMenuItem<String>(value: s, child: Text(s))).toList(),
-                        onChanged: (val) => setModalState(() => chosenCategory = val ?? 'General'),
+                        items:
+                            [
+                                  'General',
+                                  'Engine',
+                                  'Exterior',
+                                  'Interior',
+                                  'Electrical',
+                                  'Tires/Wheels',
+                                ]
+                                .map(
+                                  (s) => DropdownMenuItem<String>(
+                                    value: s,
+                                    child: Text(s),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged: (val) => setModalState(
+                          () => chosenCategory = val ?? 'General',
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -788,12 +1095,37 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                           Expanded(
                             child: InkWell(
                               onTap: () async {
-                                final picked = await showDatePicker(context: context, initialDate: incidentDate ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime.now().add(const Duration(days: 365)));
-                                if (picked != null) setModalState(() => incidentDate = picked);
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: incidentDate ?? DateTime.now(),
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime.now().add(
+                                    const Duration(days: 365),
+                                  ),
+                                );
+                                if (picked != null)
+                                  setModalState(() => incidentDate = picked);
                               },
                               child: InputDecorator(
-                                decoration: InputDecoration(labelText: 'Incident Date', filled: true, fillColor: inputBg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor))),
-                                child: Text(incidentDate != null ? "${incidentDate!.month}/${incidentDate!.day}/${incidentDate!.year}" : "Select Date", style: TextStyle(color: textColor)),
+                                decoration: InputDecoration(
+                                  labelText: 'Incident Date',
+                                  filled: true,
+                                  fillColor: inputBg,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: borderColor),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: borderColor),
+                                  ),
+                                ),
+                                child: Text(
+                                  incidentDate != null
+                                      ? "${incidentDate!.month}/${incidentDate!.day}/${incidentDate!.year}"
+                                      : "Select Date",
+                                  style: TextStyle(color: textColor),
+                                ),
                               ),
                             ),
                           ),
@@ -801,12 +1133,33 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                           Expanded(
                             child: InkWell(
                               onTap: () async {
-                                final picked = await showTimePicker(context: context, initialTime: incidentTime ?? TimeOfDay.now());
-                                if (picked != null) setModalState(() => incidentTime = picked);
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: incidentTime ?? TimeOfDay.now(),
+                                );
+                                if (picked != null)
+                                  setModalState(() => incidentTime = picked);
                               },
                               child: InputDecorator(
-                                decoration: InputDecoration(labelText: 'Incident Time', filled: true, fillColor: inputBg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor))),
-                                child: Text(incidentTime != null ? incidentTime!.format(context) : "Select Time", style: TextStyle(color: textColor)),
+                                decoration: InputDecoration(
+                                  labelText: 'Incident Time',
+                                  filled: true,
+                                  fillColor: inputBg,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: borderColor),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: borderColor),
+                                  ),
+                                ),
+                                child: Text(
+                                  incidentTime != null
+                                      ? incidentTime!.format(context)
+                                      : "Select Time",
+                                  style: TextStyle(color: textColor),
+                                ),
                               ),
                             ),
                           ),
@@ -816,13 +1169,27 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                       TextFormField(
                         style: TextStyle(color: textColor),
                         decoration: InputDecoration(
-                          labelText: 'Short Description', labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                          filled: true, fillColor: inputBg,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                          labelText: 'Short Description',
+                          labelStyle: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
+                          filled: true,
+                          fillColor: inputBg,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
                         ),
                         maxLines: 2,
-                        validator: (val) => (val == null || val.trim().isEmpty) ? 'Required' : null,
+                        validator: (val) => (val == null || val.trim().isEmpty)
+                            ? 'Required'
+                            : null,
                         onSaved: (val) => description = val ?? '',
                       ),
                     ],
@@ -831,51 +1198,100 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700))),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
+                ),
+              ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                onPressed: isSaving ? null : () async {
-                  if (formKey.currentState?.validate() ?? false) {
-                    formKey.currentState?.save();
-                    setModalState(() => isSaving = true);
-                    String? currentUserId = widget.userId;
-                    if (currentUserId == null || currentUserId.isEmpty) {
-                      try { currentUserId = Supabase.instance.client.auth.currentUser?.id; } catch (_) {}
-                    }
-                    String? formatTime(TimeOfDay? time) {
-                      if (time == null) return null;
-                      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
-                    }
-                    final payload = {
-                      'description': description,
-                      'vehicle_id': vehicle['vehicle_id'],
-                      'user_id': currentUserId,
-                      'category': chosenCategory,
-                      'incident_date': incidentDate != null ? '${incidentDate!.year}-${incidentDate!.month.toString().padLeft(2, '0')}-${incidentDate!.day.toString().padLeft(2, '0')}' : null,
-                      'incident_time': formatTime(incidentTime),
-                      'is_resolved': false,
-                    };
-                    try {
-                      final response = await http.post(Uri.parse('$backendUrl/vehicles/maintenance'), headers: {'Content-Type': 'application/json'}, body: jsonEncode(payload));
-                      if (response.statusCode == 200 || response.statusCode == 201) {
-                        widget.onRefreshNeeded();
-                        _fetchLiveFleetData();
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                          Navigator.pop(context);
-                          _showSnackBar('New issue logged. Status updated.', Colors.orange);
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade600,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        if (formKey.currentState?.validate() ?? false) {
+                          formKey.currentState?.save();
+                          setModalState(() => isSaving = true);
+                          String? currentUserId = widget.userId;
+                          if (currentUserId == null || currentUserId.isEmpty) {
+                            try {
+                              currentUserId =
+                                  Supabase.instance.client.auth.currentUser?.id;
+                            } catch (_) {}
+                          }
+                          String? formatTime(TimeOfDay? time) {
+                            if (time == null) return null;
+                            return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
+                          }
+
+                          final payload = {
+                            'description': description,
+                            'vehicle_id': vehicle['vehicle_id'],
+                            'user_id': currentUserId,
+                            'category': chosenCategory,
+                            'incident_date': incidentDate != null
+                                ? '${incidentDate!.year}-${incidentDate!.month.toString().padLeft(2, '0')}-${incidentDate!.day.toString().padLeft(2, '0')}'
+                                : null,
+                            'incident_time': formatTime(incidentTime),
+                            'is_resolved': false,
+                          };
+                          try {
+                            final response = await http.post(
+                              Uri.parse('$backendUrl/vehicles/maintenance'),
+                              headers: {'Content-Type': 'application/json'},
+                              body: jsonEncode(payload),
+                            );
+                            if (response.statusCode == 200 ||
+                                response.statusCode == 201) {
+                              widget.onRefreshNeeded();
+                              _fetchLiveFleetData();
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                Navigator.pop(context);
+                                _showSnackBar(
+                                  'New issue logged. Status updated.',
+                                  Colors.orange,
+                                );
+                              }
+                            } else {
+                              if (context.mounted)
+                                _showSnackBar(
+                                  'Failed to log issue.',
+                                  Colors.red,
+                                );
+                            }
+                          } catch (e) {
+                            if (context.mounted)
+                              _showSnackBar('Network error.', Colors.red);
+                          } finally {
+                            setModalState(() => isSaving = false);
+                          }
                         }
-                      } else {
-                        if (context.mounted) _showSnackBar('Failed to log issue.', Colors.red);
-                      }
-                    } catch (e) {
-                      if (context.mounted) _showSnackBar('Network error.', Colors.red);
-                    } finally {
-                      setModalState(() => isSaving = false);
-                    }
-                  }
-                },
-                child: isSaving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Log Incident', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      },
+                child: isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Log Incident',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ],
           );
@@ -897,26 +1313,66 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
           return AlertDialog(
             backgroundColor: Theme.of(context).cardColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            title: Text('Mark Issue as Repaired', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            title: Text(
+              'Mark Issue as Repaired',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
             content: SizedBox(
               width: 400,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text("Resolving this issue will update the vehicle's status back to 'Good' and release it for dispatch.", style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700)),
+                  Text(
+                    "Resolving this issue will update the vehicle's status back to 'Good' and release it for dispatch.",
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade700,
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   Row(
                     children: [
                       Expanded(
                         child: InkWell(
                           onTap: () async {
-                            final picked = await showDatePicker(context: context, initialDate: repairDate ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime.now().add(const Duration(days: 365)));
-                            if (picked != null) setModalState(() => repairDate = picked);
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: repairDate ?? DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
+                            );
+                            if (picked != null)
+                              setModalState(() => repairDate = picked);
                           },
                           child: InputDecorator(
-                            decoration: InputDecoration(labelText: 'Date Repaired', filled: true, fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9), border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-                            child: Text(repairDate != null ? "${repairDate!.month}/${repairDate!.day}/${repairDate!.year}" : "Select Date", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                            decoration: InputDecoration(
+                              labelText: 'Date Repaired',
+                              filled: true,
+                              fillColor: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : const Color(0xFFF1F5F9),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              repairDate != null
+                                  ? "${repairDate!.month}/${repairDate!.day}/${repairDate!.year}"
+                                  : "Select Date",
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -924,12 +1380,32 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                       Expanded(
                         child: InkWell(
                           onTap: () async {
-                            final picked = await showTimePicker(context: context, initialTime: repairTime ?? TimeOfDay.now());
-                            if (picked != null) setModalState(() => repairTime = picked);
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: repairTime ?? TimeOfDay.now(),
+                            );
+                            if (picked != null)
+                              setModalState(() => repairTime = picked);
                           },
                           child: InputDecorator(
-                            decoration: InputDecoration(labelText: 'Time Repaired', filled: true, fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9), border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-                            child: Text(repairTime != null ? repairTime!.format(context) : "Select Time", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                            decoration: InputDecoration(
+                              labelText: 'Time Repaired',
+                              filled: true,
+                              fillColor: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : const Color(0xFFF1F5F9),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              repairTime != null
+                                  ? repairTime!.format(context)
+                                  : "Select Time",
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -939,41 +1415,86 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700))),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
+                ),
+              ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                onPressed: isSaving ? null : () async {
-                  setModalState(() => isSaving = true);
-                  String? formatTime(TimeOfDay? time) {
-                    if (time == null) return null;
-                    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
-                  }
-                  final payload = {
-                    'maintenance_id': log['maintenance_id'],
-                    'vehicle_id': vehicleId,
-                    'repair_date': repairDate != null ? '${repairDate!.year}-${repairDate!.month.toString().padLeft(2, '0')}-${repairDate!.day.toString().padLeft(2, '0')}' : null,
-                    'repair_time': formatTime(repairTime),
-                  };
-                  try {
-                    final response = await http.put(Uri.parse('$backendUrl/vehicles/maintenance'), headers: {'Content-Type': 'application/json'}, body: jsonEncode(payload));
-                    if (response.statusCode == 200) {
-                      widget.onRefreshNeeded();
-                      _fetchLiveFleetData();
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        Navigator.pop(context);
-                        _showSnackBar('Vehicle marked as repaired!', Colors.green);
-                      }
-                    } else {
-                      if (context.mounted) _showSnackBar('Failed to update log.', Colors.red);
-                    }
-                  } catch (e) {
-                    if (context.mounted) _showSnackBar('Network error.', Colors.red);
-                  } finally {
-                    setModalState(() => isSaving = false);
-                  }
-                },
-                child: isSaving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Confirm Repair', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        setModalState(() => isSaving = true);
+                        String? formatTime(TimeOfDay? time) {
+                          if (time == null) return null;
+                          return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
+                        }
+
+                        final payload = {
+                          'maintenance_id': log['maintenance_id'],
+                          'vehicle_id': vehicleId,
+                          'repair_date': repairDate != null
+                              ? '${repairDate!.year}-${repairDate!.month.toString().padLeft(2, '0')}-${repairDate!.day.toString().padLeft(2, '0')}'
+                              : null,
+                          'repair_time': formatTime(repairTime),
+                        };
+                        try {
+                          final response = await http.put(
+                            Uri.parse('$backendUrl/vehicles/maintenance'),
+                            headers: {'Content-Type': 'application/json'},
+                            body: jsonEncode(payload),
+                          );
+                          if (response.statusCode == 200) {
+                            widget.onRefreshNeeded();
+                            _fetchLiveFleetData();
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              Navigator.pop(context);
+                              _showSnackBar(
+                                'Vehicle marked as repaired!',
+                                Colors.green,
+                              );
+                            }
+                          } else {
+                            if (context.mounted)
+                              _showSnackBar(
+                                'Failed to update log.',
+                                Colors.red,
+                              );
+                          }
+                        } catch (e) {
+                          if (context.mounted)
+                            _showSnackBar('Network error.', Colors.red);
+                        } finally {
+                          setModalState(() => isSaving = false);
+                        }
+                      },
+                child: isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Confirm Repair',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ],
           );
@@ -982,7 +1503,11 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
     );
   }
 
-  void _showMaintenanceManagerModal(BuildContext context, Map<String, dynamic> vehicle, List<dynamic> logs) {
+  void _showMaintenanceManagerModal(
+    BuildContext context,
+    Map<String, dynamic> vehicle,
+    List<dynamic> logs,
+  ) {
     String currentSort = 'Ongoing First';
     final int vehicleId = int.tryParse(vehicle['vehicle_id'].toString()) ?? 0;
 
@@ -999,6 +1524,7 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
               final time = item['incident_time']?.toString() ?? '00:00:00';
               return DateTime.tryParse("$date $time") ?? DateTime(2000);
             }
+
             DateTime dateA = parseDateTime(a);
             DateTime dateB = parseDateTime(b);
             bool aResolved = a['is_resolved'] == true;
@@ -1017,12 +1543,26 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
 
           return AlertDialog(
             backgroundColor: Theme.of(context).cardColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Maintenance: ${vehicle['plate_number']}', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                IconButton(icon: Icon(Icons.close, color: isDark ? Colors.white70 : Colors.black54), onPressed: () => Navigator.pop(context)),
+                Text(
+                  'Maintenance: ${vehicle['plate_number']}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.close,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ],
             ),
             content: SizedBox(
@@ -1035,22 +1575,69 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                     children: [
                       ElevatedButton.icon(
                         onPressed: () => _showLogIssueDialog(vehicle),
-                        icon: const Icon(Icons.add_alert, color: Colors.white, size: 18),
-                        label: const Text("Log New Issue", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                        icon: const Icon(
+                          Icons.add_alert,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          "Log New Issue",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade700,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
                       ),
                       Container(
                         width: 180,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(color: isDark ? const Color(0xFF0F172A) : Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.grey.shade700
+                                : Colors.grey.shade300,
+                          ),
+                        ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: currentSort,
                             isExpanded: true,
                             dropdownColor: Theme.of(context).cardColor,
-                            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
-                            items: ['Newest First', 'Oldest First', 'Ongoing First', 'Fixed First'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                            onChanged: (val) => setModalState(() => currentSort = val ?? 'Ongoing First'),
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                              fontSize: 14,
+                            ),
+                            items:
+                                [
+                                      'Newest First',
+                                      'Oldest First',
+                                      'Ongoing First',
+                                      'Fixed First',
+                                    ]
+                                    .map(
+                                      (s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(s),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: (val) => setModalState(
+                              () => currentSort = val ?? 'Ongoing First',
+                            ),
                           ),
                         ),
                       ),
@@ -1059,52 +1646,152 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                   const SizedBox(height: 16),
                   Expanded(
                     child: sortedLogs.isEmpty
-                        ? Center(child: Text("No maintenance records found.", style: TextStyle(color: Colors.grey.shade500)))
+                        ? Center(
+                            child: Text(
+                              "No maintenance records found.",
+                              style: TextStyle(color: Colors.grey.shade500),
+                            ),
+                          )
                         : ListView.separated(
                             itemCount: sortedLogs.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final log = sortedLogs[index];
-                              final bool isResolved = log['is_resolved'] == true;
+                              final bool isResolved =
+                                  log['is_resolved'] == true;
                               return Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                  color: isDark
+                                      ? const Color(0xFF1E293B)
+                                      : Colors.white,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: isResolved ? Colors.green.withOpacity(0.5) : Colors.orange.withOpacity(0.5), width: 2),
+                                  border: Border.all(
+                                    color: isResolved
+                                        ? Colors.green.withOpacity(0.5)
+                                        : Colors.orange.withOpacity(0.5),
+                                    width: 2,
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Row(
                                             children: [
-                                              Text(log['category'] ?? 'General', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87)),
+                                              Text(
+                                                log['category'] ?? 'General',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : Colors.black87,
+                                                ),
+                                              ),
                                               const SizedBox(width: 12),
                                               Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                decoration: BoxDecoration(color: isResolved ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-                                                child: Text(isResolved ? "FIXED" : "ONGOING", style: TextStyle(color: isResolved ? Colors.green : Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: isResolved
+                                                      ? Colors.green
+                                                            .withOpacity(0.2)
+                                                      : Colors.orange
+                                                            .withOpacity(0.2),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  isResolved
+                                                      ? "FIXED"
+                                                      : "ONGOING",
+                                                  style: TextStyle(
+                                                    color: isResolved
+                                                        ? Colors.green
+                                                        : Colors.orange,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),
                                           const SizedBox(height: 8),
-                                          Text(log['description'] ?? 'No details', style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade300 : Colors.black87)),
+                                          Text(
+                                            log['description'] ?? 'No details',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: isDark
+                                                  ? Colors.grey.shade300
+                                                  : Colors.black87,
+                                            ),
+                                          ),
                                           const SizedBox(height: 8),
-                                          Text("Incident: ${log['incident_date'] ?? 'N/A'} at ${log['incident_time'] ?? 'N/A'}", style: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade700, fontSize: 12, fontWeight: FontWeight.w600)),
+                                          Text(
+                                            "Incident: ${log['incident_date'] ?? 'N/A'} at ${log['incident_time'] ?? 'N/A'}",
+                                            style: TextStyle(
+                                              color: isDark
+                                                  ? Colors.grey.shade500
+                                                  : Colors.grey.shade700,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
                                           if (isResolved)
-                                            Padding(padding: const EdgeInsets.only(top: 4.0), child: Text("Repaired: ${log['repair_date'] ?? 'N/A'} at ${log['repair_time'] ?? 'N/A'}", style: TextStyle(color: isDark ? Colors.green.shade400 : Colors.green.shade700, fontSize: 12, fontWeight: FontWeight.w600))),
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 4.0,
+                                              ),
+                                              child: Text(
+                                                "Repaired: ${log['repair_date'] ?? 'N/A'} at ${log['repair_time'] ?? 'N/A'}",
+                                                style: TextStyle(
+                                                  color: isDark
+                                                      ? Colors.green.shade400
+                                                      : Colors.green.shade700,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ),
                                     if (!isResolved)
                                       ElevatedButton.icon(
-                                        onPressed: () => _showMarkRepairedDialog(log, vehicleId),
-                                        icon: const Icon(Icons.check_circle, color: Colors.white, size: 18),
-                                        label: const Text("Mark Repaired", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                                        onPressed: () =>
+                                            _showMarkRepairedDialog(
+                                              log,
+                                              vehicleId,
+                                            ),
+                                        icon: const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          "Mark Repaired",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              Colors.green.shade600,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                   ],
                                 ),
@@ -1130,7 +1817,12 @@ class RegisterVehicleDialog extends StatefulWidget {
   final bool isAdmin;
   final VoidCallback? onDelete;
 
-  const RegisterVehicleDialog({super.key, this.vehicle, required this.isAdmin, this.onDelete});
+  const RegisterVehicleDialog({
+    super.key,
+    this.vehicle,
+    required this.isAdmin,
+    this.onDelete,
+  });
 
   @override
   State<RegisterVehicleDialog> createState() => _RegisterVehicleDialogState();
@@ -1160,7 +1852,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
   void initState() {
     super.initState();
     final bool isEdit = widget.vehicle != null;
-    _isWritingUnlocked = !isEdit && widget.isAdmin; 
+    _isWritingUnlocked = !isEdit && widget.isAdmin;
 
     String parsedModel = '';
     if (isEdit) {
@@ -1173,47 +1865,101 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
       }
     }
 
-    _plateController = TextEditingController(text: isEdit ? (widget.vehicle!['plate_number'] ?? '') : '');
+    _plateController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['plate_number'] ?? '') : '',
+    );
     _modelController = TextEditingController(text: parsedModel);
-    _modelYearController = TextEditingController(text: isEdit ? (widget.vehicle!['model_year'] ?? '') : '');
-    _engineController = TextEditingController(text: isEdit ? (widget.vehicle!['engine_no'] ?? '') : '');
-    _insuranceNoController = TextEditingController(text: isEdit ? (widget.vehicle!['insurance_policy_no'] ?? '') : '');
-    _insuranceExpiryController = TextEditingController(text: isEdit ? (widget.vehicle!['insurance_expiry'] ?? '') : '');
-    _franchiseNoController = TextEditingController(text: isEdit ? (widget.vehicle!['franchise_no'] ?? '') : '');
-    _franchiseExpiryController = TextEditingController(text: isEdit ? (widget.vehicle!['franchise_expiry'] ?? '') : '');
-    _crNoController = TextEditingController(text: isEdit ? (widget.vehicle!['cr_no'] ?? '') : '');
-    _crDateController = TextEditingController(text: isEdit ? (widget.vehicle!['cr_date'] ?? '') : '');
-    _orNoController = TextEditingController(text: isEdit ? (widget.vehicle!['or_no'] ?? '') : '');
-    _orExpiryController = TextEditingController(text: isEdit ? (widget.vehicle!['or_expiry'] ?? '') : '');
+    _modelYearController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['model_year'] ?? '') : '',
+    );
+    _engineController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['engine_no'] ?? '') : '',
+    );
+    _insuranceNoController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['insurance_policy_no'] ?? '') : '',
+    );
+    _insuranceExpiryController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['insurance_expiry'] ?? '') : '',
+    );
+    _franchiseNoController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['franchise_no'] ?? '') : '',
+    );
+    _franchiseExpiryController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['franchise_expiry'] ?? '') : '',
+    );
+    _crNoController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['cr_no'] ?? '') : '',
+    );
+    _crDateController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['cr_date'] ?? '') : '',
+    );
+    _orNoController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['or_no'] ?? '') : '',
+    );
+    _orExpiryController = TextEditingController(
+      text: isEdit ? (widget.vehicle!['or_expiry'] ?? '') : '',
+    );
   }
 
-  InputDecoration _fieldStyle({required BuildContext context, required String label, required IconData icon, bool isDatePicker = false}) {
+  InputDecoration _fieldStyle({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    bool isDatePicker = false,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bool active = _isWritingUnlocked;
-    final fillColor = active ? (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)) : (isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0));
+    final fillColor = active
+        ? (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9))
+        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0));
     final textColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
     final borderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
 
     return InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon, color: textColor, size: 20),
-      suffixIcon: isDatePicker ? Icon(Icons.calendar_today, size: 18, color: textColor) : null,
+      suffixIcon: isDatePicker
+          ? Icon(Icons.calendar_today, size: 18, color: textColor)
+          : null,
       filled: true,
       fillColor: fillColor,
-      labelStyle: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w500),
+      labelStyle: TextStyle(
+        color: textColor,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+      ),
     );
   }
 
-  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+  Future<void> _selectDate(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
     if (!_isWritingUnlocked) return;
     final DateTime? picked = await showDatePicker(
-      context: context, initialDate: DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2040),
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2040),
     );
-    if (picked != null) setState(() => controller.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}");
+    if (picked != null)
+      setState(
+        () => controller.text =
+            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}",
+      );
   }
 
   Future<void> _submitVehicleForm() async {
@@ -1230,8 +1976,12 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
       final http.Response response;
       final bodyData = jsonEncode({
         'role': 'admin',
-        'plate_number': cleanStr(_plateController, 'TBD-${Random().nextInt(900) + 100}'),
-        'bus_type': "$_selectedCapacity - ${cleanStr(_modelController, 'Standard Shuttle')}",
+        'plate_number': cleanStr(
+          _plateController,
+          'TBD-${Random().nextInt(900) + 100}',
+        ),
+        'bus_type':
+            "$_selectedCapacity - ${cleanStr(_modelController, 'Standard Shuttle')}",
         'model_year': cleanStr(_modelYearController, '2026'),
         'engine_no': cleanStr(_engineController, 'N/A'),
         'insurance_policy_no': cleanStr(_insuranceNoController, 'N/A'),
@@ -1245,22 +1995,53 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
       });
 
       if (isEditMode) {
-        response = await http.put(Uri.parse('$backendUrl/vehicles/update/${widget.vehicle!['vehicle_id']}'), headers: {'Content-Type': 'application/json'}, body: bodyData).timeout(const Duration(seconds: 15));
+        response = await http
+            .put(
+              Uri.parse(
+                '$backendUrl/vehicles/update/${widget.vehicle!['vehicle_id']}',
+              ),
+              headers: {'Content-Type': 'application/json'},
+              body: bodyData,
+            )
+            .timeout(const Duration(seconds: 15));
       } else {
-        response = await http.post(Uri.parse('$backendUrl/vehicles'), headers: {'Content-Type': 'application/json'}, body: bodyData).timeout(const Duration(seconds: 15));
+        response = await http
+            .post(
+              Uri.parse('$backendUrl/vehicles'),
+              headers: {'Content-Type': 'application/json'},
+              body: bodyData,
+            )
+            .timeout(const Duration(seconds: 15));
       }
 
       final responseData = jsonDecode(response.body);
-      if ((response.statusCode == 200 || response.statusCode == 201) && responseData['success'] == true) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          responseData['success'] == true) {
         if (!mounted) return;
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEditMode ? "Asset profile changes committed!" : "Fleet vehicle added to registry securely!"), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isEditMode
+                  ? "Asset profile changes committed!"
+                  : "Fleet vehicle added to registry securely!",
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
         throw Exception(responseData['message'] ?? "Operational rejection.");
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Submission Error: $e"), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Submission Error: $e"),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1293,7 +2074,14 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
     return AlertDialog(
       backgroundColor: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Text(isEditMode ? 'Fleet Vehicle Specification' : 'Register System Vehicle', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: textColor)),
+      title: Text(
+        isEditMode ? 'Fleet Vehicle Specification' : 'Register System Vehicle',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 24,
+          color: textColor,
+        ),
+      ),
       content: SizedBox(
         width: 600,
         child: Form(
@@ -1303,66 +2091,246 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Basic Information", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF3B82F6), fontSize: 14)),
+                const Text(
+                  "Basic Information",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF3B82F6),
+                    fontSize: 14,
+                  ),
+                ),
                 const Divider(height: 20),
                 Row(
                   children: [
-                    Expanded(child: TextFormField(controller: _plateController, readOnly: !_isWritingUnlocked, style: TextStyle(color: textColor), decoration: _fieldStyle(context: context, label: 'Plate Number', icon: Icons.badge_outlined), validator: (val) => val!.isEmpty ? "Required" : null)),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _plateController,
+                        readOnly: !_isWritingUnlocked,
+                        style: TextStyle(color: textColor),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'Plate Number',
+                          icon: Icons.badge_outlined,
+                        ),
+                        validator: (val) => val!.isEmpty ? "Required" : null,
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: TextFormField(controller: _modelController, readOnly: !_isWritingUnlocked, style: TextStyle(color: textColor), decoration: _fieldStyle(context: context, label: 'Vehicle Model', icon: Icons.directions_car_outlined), validator: (val) => val!.isEmpty ? "Required" : null)),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _modelController,
+                        readOnly: !_isWritingUnlocked,
+                        style: TextStyle(color: textColor),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'Vehicle Model',
+                          icon: Icons.directions_car_outlined,
+                        ),
+                        validator: (val) => val!.isEmpty ? "Required" : null,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    Expanded(child: TextFormField(controller: _modelYearController, readOnly: !_isWritingUnlocked, style: TextStyle(color: textColor), decoration: _fieldStyle(context: context, label: 'Model Year', icon: Icons.date_range_outlined), validator: (val) => val!.isEmpty ? "Required" : null)),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _modelYearController,
+                        readOnly: !_isWritingUnlocked,
+                        style: TextStyle(color: textColor),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'Model Year',
+                          icon: Icons.date_range_outlined,
+                        ),
+                        validator: (val) => val!.isEmpty ? "Required" : null,
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         value: _selectedCapacity,
                         dropdownColor: Theme.of(context).cardColor,
                         style: TextStyle(color: textColor),
-                        decoration: _fieldStyle(context: context, label: 'Capacity', icon: Icons.group_outlined),
-                        onChanged: !_isWritingUnlocked ? null : (val) => setState(() => _selectedCapacity = val!),
-                        items: ['12 Seats', '15 Seats', '18 Seats'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'Capacity',
+                          icon: Icons.group_outlined,
+                        ),
+                        onChanged: !_isWritingUnlocked
+                            ? null
+                            : (val) => setState(() => _selectedCapacity = val!),
+                        items: ['12 Seats', '15 Seats', '18 Seats']
+                            .map(
+                              (e) => DropdownMenuItem(value: e, child: Text(e)),
+                            )
+                            .toList(),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
-                TextFormField(controller: _engineController, readOnly: !_isWritingUnlocked, style: TextStyle(color: textColor), decoration: _fieldStyle(context: context, label: 'Engine Serial Code', icon: Icons.pin_outlined), validator: (val) => val!.isEmpty ? "Required" : null),
+                TextFormField(
+                  controller: _engineController,
+                  readOnly: !_isWritingUnlocked,
+                  style: TextStyle(color: textColor),
+                  decoration: _fieldStyle(
+                    context: context,
+                    label: 'Engine Serial Code',
+                    icon: Icons.pin_outlined,
+                  ),
+                  validator: (val) => val!.isEmpty ? "Required" : null,
+                ),
                 const SizedBox(height: 24),
-                const Text("Documents & Expirations", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF3B82F6), fontSize: 14)),
+                const Text(
+                  "Documents & Expirations",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF3B82F6),
+                    fontSize: 14,
+                  ),
+                ),
                 const Divider(height: 20),
                 Row(
                   children: [
-                    Expanded(flex: 2, child: TextFormField(controller: _insuranceNoController, readOnly: !_isWritingUnlocked, style: TextStyle(color: textColor), decoration: _fieldStyle(context: context, label: 'Insurance Policy No.', icon: Icons.gavel_outlined), validator: (val) => val!.isEmpty ? "Required" : null)),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _insuranceNoController,
+                        readOnly: !_isWritingUnlocked,
+                        style: TextStyle(color: textColor),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'Insurance Policy No.',
+                          icon: Icons.gavel_outlined,
+                        ),
+                        validator: (val) => val!.isEmpty ? "Required" : null,
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(flex: 1, child: TextFormField(controller: _insuranceExpiryController, readOnly: true, style: TextStyle(color: textColor), onTap: () => _selectDate(context, _insuranceExpiryController), decoration: _fieldStyle(context: context, label: 'Expiry', icon: Icons.event_busy_outlined, isDatePicker: true))),
+                    Expanded(
+                      flex: 1,
+                      child: TextFormField(
+                        controller: _insuranceExpiryController,
+                        readOnly: true,
+                        style: TextStyle(color: textColor),
+                        onTap: () =>
+                            _selectDate(context, _insuranceExpiryController),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'Expiry',
+                          icon: Icons.event_busy_outlined,
+                          isDatePicker: true,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    Expanded(flex: 2, child: TextFormField(controller: _franchiseNoController, readOnly: !_isWritingUnlocked, style: TextStyle(color: textColor), decoration: _fieldStyle(context: context, label: 'Franchise No.', icon: Icons.assignment_outlined), validator: (val) => val!.isEmpty ? "Required" : null)),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _franchiseNoController,
+                        readOnly: !_isWritingUnlocked,
+                        style: TextStyle(color: textColor),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'Franchise No.',
+                          icon: Icons.assignment_outlined,
+                        ),
+                        validator: (val) => val!.isEmpty ? "Required" : null,
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(flex: 1, child: TextFormField(controller: _franchiseExpiryController, readOnly: true, style: TextStyle(color: textColor), onTap: () => _selectDate(context, _franchiseExpiryController), decoration: _fieldStyle(context: context, label: 'Expiry', icon: Icons.event_available_outlined, isDatePicker: true))),
+                    Expanded(
+                      flex: 1,
+                      child: TextFormField(
+                        controller: _franchiseExpiryController,
+                        readOnly: true,
+                        style: TextStyle(color: textColor),
+                        onTap: () =>
+                            _selectDate(context, _franchiseExpiryController),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'Expiry',
+                          icon: Icons.event_available_outlined,
+                          isDatePicker: true,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    Expanded(flex: 2, child: TextFormField(controller: _crNoController, readOnly: !_isWritingUnlocked, style: TextStyle(color: textColor), decoration: _fieldStyle(context: context, label: 'CR No.', icon: Icons.article_outlined), validator: (val) => val!.isEmpty ? "Required" : null)),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _crNoController,
+                        readOnly: !_isWritingUnlocked,
+                        style: TextStyle(color: textColor),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'CR No.',
+                          icon: Icons.article_outlined,
+                        ),
+                        validator: (val) => val!.isEmpty ? "Required" : null,
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(flex: 1, child: TextFormField(controller: _crDateController, readOnly: true, style: TextStyle(color: textColor), onTap: () => _selectDate(context, _crDateController), decoration: _fieldStyle(context: context, label: 'CR Date', icon: Icons.calendar_today_outlined, isDatePicker: true))),
+                    Expanded(
+                      flex: 1,
+                      child: TextFormField(
+                        controller: _crDateController,
+                        readOnly: true,
+                        style: TextStyle(color: textColor),
+                        onTap: () => _selectDate(context, _crDateController),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'CR Date',
+                          icon: Icons.calendar_today_outlined,
+                          isDatePicker: true,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    Expanded(flex: 2, child: TextFormField(controller: _orNoController, readOnly: !_isWritingUnlocked, style: TextStyle(color: textColor), decoration: _fieldStyle(context: context, label: 'OR No.', icon: Icons.receipt_long_outlined), validator: (val) => val!.isEmpty ? "Required" : null)),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _orNoController,
+                        readOnly: !_isWritingUnlocked,
+                        style: TextStyle(color: textColor),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'OR No.',
+                          icon: Icons.receipt_long_outlined,
+                        ),
+                        validator: (val) => val!.isEmpty ? "Required" : null,
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(flex: 1, child: TextFormField(controller: _orExpiryController, readOnly: true, style: TextStyle(color: textColor), onTap: () => _selectDate(context, _orExpiryController), decoration: _fieldStyle(context: context, label: 'OR Expiry', icon: Icons.history_toggle_off_outlined, isDatePicker: true))),
+                    Expanded(
+                      flex: 1,
+                      child: TextFormField(
+                        controller: _orExpiryController,
+                        readOnly: true,
+                        style: TextStyle(color: textColor),
+                        onTap: () => _selectDate(context, _orExpiryController),
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'OR Expiry',
+                          icon: Icons.history_toggle_off_outlined,
+                          isDatePicker: true,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -1381,148 +2349,80 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                   Navigator.pop(context);
                   if (widget.onDelete != null) widget.onDelete!();
                 },
-                child: const Text('Delete', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 14)),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(
+                    color: Color(0xFFEF4444),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
               )
             else
               const SizedBox.shrink(),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: TextStyle(color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontWeight: FontWeight.w600))),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : const Color(0xFF64748B),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 if (widget.isAdmin && isEditMode && !_isWritingUnlocked)
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF64748B), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF64748B),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                     onPressed: () => setState(() => _isWritingUnlocked = true),
-                    child: const Text('Edit Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Edit Details',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   )
                 else if (widget.isAdmin)
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                     onPressed: _isLoading ? null : _submitVehicleForm,
-                    child: _isLoading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(isEditMode ? 'Save Changes' : 'Register Vehicle', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            isEditMode ? 'Save Changes' : 'Register Vehicle',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
               ],
             ),
           ],
-        )
-      ],
-    );
-  }
-}
-
-// ============================================================================
-// PREDICTIVE ML DIAGNOSTIC VIEW
-// ============================================================================
-class VehicleMlDiagnosticView extends StatefulWidget {
-  final int vehicleId;
-  const VehicleMlDiagnosticView({super.key, required this.vehicleId});
-
-  @override
-  State<VehicleMlDiagnosticView> createState() => _VehicleMlDiagnosticViewState();
-}
-
-class _VehicleMlDiagnosticViewState extends State<VehicleMlDiagnosticView> {
-  bool _loading = true;
-  bool _hasError = false;
-  bool _predictedFailure = false;
-  double _riskProbability = 0.0;
-  Map<String, dynamic> _metrics = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchMlDiagnosticData();
-  }
-
-  Future<void> _fetchMlDiagnosticData() async {
-    if (widget.vehicleId <= 0) {
-      setState(() { _loading = false; _hasError = true; });
-      return;
-    }
-    try {
-      final res = await http.get(Uri.parse('$backendUrl/vehicles/predict/${widget.vehicleId}'));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        setState(() {
-          _predictedFailure = data['needs_maintenance_prediction'] ?? false;
-          _riskProbability = (data['risk_index'] ?? 0.0) as double;
-          _metrics = data['telemetry_metrics'] ?? {};
-          _loading = false;
-        });
-      } else {
-        setState(() { _loading = false; _hasError = true; });
-      }
-    } catch (_) {
-      setState(() { _loading = false; _hasError = true; });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    if (_loading) return const Padding(padding: EdgeInsets.symmetric(vertical: 8.0), child: LinearProgressIndicator());
-    if (_hasError) return Text("Could not load ML diagnostic telemetry analysis.", style: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey, fontSize: 12));
-
-    final Color healthColor = _riskProbability > 0.70 ? Colors.red : (_riskProbability > 0.40 ? Colors.orange : Colors.green);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? healthColor.withOpacity(0.05) : healthColor.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: healthColor.withOpacity(0.5), width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.psychology, color: healthColor, size: 22),
-                  const SizedBox(width: 8),
-                  Text("Predictive Fleet Intelligence", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : Colors.black87)),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: healthColor.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
-                child: Text("${(_riskProbability * 100).toStringAsFixed(1)}% Risk", style: TextStyle(fontWeight: FontWeight.bold, color: healthColor, fontSize: 13)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _predictedFailure ? "⚠️ Elevated structural breakdown probability detected. Proactive maintenance advised." : "✅ Vehicle structural parameters operating stable within target baseline tolerances.",
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? Colors.grey.shade300 : Colors.black87),
-          ),
-          const SizedBox(height: 12),
-          Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _metricChip("Total Mileage", "${_metrics['total_mileage_km'] ?? 0} km", isDark),
-              _metricChip("Completed Trips", "${_metrics['total_trips'] ?? 0}", isDark),
-              _metricChip("Past Repairs", "${_metrics['past_repairs_count'] ?? 0}", isDark),
-              _metricChip("Age", "${_metrics['age_years'] ?? 0} Yrs", isDark),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _metricChip(String label, String value, bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade500 : Colors.grey)),
-        const SizedBox(height: 2),
-        Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+        ),
       ],
     );
   }

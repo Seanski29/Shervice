@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:http/http.dart' as http; // 👇 Added missing HTTP import
 import '../../screens/admin/admin_dashboard.dart';
 import '../../screens/admin/admin_schedules.dart';
 import '../../screens/admin/admin_drivers.dart';
@@ -33,12 +33,14 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
 
+  // 👇 safely declare the screens list
   late List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
 
+    // 👇 Safely initialize screens to prevent Web crashes
     _screens = [
       const AdminDashboard(),
       const AdminSchedules(),
@@ -50,6 +52,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
       // Note: You can add AdminFeedbacks() here if you want it mapped to a sidebar index!
     ];
 
+    // 👇 Triggers the silent ML sweep safely inside initState!
     _runSilentFleetMlSweep();
   }
 
@@ -185,7 +188,8 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                   'User Management',
                   Icons.admin_panel_settings_outlined,
                 ),
-                _buildNavItem(5, 'Analytics', Icons.analytics),
+                // 👇 Updated to match Intelligence Hub naming and icon
+                _buildNavItem(5, 'Intelligence Hub', Icons.analytics),
                 _buildNavItem(6, 'Settings', Icons.settings_outlined),
               ],
             ),

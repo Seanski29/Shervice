@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../../screens/staff/staff_dashboard.dart';
 import '../../screens/staff/staff_vehicle.dart';
 import '../../screens/staff/staff_schedules.dart';
 import '../../screens/staff/staff_trips.dart';
 import '../../screens/staff/staff_drivers.dart';
 import '../../screens/staff/staff_attendance.dart';
-import '../../screens/staff/staff_analytics.dart';
+import '../../widgets/shared_analytics_hub.dart';
 import '../../login/login.dart';
 import '../../screens/staff/staff_settings.dart';
 import '../../widgets/notification_bell.dart';
@@ -13,7 +14,6 @@ import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
 import '../../widgets/staff_profile_button.dart';
-
 
 class StaffLayoutDesktop extends StatefulWidget {
   final String staffId;
@@ -35,28 +35,47 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
 
+  late List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _screens = [
+      StaffDashboard(
+        staffName: widget.staffName,
+        companyName: widget.companyName,
+      ),
+      StaffSchedules(staffId: widget.staffId),
+      StaffTrips(staffId: widget.staffId),
+      StaffVehicle(staffId: widget.staffId),
+      const StaffDrivers(),
+      const StaffAttendance(),
+      SharedAnalyticsHub(),
+      StaffSettings(
+        staffId: widget.staffId,
+        staffName: widget.staffName,
+        companyName: widget.companyName,
+      ),
+    ];
+
+    // 👇 Triggers the silent ML sweep in the background as soon as the layout loads
+    _runSilentFleetMlSweep();
+  }
+
+  Future<void> _runSilentFleetMlSweep() async {
+    try {
+      // Hits the new Python endpoint to calculate risks and auto-lock vehicles
+      await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
+      debugPrint("🤖 Background Fleet ML Sweep Completed.");
+    } catch (e) {
+      debugPrint("ML Sweep skipped or failed: $e");
+    }
+  }
+
   void _toggleSidebar() {
     setState(() => _isSidebarExpanded = !_isSidebarExpanded);
   }
-
-  // Reordered to match the new Sidebar structure
-  late final List<Widget> _screens = [
-        StaffDashboard(
-          staffName: widget.staffName,
-          companyName: widget.companyName,
-        ),
-        StaffSchedules(staffId: widget.staffId), // Index 1
-        StaffTrips(staffId: widget.staffId),     // Index 2
-        StaffVehicle(staffId: widget.staffId),   // Index 3
-        const StaffDrivers(),                    // Index 4
-        const StaffAttendance(),                 // Index 5
-        const StaffAnalytics(),                  // Index 6
-        StaffSettings(                           // Index 7
-          staffId: widget.staffId,
-          staffName: widget.staffName,
-          companyName: widget.companyName,
-        ),
-      ];
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +111,6 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
       child: Column(
         children: [
           const SizedBox(height: 20),
-          // Consistent Branding Header (with toggle when expanded)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
@@ -154,7 +172,6 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
                       ],
                     ),
                   ),
-                  // ─── TOGGLE BUTTON (inside sidebar when expanded) ───
                   IconButton(
                     icon: const Icon(Icons.menu, color: Colors.white70),
                     onPressed: _toggleSidebar,
@@ -173,22 +190,18 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
                 _buildNavItem(0, 'Dashboard', Icons.dashboard),
                 _buildNavItem(
                   1,
-                  'Trip Assigment',
+                  'Trip Assignment',
                   Icons.calendar_month_outlined,
                 ),
-                _buildNavItem(
-                  2,
-                  'Trip History',
-                  Icons.assignment_turned_in,
-                ),
+                _buildNavItem(2, 'Trip History', Icons.assignment_turned_in),
                 _buildNavItem(
                   3,
                   'Vehicle Management',
                   Icons.directions_car_outlined,
                 ),
                 _buildNavItem(4, 'Driver Records', Icons.people_outline),
-                // _buildNavItem(5, 'Attendance', Icons.how_to_reg),
-                // _buildNavItem(6, 'Predictive AI', Icons.analytics),
+                _buildNavItem(5, 'Attendance', Icons.how_to_reg),
+                _buildNavItem(6, 'Analytics', Icons.analytics),
                 _buildNavItem(7, 'Settings', Icons.settings_outlined),
               ],
             ),
@@ -295,27 +308,26 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
     );
   }
 
-  // ─── HEADER (Now 100% Bulletproof Dark Mode) ───
   Widget _buildHeader(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       height: 70,
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor, 
+        color: Theme.of(context).cardColor,
         border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).dividerColor, 
-          ),
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // ─── TOGGLE BUTTON (only when sidebar is collapsed) ───
           if (!_isSidebarExpanded)
             IconButton(
-              icon: Icon(Icons.menu, color: isDark ? Colors.white70 : Colors.black87),
+              icon: Icon(
+                Icons.menu,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
               onPressed: _toggleSidebar,
               tooltip: 'Expand',
             ),
@@ -332,7 +344,7 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
           StaffProfileButton(
             staffId: widget.staffId,
             staffName: widget.staffName,
-            companyName: widget.companyName, 
+            companyName: widget.companyName,
           ),
         ],
       ),
