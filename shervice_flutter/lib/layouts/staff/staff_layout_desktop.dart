@@ -9,11 +9,11 @@ import '../../screens/staff/staff_attendance.dart';
 import '../../widgets/shared_analytics_hub.dart';
 import '../../login/login.dart';
 import '../../screens/staff/staff_settings.dart';
-import '../../widgets/notification_bell.dart';
-import '../../widgets/shervice_floating_stack.dart';
+import '../../widgets/shared/notification_bell.dart';
+import '../../widgets/shared/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/staff_profile_button.dart';
+import '../../widgets/staff/staff_profile_button.dart';
 
 class StaffLayoutDesktop extends StatefulWidget {
   final String staffId;

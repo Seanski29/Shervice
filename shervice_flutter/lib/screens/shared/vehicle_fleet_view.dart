@@ -753,14 +753,8 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                           child: Text(
                             status.toUpperCase(),
                             style: TextStyle(
@@ -1020,11 +1014,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange.shade300),
-                        ),
+                        decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.shade300)),
                         child: Row(
                           children: [
                             Icon(
@@ -1048,7 +1038,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: chosenCategory,
+                        initialValue: chosenCategory,
                         dropdownColor: Theme.of(context).cardColor,
                         style: TextStyle(color: textColor, fontSize: 14),
                         decoration: InputDecoration(
@@ -1654,8 +1644,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                           )
                         : ListView.separated(
                             itemCount: sortedLogs.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 12),
+                            separatorBuilder: (_, _) => const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final log = sortedLogs[index];
                               final bool isResolved =
@@ -1667,12 +1656,7 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                                       ? const Color(0xFF1E293B)
                                       : Colors.white,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isResolved
-                                        ? Colors.green.withOpacity(0.5)
-                                        : Colors.orange.withOpacity(0.5),
-                                    width: 2,
-                                  ),
+                                  border: Border.all(color: isResolved ? Colors.green.withValues(alpha: 0.5) : Colors.orange.withValues(alpha: 0.5), width: 2),
                                 ),
                                 child: Row(
                                   children: [
@@ -1695,32 +1679,9 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
                                               ),
                                               const SizedBox(width: 12),
                                               Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: isResolved
-                                                      ? Colors.green
-                                                            .withOpacity(0.2)
-                                                      : Colors.orange
-                                                            .withOpacity(0.2),
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                ),
-                                                child: Text(
-                                                  isResolved
-                                                      ? "FIXED"
-                                                      : "ONGOING",
-                                                  style: TextStyle(
-                                                    color: isResolved
-                                                        ? Colors.green
-                                                        : Colors.orange,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                decoration: BoxDecoration(color: isResolved ? Colors.green.withValues(alpha: 0.2) : Colors.orange.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
+                                                child: Text(isResolved ? "FIXED" : "ONGOING", style: TextStyle(color: isResolved ? Colors.green : Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
                                               ),
                                             ],
                                           ),
@@ -2150,7 +2111,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedCapacity,
+                        initialValue: _selectedCapacity,
                         dropdownColor: Theme.of(context).cardColor,
                         style: TextStyle(color: textColor),
                         decoration: _fieldStyle(
@@ -2402,27 +2363,129 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                       ),
                     ),
                     onPressed: _isLoading ? null : _submitVehicleForm,
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            isEditMode ? 'Save Changes' : 'Register Vehicle',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                    child: _isLoading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(isEditMode ? 'Save Changes' : 'Register Vehicle', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
               ],
             ),
           ],
-        ),
+        )
+      ],
+    );
+  }
+}
+
+// ============================================================================
+// PREDICTIVE ML DIAGNOSTIC VIEW
+// ============================================================================
+class VehicleMlDiagnosticView extends StatefulWidget {
+  final int vehicleId;
+  const VehicleMlDiagnosticView({super.key, required this.vehicleId});
+
+  @override
+  State<VehicleMlDiagnosticView> createState() => _VehicleMlDiagnosticViewState();
+}
+
+class _VehicleMlDiagnosticViewState extends State<VehicleMlDiagnosticView> {
+  bool _loading = true;
+  bool _hasError = false;
+  bool _predictedFailure = false;
+  double _riskProbability = 0.0;
+  Map<String, dynamic> _metrics = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMlDiagnosticData();
+  }
+
+  Future<void> _fetchMlDiagnosticData() async {
+    if (widget.vehicleId <= 0) {
+      setState(() { _loading = false; _hasError = true; });
+      return;
+    }
+    try {
+      final res = await http.get(Uri.parse('$backendUrl/vehicles/predict/${widget.vehicleId}'));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          _predictedFailure = data['needs_maintenance_prediction'] ?? false;
+          _riskProbability = (data['risk_index'] ?? 0.0) as double;
+          _metrics = data['telemetry_metrics'] ?? {};
+          _loading = false;
+        });
+      } else {
+        setState(() { _loading = false; _hasError = true; });
+      }
+    } catch (_) {
+      setState(() { _loading = false; _hasError = true; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_loading) return const Padding(padding: EdgeInsets.symmetric(vertical: 8.0), child: LinearProgressIndicator());
+    if (_hasError) return Text("Could not load ML diagnostic telemetry analysis.", style: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey, fontSize: 12));
+
+    final Color healthColor = _riskProbability > 0.70 ? Colors.red : (_riskProbability > 0.40 ? Colors.orange : Colors.green);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? healthColor.withValues(alpha: 0.05) : healthColor.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: healthColor.withValues(alpha: 0.5), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.psychology, color: healthColor, size: 22),
+                  const SizedBox(width: 8),
+                  Text("Predictive Fleet Intelligence", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : Colors.black87)),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: healthColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
+                child: Text("${(_riskProbability * 100).toStringAsFixed(1)}% Risk", style: TextStyle(fontWeight: FontWeight.bold, color: healthColor, fontSize: 13)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _predictedFailure ? "⚠️ Elevated structural breakdown probability detected. Proactive maintenance advised." : "✅ Vehicle structural parameters operating stable within target baseline tolerances.",
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? Colors.grey.shade300 : Colors.black87),
+          ),
+          const SizedBox(height: 12),
+          Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _metricChip("Total Mileage", "${_metrics['total_mileage_km'] ?? 0} km", isDark),
+              _metricChip("Completed Trips", "${_metrics['total_trips'] ?? 0}", isDark),
+              _metricChip("Past Repairs", "${_metrics['past_repairs_count'] ?? 0}", isDark),
+              _metricChip("Age", "${_metrics['age_years'] ?? 0} Yrs", isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metricChip(String label, String value, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade500 : Colors.grey)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
       ],
     );
   }

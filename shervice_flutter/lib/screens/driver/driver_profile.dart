@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../widgets/legal_policies_button.dart';
-import '../../widgets/dark_mode_toggle.dart'; // Added Import!
+import '../../widgets/shared/legal_policies_button.dart';
+import '../../theme/dark_mode_toggle.dart'; // Added Import!
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
-import '../../widgets/driver_rating_badge.dart';
+import '../../widgets/driver/driver_rating_badge.dart';
 
 class DriverProfile extends StatefulWidget {
   final String driverName;
@@ -188,7 +188,7 @@ class _DriverProfileState extends State<DriverProfile> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: borderColor),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.02), blurRadius: 8, offset: const Offset(0, 4)),
+                BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02), blurRadius: 8, offset: const Offset(0, 4)),
               ],
             ),
             child: Wrap(
@@ -198,7 +198,7 @@ class _DriverProfileState extends State<DriverProfile> {
               children: [
                 CircleAvatar(
                   radius: 32,
-                  backgroundColor: isDark ? Colors.blue.withOpacity(0.2) : Colors.blue.shade50,
+                  backgroundColor: isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50,
                   child: Text(
                     widget.driverName.substring(0, widget.driverName.contains(' ') ? 2 : 1).toUpperCase(),
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
@@ -214,7 +214,7 @@ class _DriverProfileState extends State<DriverProfile> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.green.withOpacity(0.2) : Colors.green.shade50,
+                            color: isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade50,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(status, style: TextStyle(color: isDark ? Colors.green.shade400 : Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -223,7 +223,7 @@ class _DriverProfileState extends State<DriverProfile> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.amber.withOpacity(0.1) : Colors.amber.shade50,
+                            color: isDark ? Colors.amber.withValues(alpha: 0.1) : Colors.amber.shade50,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: DriverRatingBadge(key: UniqueKey(), driverUuid: widget.driverId, backendUrl: backendUrl),

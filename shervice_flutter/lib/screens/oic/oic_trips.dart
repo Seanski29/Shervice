@@ -22,7 +22,7 @@ class _OicTripsState extends State<OicTrips> {
   // Calendar State
   DateTime _focusedMonth = DateTime.now();
   DateTime? _filterDate;
-  bool _calendarExpanded = true; // Default expanded for historical viewing
+  final bool _calendarExpanded = true; // Default expanded for historical viewing
 
   // Filtering & Searching
   String _searchTerm = '';
@@ -640,7 +640,7 @@ class _OicTripsState extends State<OicTrips> {
                           color: isSelected
                               ? const Color(0xFF3B82F6) // Active Selection Blue
                               : (hasTrips
-                                  ? (isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF))
+                                  ? (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF))
                                   : Theme.of(context).cardColor),
                           border: Border.all(
                             color: isToday
@@ -723,7 +723,7 @@ class _OicTripsState extends State<OicTrips> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                    color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -840,7 +840,7 @@ class _OicTripsState extends State<OicTrips> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -906,7 +906,7 @@ class _OicTripsState extends State<OicTrips> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                  color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(

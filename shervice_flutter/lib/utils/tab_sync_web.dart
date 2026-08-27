@@ -1,5 +1,4 @@
 // lib/utils/tab_sync_web.dart
-
 import 'dart:html' as html;
 import 'package:shared_preferences/shared_preferences.dart';
 

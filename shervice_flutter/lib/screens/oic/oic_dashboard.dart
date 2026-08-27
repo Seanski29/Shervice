@@ -99,8 +99,9 @@ class _OicDashboardState extends State<OicDashboard> {
 
       // Map Status Filter
       bool matchesStatus = false;
-      if (_statusFilter == 'Pending') matchesStatus = s == 'pending staff assignment' || s.contains('pending');
-      else if (_statusFilter == 'Scheduled') matchesStatus = s == 'scheduled';
+      if (_statusFilter == 'Pending') {
+        matchesStatus = s == 'pending staff assignment' || s.contains('pending');
+      } else if (_statusFilter == 'Scheduled') matchesStatus = s == 'scheduled';
       else if (_statusFilter == 'Ongoing') matchesStatus = s == 'ongoing';
       else if (_statusFilter == 'Completed') matchesStatus = s == 'completed';
       else if (_statusFilter == 'Total') matchesStatus = true;
@@ -228,9 +229,9 @@ class _OicDashboardState extends State<OicDashboard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.2)),
+                border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.2)),
               ),
               child: Text(
                 widget.companyName,
@@ -264,7 +265,7 @@ class _OicDashboardState extends State<OicDashboard> {
         Container(
           height: 44,
           decoration: BoxDecoration(
-            color: _filterDate != null ? (isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF)) : Theme.of(context).cardColor,
+            color: _filterDate != null ? (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF)) : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: _filterDate != null ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
           ),
@@ -321,7 +322,7 @@ class _OicDashboardState extends State<OicDashboard> {
                 ),
               ),
               if (_filterDate != null) ...[
-                Container(width: 1, height: 24, color: const Color(0xFF3B82F6).withOpacity(0.3)),
+                Container(width: 1, height: 24, color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
                 IconButton(
                   icon: const Icon(Icons.close, size: 16, color: Color(0xFF3B82F6)),
                   onPressed: () {
@@ -494,7 +495,7 @@ class _OicDashboardState extends State<OicDashboard> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: pageItems.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (_, i) => _buildUltraCompactCard(pageItems[i], isDark),
           )
         : GridView.builder(
@@ -595,7 +596,7 @@ class _OicDashboardState extends State<OicDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -681,7 +682,7 @@ class _OicDashboardState extends State<OicDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                  color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(

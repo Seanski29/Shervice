@@ -4,7 +4,8 @@ import 'session_manager.dart';
 import 'utils/tab_sync_stub.dart'
     if (dart.library.html) 'utils/tab_sync_web.dart';
 
-import 'utils/theme_manager.dart';
+import 'theme/theme_manager.dart';
+
 
 // Import layouts and login
 import 'layouts/admin/admin_layout.dart';
