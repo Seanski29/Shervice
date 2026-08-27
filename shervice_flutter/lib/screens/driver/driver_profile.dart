@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../widgets/legal_policies_button.dart';
-import '../../widgets/dark_mode_toggle.dart'; // Added Import!
+import '../../widgets/shared/legal_policies_button.dart';
+import '../../theme/dark_mode_toggle.dart'; // Added Import!
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
-import '../../widgets/driver_rating_badge.dart';
+import '../../widgets/driver/driver_rating_badge.dart';
 
 class DriverProfile extends StatefulWidget {
   final String driverName;

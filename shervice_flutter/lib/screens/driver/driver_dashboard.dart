@@ -1,11 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'dart:io';
 import '../../constant.dart';
-import '../../widgets/driver_rating_badge.dart';
+import '../../widgets/driver/driver_rating_badge.dart';
 
 class DriverDashboard extends StatefulWidget {
   final String driverName;

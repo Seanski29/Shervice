@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
-import '../../widgets/dark_mode_toggle.dart';
 
 class DriverSchedules extends StatefulWidget {
   final String driverId;

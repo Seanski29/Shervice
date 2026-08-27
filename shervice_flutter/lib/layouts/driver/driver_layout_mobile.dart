@@ -3,8 +3,8 @@ import '../../screens/driver/driver_dashboard.dart';
 import '../../screens/driver/driver_schedules.dart';
 import '../../screens/driver/driver_profile.dart';
 import '../../login/login.dart';
-import '../../widgets/notification_bell.dart';
-import '../../widgets/shervice_floating_stack.dart';
+import '../../widgets/shared/notification_bell.dart';
+import '../../widgets/shared/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
 
