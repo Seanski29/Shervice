@@ -13,7 +13,7 @@ class AdminDashboard extends StatelessWidget {
     return SharedDashboardView(
       showClientTrips: true, // Admins track company metrics
       headerWidget: Text(
-        'Fleet Overview',
+        'Admin Dashboard',
         style: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,

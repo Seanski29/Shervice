@@ -228,7 +228,7 @@ class _OicTripsState extends State<OicTrips> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Trip Details',
+                          'Trips History',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,

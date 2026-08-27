@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../models/dashboard_metric.dart';
@@ -283,7 +282,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                   Container(
                     padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(m.icon, color: color, size: 14),
@@ -553,7 +552,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _companyTrips.length,
-                  separatorBuilder: (_, __) => Divider(
+                  separatorBuilder: (_, _) => Divider(
                     height: 12,
                     thickness: 0.5,
                     color: theme.dividerColor,
@@ -566,7 +565,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.1),
+                            color: color.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Icon(

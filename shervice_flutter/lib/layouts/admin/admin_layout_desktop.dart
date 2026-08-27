@@ -147,12 +147,12 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _buildNavItem(0, 'Overview', Icons.grid_view),
-                _buildNavItem(1, 'Schedules', Icons.calendar_month_outlined),
-                _buildNavItem(2, 'Driver Profiles', Icons.people_outline),
-                _buildNavItem(3, 'Vehicle Status', Icons.directions_car_outlined),
-                _buildNavItem(4, 'System Users', Icons.admin_panel_settings_outlined),
-                _buildNavItem(5, 'System Settings', Icons.settings_outlined),
+                _buildNavItem(0, 'Dashboard', Icons.dashboard_outlined),
+                _buildNavItem(1, 'Schedule Management', Icons.calendar_month_outlined),
+                _buildNavItem(2, 'Driver Management', Icons.people_outline),
+                _buildNavItem(3, 'Vehicle Management', Icons.directions_car_outlined),
+                _buildNavItem(4, 'User Management', Icons.admin_panel_settings_outlined),
+                _buildNavItem(5, 'Settings', Icons.settings_outlined),
               ],
             ),
           ),
@@ -284,64 +284,6 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                 ),
               ),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── WELCOME MESSAGE (auto‑disappears after 5 seconds) ───
-class SlideInWelcomeWidget extends StatefulWidget {
-  final String role;
-  const SlideInWelcomeWidget({super.key, required this.role});
-
-  @override
-  State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
-}
-
-class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<Offset> _offsetAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
-    _offsetAnimation = Tween<Offset>(begin: const Offset(1.5, 0.0), end: Offset.zero).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
-
-    _controller.forward().then((_) {
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) _controller.reverse();
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SlideTransition(
-      position: _offsetAnimation,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.green.shade50,
-          border: Border.all(color: Colors.green.shade200),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'Welcome, ${widget.role}!',
-              style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold),
-            ),
           ],
         ),
       ),

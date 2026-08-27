@@ -325,7 +325,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'My Trip Requests',
+                          'Trip Requests',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,

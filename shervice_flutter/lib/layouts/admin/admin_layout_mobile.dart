@@ -69,7 +69,8 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
           elevation: 0,
           centerTitle: true,
           title: Row(
@@ -107,7 +108,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
               adminName: widget.adminName,
             ),
             IconButton(
-              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
+              icon: Icon(Icons.logout, color: Theme.of(context).colorScheme.error, size: 20),
               onPressed: () => _handleLogout(context),
             ),
             const SizedBox(width: 4),

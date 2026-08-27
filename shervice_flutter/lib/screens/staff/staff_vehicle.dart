@@ -27,17 +27,11 @@ class _StaffVehicleState extends State<StaffVehicle> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: VehicleFleetView(
         key: ValueKey('staff_fleet_list_$_refreshSeed'),
-        userRole: 'staff',
+        userRole: 'staff', // 🔒 Hides Admin actions
         userId: widget.staffId,
         onRefreshNeeded: _triggerInstantRefresh,
-        customHeader: const Text(
-          'Fleet Status Monitor',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF0F172A),
-          ),
-        ),
+        title: 'Vehicle Management',
+        subtitle: 'View fleet assets, telemetry, and log maintenance reports.',
       ),
     );
   }

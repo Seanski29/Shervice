@@ -62,10 +62,11 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: theme.colorScheme.surface,
+          foregroundColor: theme.colorScheme.onSurface,
           elevation: 0,
           automaticallyImplyLeading: false,
-          iconTheme: const IconThemeData(color: Colors.white),
+          iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
           centerTitle: true,
           title: Row(
             mainAxisSize: MainAxisSize.min,
@@ -117,7 +118,7 @@ class _OicLayoutMobileState extends State<OicLayoutMobile> {
             ),
             UserProfileButton(name: widget.oicName, role: 'OIC', company: widget.companyName),
             IconButton(
-              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
+              icon: Icon(Icons.logout, color: theme.colorScheme.error, size: 22),
               onPressed: () => _confirmLogout(context),
             ),
             const SizedBox(width: 4),

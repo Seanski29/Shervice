@@ -75,7 +75,8 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: theme.colorScheme.surface,
+          foregroundColor: theme.colorScheme.onSurface,
           elevation: 0,
           automaticallyImplyLeading: false,
           centerTitle: true,
@@ -133,7 +134,7 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
             ),
             UserProfileButton(name: widget.staffName, role: 'Staff', company: widget.companyName),
             IconButton(
-              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 22),
+              icon: Icon(Icons.logout, color: theme.colorScheme.error, size: 22),
               onPressed: () => _confirmLogout(),
             ),
             const SizedBox(width: 4),
@@ -160,11 +161,11 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
   Widget _buildCustomBottomNav() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(top: BorderSide(color: Theme.of(context).dividerColor, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Theme.of(context).shadowColor.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -196,8 +197,8 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
                         Icon(
                           _icons[index],
                           color: isSelected
-                              ? Colors.blue.shade600
-                              : Colors.grey.shade400,
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                           size: 22,
                         ),
                         const SizedBox(height: 4),
@@ -205,8 +206,8 @@ class _StaffLayoutMobileState extends State<StaffLayoutMobile> {
                           _shortTitles[index],
                           style: TextStyle(
                             color: isSelected
-                                ? Colors.blue.shade700
-                                : Colors.grey.shade500,
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 10,
                             fontWeight: isSelected
                                 ? FontWeight.bold

@@ -139,13 +139,14 @@ class _NotificationBellState extends State<NotificationBell> {
   ) {
     _markAsRead(notification, dialogSetState);
 
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.info_outline, color: Colors.blue.shade700),
+            Icon(Icons.info_outline, color: theme.colorScheme.primary),
             const SizedBox(width: 8),
             Expanded(child: Text(notification.title)),
           ],
@@ -164,21 +165,21 @@ class _NotificationBellState extends State<NotificationBell> {
                 'Source: ${notification.sourceTag}',
                 style: const TextStyle(fontSize: 12),
               ),
-              backgroundColor: Colors.grey.shade100,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
             ),
             const SizedBox(height: 12),
             Text(
               'Received: ${notification.createdAt.toString().substring(0, 16)}',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
             ),
             if (notification.relatedTripId != null) ...[
               const SizedBox(height: 16),
               const Divider(),
               Text(
                 'Trip Reference ID: #${notification.relatedTripId}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black54,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -199,6 +200,7 @@ class _NotificationBellState extends State<NotificationBell> {
     final maxWidth = MediaQuery.of(context).size.width * 0.95;
     final panelWidth = maxWidth > 420 ? 420.0 : maxWidth;
 
+    final theme = Theme.of(context);
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -219,11 +221,11 @@ class _NotificationBellState extends State<NotificationBell> {
                       width: panelWidth,
                       height: MediaQuery.of(context).size.height * 0.72,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: theme.colorScheme.surface,
                         borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withAlpha(46),
+                            color: theme.colorScheme.shadow.withAlpha(46),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -237,9 +239,9 @@ class _NotificationBellState extends State<NotificationBell> {
                           children: [
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.notifications,
-                                  color: Colors.blue,
+                                  color: theme.colorScheme.primary,
                                   size: 22,
                                 ),
                                 const SizedBox(width: 10),
@@ -253,9 +255,9 @@ class _NotificationBellState extends State<NotificationBell> {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.refresh,
-                                    color: Colors.blue,
+                                    color: theme.colorScheme.primary,
                                   ),
                                   onPressed: () async {
                                     await _fetchNotifications();
@@ -267,13 +269,13 @@ class _NotificationBellState extends State<NotificationBell> {
                             const SizedBox(height: 12),
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
+                                color: theme.colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: TabBar(
-                                labelColor: Colors.blue.shade800,
-                                unselectedLabelColor: Colors.grey.shade600,
-                                indicatorColor: Colors.blue.shade800,
+                                labelColor: theme.colorScheme.primary,
+                                unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+                                indicatorColor: theme.colorScheme.primary,
                                 tabs: const [
                                   Tab(text: 'All'),
                                   Tab(text: 'Unread'),

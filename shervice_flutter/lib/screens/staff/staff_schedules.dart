@@ -212,7 +212,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Dispatch & Scheduling',
+                          'Trip Assigment',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
@@ -222,7 +222,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Manage trip assignments and monitor dispatch status.',
+                          'Assign Trips and and monitor schedules.',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,

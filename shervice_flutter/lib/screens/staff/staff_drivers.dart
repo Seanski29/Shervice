@@ -40,67 +40,23 @@ class _StaffDriversState extends State<StaffDrivers> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isMobile = MediaQuery.of(context).size.width < 800;
-    final double horizontalPadding = isMobile ? 12.0 : 24.0;
-
     return Scaffold(
+      // Dynamic Scaffold Background
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      
       body: SharedDriversView(
         // The unique value key tells Flutter to destroy the old layout cache and fetch fresh data
         key: ValueKey('staff_drivers_list_$_refreshSeed'),
-        canManage: false, // Hides the row card delete trash icons
+        canManage: false, // 🔒 Prevents Staff from seeing admin management options
         onDriverTapped: (ctx, model) {
           if (model != null) _showDriverModal(ctx, model);
         },
-        // ─── Consistent header: title + subtitle + refresh ───
-        customHeader: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding,
-            vertical: 16.0,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Active Fleet Drivers Registry',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'View and manage driver profiles.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Refresh button – compact and matches admin style
-              SizedBox(
-                width: 40,
-                height: 40,
-                child: IconButton(
-                  onPressed: _triggerInstantRefresh,
-                  icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6)),
-                  tooltip: 'Refresh Drivers',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ),
-            ],
-          ),
-        ),
+        
+        // 👇 Utilizing the newly revitalized SharedDriversView parameters
+        title: 'Driver Records',
+        subtitle: 'View and manage driver profiles.',
+        // Notice we do NOT pass an actionWidget here. 
+        // This ensures the "Add Driver" button stays hidden for Staff, while keeping the layout structurally identical to the Admin side!
       ),
     );
   }

@@ -10,8 +10,9 @@ class LegalPoliciesButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return IconButton(
-      icon: Icon(Icons.info_outline, color: iconColor),
+      icon: Icon(Icons.info_outline, color: iconColor == Colors.grey ? theme.iconTheme.color : iconColor),
       tooltip: 'Legal & Privacy Policies',
       splashRadius: 24,
       onPressed: () => _showLegalDialog(context),
@@ -31,28 +32,28 @@ class LegalPoliciesButton extends StatelessWidget {
         final theme = Theme.of(context);
 
         return AlertDialog(
-          backgroundColor: theme.dialogBackgroundColor,
+          backgroundColor: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           titlePadding: EdgeInsets.zero,
           contentPadding: EdgeInsets.zero,
           
           title: Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1E293B),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.gavel, color: Colors.white, size: 24),
-                    SizedBox(width: 12),
+                    Icon(Icons.gavel, color: theme.colorScheme.onPrimary, size: 24),
+                    const SizedBox(width: 12),
                     Text(
                       'Legal & Privacy Policies',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: theme.colorScheme.onPrimary,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -62,7 +63,7 @@ class LegalPoliciesButton extends StatelessWidget {
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  icon: const Icon(Icons.close, color: Colors.white70),
+                  icon: Icon(Icons.close, color: theme.colorScheme.onPrimary.withAlpha(200)),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],

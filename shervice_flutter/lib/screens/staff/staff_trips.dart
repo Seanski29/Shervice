@@ -235,7 +235,7 @@ class _StaffTripsState extends State<StaffTrips> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'My Dispatched Trips',
+                          'Trip History',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,

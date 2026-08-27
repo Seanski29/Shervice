@@ -273,7 +273,7 @@ class _OicDashboardState extends State<OicDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Welcome, ${widget.oicName}',
+                          '${widget.oicName} Dashboard',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
@@ -283,7 +283,7 @@ class _OicDashboardState extends State<OicDashboard> {
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'Dispatch Management',
+                          'Overview of Trips and Schedules',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w400,

@@ -81,9 +81,11 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final theme = Theme.of(context);
+
     if (_errorMessage != null) {
       return Center(
-        child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+        child: Text(_errorMessage!, style: TextStyle(color: theme.colorScheme.error)),
       );
     }
 
@@ -92,20 +94,20 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.star_border, size: 64, color: Colors.grey.shade300),
+            Icon(Icons.star_border, size: 64, color: theme.colorScheme.outlineVariant),
             const SizedBox(height: 16),
             Text(
               'No evaluations yet.',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey.shade600,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Passengers have not rated this driver.',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
             ),
           ],
         ),
@@ -119,9 +121,9 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: theme.colorScheme.primaryContainer.withAlpha(80),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.shade100),
+            border: Border.all(color: theme.colorScheme.primary.withAlpha(90)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -185,12 +187,12 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
         ),
 
         const SizedBox(height: 24),
-        const Text(
+        Text(
           'PASSENGER FEEDBACK',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            color: Colors.grey,
+           color: theme.colorScheme.onSurfaceVariant,
             letterSpacing: 1.2,
           ),
         ),
