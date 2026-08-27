@@ -15,7 +15,7 @@ class AdminSettings extends StatefulWidget {
 }
 
 class _AdminSettingsState extends State<AdminSettings> {
-  bool _notificationsEnabled = true;
+  final bool _notificationsEnabled = true;
 
   void _showChangePasswordModal(BuildContext context, bool isDark) {
     final passwordController = TextEditingController();
@@ -49,7 +49,7 @@ class _AdminSettingsState extends State<AdminSettings> {
                   border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -236,7 +236,7 @@ class _AdminSettingsState extends State<AdminSettings> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: borderColor), // Dynamic Border
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.02), blurRadius: 8, offset: const Offset(0, 4)),
+                BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02), blurRadius: 8, offset: const Offset(0, 4)),
               ],
             ),
             child: Wrap(
@@ -246,7 +246,7 @@ class _AdminSettingsState extends State<AdminSettings> {
               children: [
                 CircleAvatar(
                   radius: 32,
-                  backgroundColor: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                  backgroundColor: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                   child: const Text('AD', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6))),
                 ),
                 Column(
@@ -259,7 +259,7 @@ class _AdminSettingsState extends State<AdminSettings> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                        color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text('Full Access', style: TextStyle(color: Color(0xFF3B82F6), fontSize: 10, fontWeight: FontWeight.bold)),
@@ -284,7 +284,7 @@ class _AdminSettingsState extends State<AdminSettings> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFF1F5F9),
+                  color: isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.lock_outline, color: textColor, size: 20),

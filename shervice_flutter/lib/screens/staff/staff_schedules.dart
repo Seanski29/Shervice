@@ -491,7 +491,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -535,7 +535,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
         border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -707,7 +707,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
         border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -1006,10 +1006,10 @@ class TripCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.2)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1040,7 +1040,7 @@ class TripCard extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -1370,7 +1370,7 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
                       ),
-                      value: _selectedDriverUuid,
+                      initialValue: _selectedDriverUuid,
                       items: _drivers
                           .map(
                             (d) => DropdownMenuItem<String>(
@@ -1416,7 +1416,7 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
                       ),
-                      value: _selectedVehicleId,
+                      initialValue: _selectedVehicleId,
                       items: _vehicles
                           .map(
                             (v) => DropdownMenuItem<String>(

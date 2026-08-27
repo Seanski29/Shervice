@@ -465,7 +465,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.amber.withOpacity(0.1) : Colors.amber.shade50,
+                          color: isDark ? Colors.amber.withValues(alpha: 0.1) : Colors.amber.shade50,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: DriverRatingBadge(

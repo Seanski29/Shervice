@@ -117,7 +117,7 @@ class _StaffAttendanceState extends State<StaffAttendance> {
                                 ],
                               ),
                               const SizedBox(width: 24),
-                                          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: statusColor.withOpacity(0.08), border: Border.all(color: statusColor.withOpacity(0.3)), borderRadius: BorderRadius.circular(6)), child: Text(log['status'], style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor))),
+                                          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.08), border: Border.all(color: statusColor.withValues(alpha: 0.3)), borderRadius: BorderRadius.circular(6)), child: Text(log['status'], style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor))),
                               const SizedBox(width: 16),
                               Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.grey.shade100, border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(6)), child: Text(log['time'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))))
                             ],

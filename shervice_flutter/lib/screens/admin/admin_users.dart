@@ -405,7 +405,7 @@ class _AdminUsersState extends State<AdminUsers> {
                                   boxShadow: [
                                     if (!isDark)
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.02),
+                                        color: Colors.black.withValues(alpha: 0.02),
                                         blurRadius: 8,
                                         offset: const Offset(0, 4),
                                       )
@@ -463,7 +463,7 @@ class _AdminUsersState extends State<AdminUsers> {
                                                         vertical: 1,
                                                       ),
                                                       decoration: BoxDecoration(
-                                                        color: statusColor.withOpacity(0.15),
+                                                        color: statusColor.withValues(alpha: 0.15),
                                                         borderRadius: BorderRadius.circular(10),
                                                       ),
                                                       child: Text(
@@ -563,7 +563,7 @@ class _AdminUsersState extends State<AdminUsers> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.blue.withOpacity(0.15) : const Color(0xFFEFF6FF),
+                              color: isDark ? Colors.blue.withValues(alpha: 0.15) : const Color(0xFFEFF6FF),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -830,7 +830,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
           boxShadow: [
             if (!isDark)
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               )
@@ -923,7 +923,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
-                        value: _selectedRole,
+                        initialValue: _selectedRole,
                         validator: (val) => val == null ? "Select a role" : null,
                         style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
                         decoration: _fieldStyle(
@@ -943,7 +943,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
-                        value: _selectedCompany,
+                        initialValue: _selectedCompany,
                         style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
                         decoration: _fieldStyle(
                           context,

@@ -133,7 +133,7 @@ class _OicSettingsState extends State<OicSettings> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: borderColor),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.02), blurRadius: 8, offset: const Offset(0, 4)),
+                BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02), blurRadius: 8, offset: const Offset(0, 4)),
               ],
             ),
             child: Wrap(
@@ -143,7 +143,7 @@ class _OicSettingsState extends State<OicSettings> {
               children: [
                 CircleAvatar(
                   radius: 32,
-                  backgroundColor: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                  backgroundColor: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                   child: Text(
                     widget.oicName.isNotEmpty ? widget.oicName[0].toUpperCase() : 'O',
                     style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6)),
@@ -159,7 +159,7 @@ class _OicSettingsState extends State<OicSettings> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.green.withOpacity(0.2) : const Color(0xFFECFDF5),
+                        color: isDark ? Colors.green.withValues(alpha: 0.2) : const Color(0xFFECFDF5),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(

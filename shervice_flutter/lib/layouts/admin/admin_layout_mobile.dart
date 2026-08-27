@@ -130,7 +130,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, -4),
             )
@@ -150,7 +150,7 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
 
                 return InkWell(
                   onTap: () => setState(() => _selectedIndex = index),
-                  splashColor: selectedColor.withOpacity(0.1),
+                  splashColor: selectedColor.withValues(alpha: 0.1),
                   highlightColor: Colors.transparent,
                   child: Container(
                     width: MediaQuery.of(context).size.width / 5, // Shows 5 items on screen, rest are scrollable

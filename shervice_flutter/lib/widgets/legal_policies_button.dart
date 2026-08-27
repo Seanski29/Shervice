@@ -88,7 +88,7 @@ class LegalPoliciesButton extends StatelessWidget {
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  icon: Icon(Icons.close, color: theme.colorScheme.onPrimary.withOpacity(0.8)),
+                  icon: Icon(Icons.close, color: theme.colorScheme.onPrimary.withValues(alpha: 0.8)),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -257,8 +257,8 @@ class LegalPoliciesButton extends StatelessWidget {
       Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? Colors.blue.withOpacity(0.1) : Colors.blue.shade50,
-          border: Border.all(color: isDark ? Colors.blue.withOpacity(0.3) : Colors.blue.shade200),
+          color: isDark ? Colors.blue.withValues(alpha: 0.1) : Colors.blue.shade50,
+          border: Border.all(color: isDark ? Colors.blue.withValues(alpha: 0.3) : Colors.blue.shade200),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(

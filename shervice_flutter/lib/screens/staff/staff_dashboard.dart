@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../widgets/shared_dashboard_view.dart';
-import '../../constant.dart';
 
 class StaffDashboard extends StatelessWidget {
   final String staffName;

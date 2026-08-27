@@ -732,7 +732,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                           color: isSelected
                               ? const Color(0xFF3B82F6)
                               : (hasTrips
-                                  ? (isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF))
+                                  ? (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF))
                                   : (isDark ? const Color(0xFF1E293B) : Colors.white)),
                           border: Border.all(
                             color: isToday
@@ -817,7 +817,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                    color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(

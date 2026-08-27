@@ -233,9 +233,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.amber.withOpacity(0.15) : Colors.amber.shade50,
+                      color: isDark ? Colors.amber.withValues(alpha: 0.15) : Colors.amber.shade50,
                       borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: isDark ? Colors.amber.withOpacity(0.3) : Colors.amber.shade200),
+                      border: Border.all(color: isDark ? Colors.amber.withValues(alpha: 0.3) : Colors.amber.shade200),
                     ),
                     child: DriverRatingBadge(
                       key: UniqueKey(),
@@ -332,7 +332,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           if (!isDark)
-            BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 8)),
+            BoxShadow(color: Colors.blue.withValues(alpha: 0.2), blurRadius: 15, offset: const Offset(0, 8)),
         ],
       ),
       child: Column(
@@ -344,7 +344,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -375,7 +375,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.only(top: 16),
-            decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.white.withOpacity(0.15), width: 1))),
+            decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.15), width: 1))),
             child: Column(
               children: [
                 Row(
@@ -451,7 +451,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
+            color: Colors.white.withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: Colors.white, size: 20),

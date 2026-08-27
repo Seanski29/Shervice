@@ -142,7 +142,7 @@ class _StaffSettingsState extends State<StaffSettings> {
               border: Border.all(color: borderColor),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.02), 
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02), 
                   blurRadius: 8, 
                   offset: const Offset(0, 4),
                 ),
@@ -155,7 +155,7 @@ class _StaffSettingsState extends State<StaffSettings> {
               children: [
                 CircleAvatar(
                   radius: 32,
-                  backgroundColor: isDark ? Colors.indigo.withOpacity(0.2) : Colors.indigo.shade50,
+                  backgroundColor: isDark ? Colors.indigo.withValues(alpha: 0.2) : Colors.indigo.shade50,
                   child: Text(
                     widget.staffName.isNotEmpty ? widget.staffName[0].toUpperCase() : 'S',
                     style: TextStyle(
@@ -181,7 +181,7 @@ class _StaffSettingsState extends State<StaffSettings> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.indigo.withOpacity(0.2) : Colors.indigo.shade50,
+                        color: isDark ? Colors.indigo.withValues(alpha: 0.2) : Colors.indigo.shade50,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(

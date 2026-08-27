@@ -583,7 +583,7 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                          decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                           child: Text(
                             status.toUpperCase(),
                             style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5),
@@ -759,7 +759,7 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.shade300)),
+                        decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.shade300)),
                         child: Row(
                           children: [
                             Icon(Icons.warning_amber_rounded, color: Colors.orange.shade600),
@@ -770,7 +770,7 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: chosenCategory,
+                        initialValue: chosenCategory,
                         dropdownColor: Theme.of(context).cardColor,
                         style: TextStyle(color: textColor, fontSize: 14),
                         decoration: InputDecoration(
@@ -1062,7 +1062,7 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                         ? Center(child: Text("No maintenance records found.", style: TextStyle(color: Colors.grey.shade500)))
                         : ListView.separated(
                             itemCount: sortedLogs.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            separatorBuilder: (_, _) => const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final log = sortedLogs[index];
                               final bool isResolved = log['is_resolved'] == true;
@@ -1071,7 +1071,7 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                                 decoration: BoxDecoration(
                                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: isResolved ? Colors.green.withOpacity(0.5) : Colors.orange.withOpacity(0.5), width: 2),
+                                  border: Border.all(color: isResolved ? Colors.green.withValues(alpha: 0.5) : Colors.orange.withValues(alpha: 0.5), width: 2),
                                 ),
                                 child: Row(
                                   children: [
@@ -1085,7 +1085,7 @@ Widget _buildVehicleCard(Map<String, dynamic> v, bool isDark, bool isLast) {
                                               const SizedBox(width: 12),
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                decoration: BoxDecoration(color: isResolved ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                                                decoration: BoxDecoration(color: isResolved ? Colors.green.withValues(alpha: 0.2) : Colors.orange.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
                                                 child: Text(isResolved ? "FIXED" : "ONGOING", style: TextStyle(color: isResolved ? Colors.green : Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
                                               ),
                                             ],
@@ -1319,7 +1319,7 @@ class _RegisterVehicleDialogState extends State<RegisterVehicleDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedCapacity,
+                        initialValue: _selectedCapacity,
                         dropdownColor: Theme.of(context).cardColor,
                         style: TextStyle(color: textColor),
                         decoration: _fieldStyle(context: context, label: 'Capacity', icon: Icons.group_outlined),
@@ -1470,9 +1470,9 @@ class _VehicleMlDiagnosticViewState extends State<VehicleMlDiagnosticView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? healthColor.withOpacity(0.05) : healthColor.withOpacity(0.05),
+        color: isDark ? healthColor.withValues(alpha: 0.05) : healthColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: healthColor.withOpacity(0.5), width: 1.5),
+        border: Border.all(color: healthColor.withValues(alpha: 0.5), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1489,7 +1489,7 @@ class _VehicleMlDiagnosticViewState extends State<VehicleMlDiagnosticView> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: healthColor.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                decoration: BoxDecoration(color: healthColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
                 child: Text("${(_riskProbability * 100).toStringAsFixed(1)}% Risk", style: TextStyle(fontWeight: FontWeight.bold, color: healthColor, fontSize: 13)),
               ),
             ],
