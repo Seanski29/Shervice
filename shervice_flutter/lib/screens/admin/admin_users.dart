@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
@@ -27,7 +25,7 @@ class _AdminUsersState extends State<AdminUsers> {
 
   // Pagination Parameters
   int _currentPage = 0;
-  final int _itemsPerPage = 5;
+  final int _itemsPerPage = 10;
 
   @override
   void initState() {
@@ -108,14 +106,19 @@ class _AdminUsersState extends State<AdminUsers> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Deletion'),
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text(
+          'Confirm Deletion',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        ),
         content: Text(
           'Are you sure you want to permanently revoke accesses and delete system account records for ${user['name']}?',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
@@ -163,7 +166,7 @@ class _AdminUsersState extends State<AdminUsers> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(message, style: const TextStyle(color: Colors.white)),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
       ),
@@ -192,6 +195,7 @@ class _AdminUsersState extends State<AdminUsers> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -224,7 +228,7 @@ class _AdminUsersState extends State<AdminUsers> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
-                            color: const Color(0xFF64748B),
+                            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -280,6 +284,10 @@ class _AdminUsersState extends State<AdminUsers> {
                           _searchQuery = value;
                           _applyFiltersAndSort();
                         },
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 14,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Search system accounts...',
                           hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
@@ -292,11 +300,11 @@ class _AdminUsersState extends State<AdminUsers> {
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
+                            borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
+                            borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -316,16 +324,20 @@ class _AdminUsersState extends State<AdminUsers> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          border: Border.all(color: Colors.grey.shade300),
+                          color: Theme.of(context).cardColor,
+                          border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             isExpanded: true,
                             value: _currentSort,
+                            dropdownColor: Theme.of(context).cardColor,
                             icon: const Icon(Icons.sort, size: 18, color: Color(0xFF64748B)),
-                            style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                            style: TextStyle(
+                              fontSize: 13, 
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
                             items: _sortOptions
                                 .map(
                                   (String value) => DropdownMenuItem<String>(
@@ -361,13 +373,13 @@ class _AdminUsersState extends State<AdminUsers> {
                                 Icon(
                                   Icons.people_outline,
                                   size: 64,
-                                  color: Colors.grey.shade400,
+                                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No system users found.',
                                   style: TextStyle(
-                                    color: Colors.grey.shade600,
+                                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -391,11 +403,12 @@ class _AdminUsersState extends State<AdminUsers> {
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(color: Theme.of(context).dividerColor),
                                   boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.02),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    )
+                                    if (!isDark)
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.02),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
+                                      )
                                   ],
                                 ),
                                 child: Material(
@@ -435,10 +448,10 @@ class _AdminUsersState extends State<AdminUsers> {
                                                     Flexible(
                                                       child: Text(
                                                         user['name'] ?? 'System User',
-                                                        style: const TextStyle(
+                                                        style: TextStyle(
                                                           fontSize: 15,
                                                           fontWeight: FontWeight.bold,
-                                                          color: Color(0xFF0F172A),
+                                                          color: Theme.of(context).colorScheme.onSurface,
                                                         ),
                                                         overflow: TextOverflow.ellipsis,
                                                       ),
@@ -450,7 +463,7 @@ class _AdminUsersState extends State<AdminUsers> {
                                                         vertical: 1,
                                                       ),
                                                       decoration: BoxDecoration(
-                                                        color: statusColor.withOpacity(0.1),
+                                                        color: statusColor.withOpacity(0.15),
                                                         borderRadius: BorderRadius.circular(10),
                                                       ),
                                                       child: Text(
@@ -472,18 +485,22 @@ class _AdminUsersState extends State<AdminUsers> {
                                                     _iconText(
                                                       Icons.business,
                                                       user['company'] ?? 'Internal',
+                                                      isDark,
                                                     ),
                                                     _iconText(
                                                       Icons.email_outlined,
                                                       user['email'] ?? 'No Email',
+                                                      isDark,
                                                     ),
                                                     _iconText(
                                                       Icons.admin_panel_settings_outlined,
                                                       user['role'] ?? 'Staff',
+                                                      isDark,
                                                     ),
                                                     _iconText(
                                                       Icons.verified_user_outlined,
                                                       user['permission'] ?? 'Standard',
+                                                      isDark,
                                                     ),
                                                   ],
                                                 ),
@@ -520,8 +537,8 @@ class _AdminUsersState extends State<AdminUsers> {
                         constraints: const BoxConstraints(maxWidth: 260),
                         child: Text(
                           'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredUsers.length)} of ${_filteredUsers.length} users',
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
+                          style: TextStyle(
+                            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
                             fontSize: 13,
                           ),
                           softWrap: true,
@@ -533,10 +550,11 @@ class _AdminUsersState extends State<AdminUsers> {
                           OutlinedButton(
                             onPressed: _currentPage > 0 ? _prevPage : null,
                             style: OutlinedButton.styleFrom(
+                              foregroundColor: Theme.of(context).colorScheme.onSurface,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              side: BorderSide(color: Colors.grey.shade300),
+                              side: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                               padding: const EdgeInsets.symmetric(horizontal: 12),
                             ),
                             child: const Text('Previous'),
@@ -545,14 +563,14 @@ class _AdminUsersState extends State<AdminUsers> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEFF6FF),
+                              color: isDark ? Colors.blue.withOpacity(0.15) : const Color(0xFFEFF6FF),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               '${_currentPage + 1} / $_totalPages',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF3B82F6),
+                                color: isDark ? Colors.blue.shade300 : const Color(0xFF3B82F6),
                                 fontSize: 13,
                               ),
                             ),
@@ -563,10 +581,11 @@ class _AdminUsersState extends State<AdminUsers> {
                                 ? _nextPage
                                 : null,
                             style: OutlinedButton.styleFrom(
+                              foregroundColor: Theme.of(context).colorScheme.onSurface,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              side: BorderSide(color: Colors.grey.shade300),
+                              side: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                               padding: const EdgeInsets.symmetric(horizontal: 12),
                             ),
                             child: const Text('Next'),
@@ -583,18 +602,18 @@ class _AdminUsersState extends State<AdminUsers> {
     );
   }
 
-  Widget _iconText(IconData icon, String text) {
+  Widget _iconText(IconData icon, String text, bool isDark) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: const Color(0xFF64748B)),
+        Icon(icon, size: 12, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
         const SizedBox(width: 4),
         Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF64748B),
+            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
           ),
         ),
       ],
@@ -603,7 +622,7 @@ class _AdminUsersState extends State<AdminUsers> {
 }
 
 // ============================================================================
-// REGISTER USER DIALOG (light mode only)
+// REGISTER USER DIALOG
 // ============================================================================
 class RegisterUserDialog extends StatefulWidget {
   final Map<String, dynamic>? user;
@@ -649,30 +668,33 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
     }
   }
 
-  InputDecoration _fieldStyle({
+  InputDecoration _fieldStyle(BuildContext context, {
     required String label,
     required IconData icon,
     bool forceDisable = false,
   }) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final bool active = _isWritingUnlocked && !forceDisable;
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: const Color(0xFF475569), size: 20),
+      prefixIcon: Icon(icon, color: isDark ? Colors.grey.shade400 : const Color(0xFF475569), size: 20),
       filled: true,
-      fillColor: active ? const Color(0xFFF8FAFC) : const Color(0xFFF1F5F9),
-      labelStyle: const TextStyle(
-        color: Color(0xFF64748B),
+      fillColor: active 
+          ? (isDark ? Colors.grey.shade800 : const Color(0xFFF8FAFC)) 
+          : (isDark ? Colors.grey.shade900 : const Color(0xFFF1F5F9)),
+      labelStyle: TextStyle(
+        color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
         fontSize: 13,
         fontWeight: FontWeight.w500,
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -753,6 +775,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
               isEditMode
                   ? "Account profile synchronized!"
                   : "User registered successfully!",
+              style: const TextStyle(color: Colors.white),
             ),
             backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
@@ -767,7 +790,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: Text(e.toString(), style: const TextStyle(color: Colors.white)),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
         ),
@@ -789,6 +812,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
   Widget build(BuildContext context) {
     final bool isEditMode = widget.user != null;
     final bool isMobile = MediaQuery.of(context).size.width < 600;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -802,13 +826,14 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            )
+            if (!isDark)
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              )
           ],
         ),
         child: Column(
@@ -820,15 +845,15 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
               children: [
                 Text(
                   isEditMode ? 'System User Profile' : 'Register System User',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                  icon: Icon(Icons.close, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -847,9 +872,11 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       TextFormField(
                         controller: _nameController,
                         readOnly: !_isWritingUnlocked,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                         validator: (val) =>
                             val == null || val.isEmpty ? "Required" : null,
                         decoration: _fieldStyle(
+                          context,
                           label: 'Full Name',
                           icon: Icons.person,
                         ),
@@ -858,10 +885,12 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       TextFormField(
                         controller: _emailController,
                         readOnly: !_isWritingUnlocked,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                         validator: (val) => val == null || !val.contains('@')
                             ? "Enter a valid email"
                             : null,
                         decoration: _fieldStyle(
+                          context,
                           label: 'Email Address',
                           icon: Icons.email,
                         ),
@@ -871,7 +900,9 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                         controller: _passwordController,
                         obscureText: true,
                         readOnly: !_isWritingUnlocked,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                         decoration: _fieldStyle(
+                          context,
                           label: isEditMode
                               ? 'Reset Password (Leave empty to keep current)'
                               : 'Secure Password',
@@ -894,14 +925,16 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       DropdownButtonFormField<String>(
                         value: _selectedRole,
                         validator: (val) => val == null ? "Select a role" : null,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
                         decoration: _fieldStyle(
+                          context,
                           label: 'Assign Role',
                           icon: Icons.admin_panel_settings,
                         ),
                         onChanged: !_isWritingUnlocked
                             ? null
                             : (value) => setState(() => _selectedRole = value),
-                        dropdownColor: Colors.white,
+                        dropdownColor: Theme.of(context).cardColor,
                         items: ['Dispatch Staff', 'Officer-in-Charge']
                             .map(
                               (e) => DropdownMenuItem(value: e, child: Text(e)),
@@ -911,14 +944,16 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
                         value: _selectedCompany,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
                         decoration: _fieldStyle(
+                          context,
                           label: 'Assign Company Account',
                           icon: Icons.business,
                         ),
                         onChanged: !_isWritingUnlocked
                             ? null
                             : (value) => setState(() => _selectedCompany = value),
-                        dropdownColor: Colors.white,
+                        dropdownColor: Theme.of(context).cardColor,
                         items: [
                           'GT LANTIN INTERNAL',
                           'EPSON',
@@ -972,6 +1007,9 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                      ),
                       child: const Text('Cancel'),
                     ),
                     const SizedBox(width: 8),

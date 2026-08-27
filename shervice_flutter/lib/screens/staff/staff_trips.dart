@@ -32,7 +32,7 @@ class _StaffTripsState extends State<StaffTrips> {
 
   // ─── PAGINATION ───
   int _currentPage = 0;
-  final int _itemsPerPage = 6;
+  final int _itemsPerPage = 10;
 
   @override
   void initState() {
