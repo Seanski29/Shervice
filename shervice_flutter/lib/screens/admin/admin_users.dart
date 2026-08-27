@@ -193,9 +193,161 @@ class _AdminUsersState extends State<AdminUsers> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    // Increase the threshold slightly to handle the wide action bar nicely
+    final bool isMobile = MediaQuery.of(context).size.width < 950; 
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // --- Extracted Action Controls Bar ---
+    final Widget actionControls = Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      alignment: isMobile ? WrapAlignment.start : WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        // 1. Search Box
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: isMobile ? double.infinity : 280),
+          child: SizedBox(
+            height: 42,
+            child: TextField(
+              onChanged: (value) {
+                _searchQuery = value;
+                _applyFiltersAndSort();
+              },
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 14,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search system accounts...',
+                hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                filled: true,
+                fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                ),
+              ),
+            ),
+          ),
+        ),
+        // 2. Sort Dropdown
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: isMobile ? double.infinity : 160),
+          child: SizedBox(
+            height: 42,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: _currentSort,
+                  dropdownColor: Theme.of(context).cardColor,
+                  icon: const Icon(Icons.sort, size: 18, color: Color(0xFF64748B)),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  items: _sortOptions
+                      .map((String value) => DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          ))
+                      .toList(),
+                  onChanged: (newValue) {
+                    if (newValue != null) {
+                      _currentSort = newValue;
+                      _applyFiltersAndSort();
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        // 3. Desktop Refresh Button 
+        SizedBox(
+          height: 42,
+          width: 42,
+          child: OutlinedButton(
+            onPressed: () {
+              setState(() => _isLoading = true);
+              _fetchSystemUsers();
+            },
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              side: const BorderSide(color: Color(0xFF3B82F6), width: 1.2),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Icon(Icons.refresh, color: Color(0xFF3B82F6), size: 20),
+          ),
+        ),
+        // 4. Add User Button
+        SizedBox(
+          height: 42,
+          child: ElevatedButton.icon(
+            onPressed: () => _showUserModal(context),
+            icon: const Icon(Icons.add, color: Colors.white, size: 18),
+            label: const Text(
+              'Register User',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3B82F6),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    // --- Extracted Header Title ---
+    final Widget headerTitle = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'User Management',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).colorScheme.onSurface,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Manage system users, roles, and access permissions.',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+          ),
+        ),
+      ],
+    );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -206,159 +358,22 @@ class _AdminUsersState extends State<AdminUsers> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ----- HEADER -----
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'User Management',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: Theme.of(context).colorScheme.onSurface,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Manage system users, roles, and access permissions.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => _showUserModal(context),
-                    icon: const Icon(
-                      Icons.person_add_alt_1,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    label: const Text(
-                      'Register User',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 0,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // ----- SEARCH & SORT -----
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.start,
-                children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isMobile ? double.infinity : 350,
-                      minWidth: isMobile ? double.infinity : 200,
-                    ),
-                    child: SizedBox(
-                      height: 42,
-                      child: TextField(
-                        onChanged: (value) {
-                          _searchQuery = value;
-                          _applyFiltersAndSort();
-                        },
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Search system accounts...',
-                          hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                          prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
-                          filled: true,
-                          fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 12,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isMobile ? double.infinity : 200,
-                      minWidth: isMobile ? double.infinity : 140,
-                    ),
-                    child: SizedBox(
-                      height: 42,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            value: _currentSort,
-                            dropdownColor: Theme.of(context).cardColor,
-                            icon: const Icon(Icons.sort, size: 18, color: Color(0xFF64748B)),
-                            style: TextStyle(
-                              fontSize: 13, 
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                            items: _sortOptions
-                                .map(
-                                  (String value) => DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (newValue) {
-                              if (newValue != null) {
-                                _currentSort = newValue;
-                                _applyFiltersAndSort();
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              // ----- HEADER & CONTROLS LAYOUT -----
+              if (isMobile) ...[
+                headerTitle,
+                const SizedBox(height: 16),
+                actionControls,
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child: headerTitle),
+                    const SizedBox(width: 16),
+                    actionControls,
+                  ],
+                ),
+              ],
               const SizedBox(height: 20),
 
               // ----- USER LIST -----
@@ -442,8 +457,7 @@ class _AdminUsersState extends State<AdminUsers> {
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.spaceBetween,
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                   children: [
                                                     Flexible(
                                                       child: Text(

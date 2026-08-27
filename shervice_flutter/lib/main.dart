@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'session_manager.dart';
-import 'theme/tab_sync_stub.dart'
+import 'utils/tab_sync_stub.dart'
     if (dart.library.html) 'utils/tab_sync_web.dart';
 
 import 'theme/theme_manager.dart';
+
 
 // Import layouts and login
 import 'layouts/admin/admin_layout.dart';
