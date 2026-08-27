@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/shared/shared_analytics_hub.dart';
 
 class StaffAnalytics extends StatelessWidget {
   const StaffAnalytics({super.key});

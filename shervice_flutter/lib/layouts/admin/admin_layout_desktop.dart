@@ -12,6 +12,7 @@ import '../../widgets/shared/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
 import '../../widgets/admin/admin_profile_button.dart';
+import '../../widgets/shared/shared_analytics_hub.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
   final String adminId;
@@ -43,7 +44,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
       const AdminDriver(),
       const AdminFleet(),
       const AdminUsers(),
-      SharedAnalyticsHub(),
+      const SharedAnalyticsHub(),
       AdminSettings(adminId: widget.adminId),
       // Note: You can add AdminFeedbacks() here if you want it mapped to a sidebar index!
     ];
