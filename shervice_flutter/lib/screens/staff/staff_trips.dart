@@ -32,7 +32,7 @@ class _StaffTripsState extends State<StaffTrips> {
 
   // ─── PAGINATION ───
   int _currentPage = 0;
-  final int _itemsPerPage = 6;
+  final int _itemsPerPage = 10;
 
   @override
   void initState() {
@@ -218,7 +218,7 @@ class _StaffTripsState extends State<StaffTrips> {
     final totalItems = _filteredAndSortedTrips.length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _fetchStaffLogs,
         child: SingleChildScrollView(
@@ -234,12 +234,12 @@ class _StaffTripsState extends State<StaffTrips> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'My Dispatched Trips',
+                        Text(
+                          'Trip History',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
+                            color: Theme.of(context).colorScheme.onSurface,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -331,7 +331,7 @@ class _StaffTripsState extends State<StaffTrips> {
                     child: Container(
                       height: 32,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
@@ -422,7 +422,7 @@ class _StaffTripsState extends State<StaffTrips> {
               // ── TRIP LIST ──
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                   boxShadow: [
@@ -469,7 +469,7 @@ class _StaffTripsState extends State<StaffTrips> {
               // ── COLLAPSIBLE CALENDAR ──
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                   boxShadow: [

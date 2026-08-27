@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../models/dashboard_metric.dart';
@@ -177,7 +176,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               if (_errorMessage != null) _buildErrorBanner(),
               widget.headerWidget,
               const SizedBox(height: 12),
-              _buildKpiGrid(dynamicWidth, spacing),
+              _buildKpiGrid(context, dynamicWidth, spacing),
               const SizedBox(height: 12),
               // ─── Row: Maintenance + Client Trips ───
               isMobile
@@ -241,7 +240,8 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     );
   }
 
-  Widget _buildKpiGrid(double width, double spacing) {
+  Widget _buildKpiGrid(BuildContext context, double width, double spacing) {
+    final theme = Theme.of(context);
     return Wrap(
       spacing: spacing,
       runSpacing: spacing,
@@ -251,12 +251,12 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           width: width,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: theme.dividerColor),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: theme.shadowColor.withValues(alpha: 0.02),
                 blurRadius: 4,
                 offset: const Offset(0, 1),
               ),
@@ -273,17 +273,16 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       m.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF64748B),
                       ),
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(m.icon, color: color, size: 14),
@@ -293,10 +292,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               const SizedBox(height: 4),
               Text(
                 m.value,
-                style: const TextStyle(
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
                   letterSpacing: -0.5,
                 ),
               ),
@@ -305,9 +303,8 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                 m.subTitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: theme.textTheme.bodySmall?.copyWith(
                   fontSize: 10,
-                  color: Color(0xFF64748B),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -319,17 +316,18 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   }
 
   Widget _buildMaintenanceCard() {
+    final theme = Theme.of(context);
     final paginatedList = _paginatedAlerts;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: theme.shadowColor.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -341,15 +339,14 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Maintenance Alerts',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
                   ),
                 ),
               ),
@@ -372,14 +369,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             ],
           ),
           const SizedBox(height: 8),
-          _alerts.isEmpty
-              ? const Padding(
+            _alerts.isEmpty
+              ? Padding(
                   padding: EdgeInsets.symmetric(vertical: 12.0),
                   child: Center(
                     child: Text(
                       "All vehicles are optimal.",
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
+                      style: theme.textTheme.bodySmall?.copyWith(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -393,9 +389,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                         margin: const EdgeInsets.only(bottom: 6),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: theme.dividerColor),
                         ),
                         child: Row(
                           children: [
@@ -418,18 +414,16 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                                 children: [
                                   Text(
                                     log.vehicleId,
-                                    style: const TextStyle(
+                                    style: theme.textTheme.bodyMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
-                                      color: Color(0xFF0F172A),
                                     ),
                                   ),
                                   Text(
                                     log.description,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Color(0xFF64748B),
+                                    style: theme.textTheme.bodySmall?.copyWith(
                                       fontSize: 11,
                                     ),
                                   ),
@@ -441,15 +435,14 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       ),
                     ),
                     if (_alerts.length > _alertsPerPage) ...[
-                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      Divider(height: 1, color: theme.dividerColor),
                       const SizedBox(height: 6),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             '${(_currentAlertPage * _alertsPerPage) + 1} - ${min((_currentAlertPage + 1) * _alertsPerPage, _alerts.length)} of ${_alerts.length}',
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
+                            style: theme.textTheme.bodySmall?.copyWith(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
                             ),
@@ -516,15 +509,16 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   }
 
   Widget _buildClientTripsCard() {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: theme.shadowColor.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -533,23 +527,21 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Client Weekly Dispatches',
-            style: TextStyle(
+            style: theme.textTheme.titleMedium?.copyWith(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 8),
-          _companyTrips.isEmpty
-              ? const Padding(
+            _companyTrips.isEmpty
+              ? Padding(
                   padding: EdgeInsets.symmetric(vertical: 12.0),
                   child: Center(
                     child: Text(
                       'No client trips this week.',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
+                      style: theme.textTheme.bodySmall?.copyWith(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -560,10 +552,10 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _companyTrips.length,
-                  separatorBuilder: (_, __) => const Divider(
+                  separatorBuilder: (_, _) => Divider(
                     height: 12,
                     thickness: 0.5,
-                    color: Color(0xFFE2E8F0),
+                    color: theme.dividerColor,
                   ),
                   itemBuilder: (context, index) {
                     final item = _companyTrips[index];
@@ -573,7 +565,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.1),
+                            color: color.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Icon(
@@ -591,10 +583,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                                 item.companyName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: theme.textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
-                                  color: Color(0xFF0F172A),
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -606,7 +597,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                                       child: LinearProgressIndicator(
                                         value: item.utilization,
                                         backgroundColor:
-                                            const Color(0xFFF1F5F9),
+                                            theme.colorScheme.surfaceContainerHighest,
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
                                               color,

@@ -7,7 +7,7 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/legal_policies_button.dart';
+import '../../widgets/user_profile_button.dart';
 
 class DriverLayoutDesktop extends StatefulWidget {
   final String driverId;
@@ -33,7 +33,7 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
     setState(() => _isSidebarExpanded = !_isSidebarExpanded);
   }
 
-  List<Widget> get _screens => [
+  late final List<Widget> _screens = [
         DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
         DriverSchedules(driverId: widget.driverId),
         DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
@@ -41,12 +41,13 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SherviceFloatingStack(
       userRole: 'Driver',
       userName: widget.driverName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: theme.scaffoldBackgroundColor,
         body: Row(
           children: [
             // Sidebar
@@ -160,7 +161,7 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                   // ─── HEADER (white, contains toggle when sidebar collapsed) ───
                   Container(
                     height: 70,
-                    color: Colors.white, // remained white (not off‑white)
+                    color: theme.cardColor,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
@@ -181,9 +182,7 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
                           iconSize: 28,
                         ),
                         const SizedBox(width: 16),
-                                const LegalPoliciesButton(
-          iconColor: Colors.grey, // matches notification bell color
-        ),
+                        UserProfileButton(name: widget.driverName, role: 'Driver', company: widget.companyName),
                       ],
                     ),
                   ),

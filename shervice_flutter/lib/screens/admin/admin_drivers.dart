@@ -32,29 +32,39 @@ class _AdminDriverState extends State<AdminDriver> {
   }
 
   void _confirmPurgeDriver(BuildContext context, DriverProfileModel driver) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Deletion'),
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Confirm Deletion',
+          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold),
+        ),
         content: Text(
           'Are you sure you want to permanently erase ${driver.name} from the fleet network?',
+          style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.black87),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+            ),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () async {
               Navigator.pop(ctx);
               try {
                 final res = await http
-                    .delete(
-                      Uri.parse(
-                        '$backendUrl/auth/delete-driver/${driver.userId}',
-                      ),
-                    )
+                    .delete(Uri.parse('$backendUrl/auth/delete-driver/${driver.userId}'))
                     .timeout(const Duration(seconds: 10));
 
                 if (res.statusCode == 200) {
@@ -66,7 +76,7 @@ class _AdminDriverState extends State<AdminDriver> {
             },
             child: const Text(
               'Delete permanently',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -85,66 +95,28 @@ class _AdminDriverState extends State<AdminDriver> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SharedDriversView(
         key: ValueKey('admin_drivers_list_$_refreshSeed'),
         canManage: true,
         onDriverTapped: (ctx, model) => _showDriverModal(ctx, model),
-
-        // ✅ Header matches AdminSchedules exactly: Row with title/subtitle on left, button on right.
-        customHeader: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Driver Management',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Manage driver profiles, assignments, and performance records.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Add Driver button – styled like the refresh button but with icon+text
-            ElevatedButton.icon(
-              onPressed: () => _showDriverModal(context, null),
-              icon: const Icon(Icons.person_add, color: Colors.white, size: 18),
-              label: const Text(
-                'Add Driver',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3B82F6),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: 0,
-              ),
-            ),
-          ],
+        
+        // Pass UI text and actions directly so the view can wrap them dynamically
+        title: 'Driver Management',
+        subtitle: 'Manage driver profiles, assignments, and performance records.',
+        actionWidget: ElevatedButton.icon(
+          onPressed: () => _showDriverModal(context, null),
+          icon: const Icon(Icons.person_add, color: Colors.white, size: 18),
+          label: const Text(
+            'Add Driver',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF3B82F6),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 0,
+          ),
         ),
       ),
     );

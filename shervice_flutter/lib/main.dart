@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'session_manager.dart';
 import 'utils/tab_sync_stub.dart'
     if (dart.library.html) 'utils/tab_sync_web.dart';
+
+import 'utils/theme_manager.dart';
 
 // Import layouts and login
 import 'layouts/admin/admin_layout.dart';
@@ -17,18 +17,10 @@ import 'login/login.dart';
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
-  // 1. Ensure Flutter bindings are initialized
+  // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
-
-  if (kIsWeb) {
-    await FacebookAuth.instance.webAndDesktopInitialize(
-      appId: '2455846521593896',
-      cookie: true,
-      xfbml: true,
-      version: 'v17.0', 
-    );
-  }
+  await ThemeManager.loadSavedTheme();
 
   bool loggedIn = await SessionManager.isLoggedIn();
   Map<String, String?> userData = {};
@@ -81,7 +73,7 @@ class _SherviceAppState extends State<SherviceApp> {
         final company = widget.userData['companyName'] ?? 'GT LANTIN';
 
         if (role == 'admin') {
-          return AdminLayout(adminId: userId);
+          return AdminLayout(adminId: userId, adminName: userName);
         } else if (role == 'oic') {
           return OicLayout(
             oicId: userId,
@@ -119,16 +111,85 @@ class _SherviceAppState extends State<SherviceApp> {
       return const LoginScreen();
     }
 
-    return MaterialApp(
-      navigatorKey: globalNavigatorKey,
-      title: 'Shervice Portal',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primaryColor: const Color(0xFF0F172A),
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        useMaterial3: true,
-      ),
-      home: getInitialScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeManager.themeNotifier,
+      builder: (context, currentMode, child) {
+        return MaterialApp(
+          navigatorKey: globalNavigatorKey,
+          title: 'Shervice Portal',
+          debugShowCheckedModeBanner: false,
+          
+          theme: ThemeData(
+            brightness: Brightness.light,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF2563EB),
+              brightness: Brightness.light,
+            ),
+            scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+            cardColor: Colors.white,
+            inputDecorationTheme: const InputDecorationTheme(
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(),
+            ),
+            cardTheme: const CardThemeData(color: Colors.white),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF1E293B),
+              foregroundColor: Colors.white,
+            ),
+            bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+              backgroundColor: Colors.white,
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
+            useMaterial3: true,
+          ),
+          darkTheme: ThemeData(
+            brightness: Brightness.dark,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF60A5FA),
+              brightness: Brightness.dark,
+            ),
+            scaffoldBackgroundColor: const Color(0xFF0F172A),
+            cardColor: const Color(0xFF1E293B),
+            inputDecorationTheme: const InputDecorationTheme(
+              filled: true,
+              fillColor: Color(0xFF1E293B),
+              border: OutlineInputBorder(),
+              labelStyle: TextStyle(color: Color(0xFFCBD5E1)),
+              hintStyle: TextStyle(color: Color(0xFF94A3B8)),
+            ),
+            cardTheme: const CardThemeData(color: Color(0xFF1E293B)),
+            textTheme: const TextTheme(
+              bodyLarge: TextStyle(color: Colors.white),
+              bodyMedium: TextStyle(color: Colors.white),
+              bodySmall: TextStyle(color: Color(0xFFCBD5E1)),
+              titleLarge: TextStyle(color: Colors.white),
+              titleMedium: TextStyle(color: Colors.white),
+              titleSmall: TextStyle(color: Colors.white),
+              headlineSmall: TextStyle(color: Colors.white),
+            ),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF1E293B),
+              foregroundColor: Colors.white,
+            ),
+            bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+              backgroundColor: Color(0xFF1E293B),
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Color(0xFF1E293B),
+            ),
+            dropdownMenuTheme: const DropdownMenuThemeData(
+              inputDecorationTheme: InputDecorationTheme(
+                filled: true,
+                fillColor: Color(0xFF1E293B),
+              ),
+            ),
+            useMaterial3: true,
+          ),
+          themeMode: currentMode,
+          home: getInitialScreen(),
+        );
+      },
     );
   }
 }

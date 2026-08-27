@@ -82,6 +82,7 @@ class _DriverRatingBadgeState extends State<DriverRatingBadge> {
       );
     }
 
+    final theme = Theme.of(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -95,14 +96,14 @@ class _DriverRatingBadgeState extends State<DriverRatingBadge> {
           _totalReviews == 0 ? 'New' : _averageRating.toStringAsFixed(1),
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.grey.shade800,
+            color: theme.colorScheme.onSurface,
             fontSize: 14,
           ),
         ),
         if (_totalReviews > 0)
           Text(
             ' ($_totalReviews)',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
           ),
       ],
     );

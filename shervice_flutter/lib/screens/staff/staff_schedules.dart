@@ -193,7 +193,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _fetchStaffDashboardData,
         child: Padding(
@@ -211,18 +211,18 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Dispatch & Scheduling',
+                        Text(
+                          'Trip Assigment',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
+                            color: Theme.of(context).colorScheme.onSurface,
                             letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Manage trip assignments and monitor dispatch status.',
+                          'Assign Trips and and monitor schedules.',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
@@ -489,7 +489,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
@@ -521,6 +521,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   }
 
   Widget _buildCompactCalendarGrid() {
+    final theme = Theme.of(context);
     final firstDay = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
     final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
     final daysInMonth = lastDay.day;
@@ -529,9 +530,9 @@ class _StaffSchedulesState extends State<StaffSchedules> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
@@ -701,9 +702,9 @@ class _StaffSchedulesState extends State<StaffSchedules> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
@@ -717,10 +718,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -735,10 +736,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                     const SizedBox(width: 8),
                     Text(
                       _selectedDate == null ? 'All Trips' : 'Scheduled',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],

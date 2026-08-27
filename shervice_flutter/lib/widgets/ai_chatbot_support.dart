@@ -131,13 +131,8 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
-    // Get system bottom padding (keyboard, system nav)
-    final systemBottom = MediaQuery.of(context).padding.bottom;
     // Add extra space for a bottom navigation bar on mobile (typical height ~60-70)
     const bottomNavHeight = 65.0;
-
-    // On mobile, add extra offset so FAB sits above the bottom nav
-    final bottomOffset = isMobile ? systemBottom + bottomNavHeight : systemBottom + 20;
 
     return Stack(
       children: [
@@ -147,10 +142,10 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
           right: 20,
           child: FloatingActionButton(
             onPressed: () => setState(() => _isChatOpen = !_isChatOpen),
-            backgroundColor: const Color(0xFF1E293B),
+            backgroundColor: Theme.of(context).colorScheme.primary,
             child: Icon(
               _isChatOpen ? Icons.close : Icons.support_agent,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onPrimary,
             ),
           ),
         ),
@@ -172,7 +167,7 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
                     ? MediaQuery.of(context).size.height * 0.6
                     : 500,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
@@ -180,24 +175,24 @@ class _AiChatbotSupportState extends State<AiChatbotSupport> {
                     // Header
                     Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF1E293B),
-                        borderRadius: BorderRadius.vertical(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(16),
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
                           Icon(
                             Icons.support_agent,
-                            color: Colors.blue,
+                            color: Theme.of(context).colorScheme.onPrimary,
                             size: 24,
                           ),
-                          SizedBox(width: 12),
+                          const SizedBox(width: 12),
                           Text(
                             'Shervice Support',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),

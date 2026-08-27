@@ -3,8 +3,14 @@ import 'admin_layout_desktop.dart';
 import 'admin_layout_mobile.dart';
 
 class AdminLayout extends StatelessWidget {
-  final String adminId; // 👇 Add this
-  const AdminLayout({super.key, required this.adminId});
+  final String adminId;
+  final String adminName;
+
+  const AdminLayout({
+    super.key,
+    required this.adminId,
+    this.adminName = 'Admin',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -12,10 +18,10 @@ class AdminLayout extends StatelessWidget {
       builder: (context, constraints) {
         if (constraints.maxWidth > 800) {
           // 👇 Pass it to Desktop
-          return AdminDesktopLayout(adminId: adminId);
+          return AdminDesktopLayout(adminId: adminId, adminName: adminName);
         } else {
           // 👇 Pass it to Mobile
-          return AdminMobileLayout(adminId: adminId);
+          return AdminMobileLayout(adminId: adminId, adminName: adminName);
         }
       },
     );

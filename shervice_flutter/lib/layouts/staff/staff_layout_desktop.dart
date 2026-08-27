@@ -12,7 +12,7 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/legal_policies_button.dart';
+import '../../widgets/staff_profile_button.dart';
 
 
 class StaffLayoutDesktop extends StatefulWidget {
@@ -23,8 +23,8 @@ class StaffLayoutDesktop extends StatefulWidget {
   const StaffLayoutDesktop({
     super.key,
     required this.staffId,
-    required this.staffName,
     required this.companyName,
+    this.staffName = 'Staff',
   });
 
   @override
@@ -34,24 +34,24 @@ class StaffLayoutDesktop extends StatefulWidget {
 class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
-  bool _showWelcome = true;
 
   void _toggleSidebar() {
     setState(() => _isSidebarExpanded = !_isSidebarExpanded);
   }
 
-  List<Widget> get _screens => [
+  // Reordered to match the new Sidebar structure
+  late final List<Widget> _screens = [
         StaffDashboard(
           staffName: widget.staffName,
           companyName: widget.companyName,
         ),
-        StaffVehicle(staffId: widget.staffId),
-        StaffSchedules(staffId: widget.staffId),
-        StaffTrips(staffId: widget.staffId),
-        const StaffDrivers(),
-        const StaffAttendance(),
-        const StaffAnalytics(),
-        StaffSettings(
+        StaffSchedules(staffId: widget.staffId), // Index 1
+        StaffTrips(staffId: widget.staffId),     // Index 2
+        StaffVehicle(staffId: widget.staffId),   // Index 3
+        const StaffDrivers(),                    // Index 4
+        const StaffAttendance(),                 // Index 5
+        const StaffAnalytics(),                  // Index 6
+        StaffSettings(                           // Index 7
           staffId: widget.staffId,
           staffName: widget.staffName,
           companyName: widget.companyName,
@@ -60,19 +60,20 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SherviceFloatingStack(
       userRole: 'Staff',
       userName: widget.staffName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: theme.scaffoldBackgroundColor,
         body: Row(
           children: [
             _buildSidebar(),
             Expanded(
               child: Column(
                 children: [
-                  _buildHeader(),
+                  _buildHeader(context),
                   Expanded(child: _screens[_selectedIndex]),
                 ],
               ),
@@ -169,21 +170,21 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _buildNavItem(0, 'Dashboard', Icons.grid_view),
+                _buildNavItem(0, 'Dashboard', Icons.dashboard),
                 _buildNavItem(
                   1,
-                  'Fleet Management',
-                  Icons.directions_car_outlined,
-                ),
-                _buildNavItem(
-                  2,
-                  'Pending Requests',
+                  'Trip Assigment',
                   Icons.calendar_month_outlined,
                 ),
                 _buildNavItem(
-                  3,
-                  'Dispatch History',
+                  2,
+                  'Trip History',
                   Icons.assignment_turned_in,
+                ),
+                _buildNavItem(
+                  3,
+                  'Vehicle Management',
+                  Icons.directions_car_outlined,
                 ),
                 _buildNavItem(4, 'Driver Records', Icons.people_outline),
                 // _buildNavItem(5, 'Attendance', Icons.how_to_reg),
@@ -248,48 +249,6 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      height: 70,
-      decoration: BoxDecoration(
-        color: Colors.white, // remained white (not off‑white)
-        border: Border(bottom: BorderSide(color: Colors.white)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          // ─── TOGGLE BUTTON (only when sidebar is collapsed) ───
-          if (!_isSidebarExpanded)
-            IconButton(
-              icon: const Icon(Icons.menu, color: Colors.black87),
-              onPressed: _toggleSidebar,
-              tooltip: 'Expand',
-            ),
-          if (!_isSidebarExpanded) const SizedBox(width: 4),
-          const Spacer(),
-          if (_showWelcome) ...[
-            SlideInWelcomeWidget(
-              role: widget.staffName,
-              onHidden: () => setState(() => _showWelcome = false),
-            ),
-            const SizedBox(width: 16),
-          ],
-          NotificationBell(
-            role: 'Staff',
-            userId: widget.staffId,
-            userName: widget.staffName,
-            companyName: widget.companyName,
-            iconSize: 28,
-          ),
-          const SizedBox(width: 16),
-                  const LegalPoliciesButton(
-          iconColor: Colors.grey, // matches notification bell color
-        ),
-        ],
-      ),
-    );
-  }
-
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -316,6 +275,7 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
             ),
             onPressed: () async {
               await SessionManager.clearSession();
+              if (!mounted) return;
               Navigator.pop(ctx);
               Navigator.pushReplacement(
                 context,
@@ -334,80 +294,47 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
       ),
     );
   }
-}
 
-// ============================================================================
-// ANIMATED WELCOME WIDGET (unchanged)
-// ============================================================================
-class SlideInWelcomeWidget extends StatefulWidget {
-  final String role;
-  final VoidCallback? onHidden;
-  const SlideInWelcomeWidget({super.key, required this.role, this.onHidden});
+  // ─── HEADER (Now 100% Bulletproof Dark Mode) ───
+  Widget _buildHeader(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  @override
-  State<SlideInWelcomeWidget> createState() => _SlideInWelcomeWidgetState();
-}
-
-class _SlideInWelcomeWidgetState extends State<SlideInWelcomeWidget>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<Offset> _offsetAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _offsetAnimation = Tween<Offset>(
-      begin: const Offset(1.5, 0.0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
-
-    _controller.addStatusListener((status) {
-      if (status == AnimationStatus.dismissed) {
-        widget.onHidden?.call();
-      }
-    });
-
-    _controller.forward().then((_) {
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) _controller.reverse();
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SlideTransition(
-      position: _offsetAnimation,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.green.shade50,
-          border: Border.all(color: Colors.green.shade200),
-          borderRadius: BorderRadius.circular(30),
+    return Container(
+      height: 70,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor, 
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor, 
+          ),
         ),
-        child: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'Welcome, ${widget.role}!',
-              style: TextStyle(
-                color: Colors.green.shade800,
-                fontWeight: FontWeight.bold,
-              ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // ─── TOGGLE BUTTON (only when sidebar is collapsed) ───
+          if (!_isSidebarExpanded)
+            IconButton(
+              icon: Icon(Icons.menu, color: isDark ? Colors.white70 : Colors.black87),
+              onPressed: _toggleSidebar,
+              tooltip: 'Expand',
             ),
-          ],
-        ),
+          if (!_isSidebarExpanded) const SizedBox(width: 4),
+          const Spacer(),
+          NotificationBell(
+            role: 'Staff',
+            userId: widget.staffId,
+            userName: widget.staffName,
+            companyName: '',
+            iconSize: 28,
+          ),
+          const SizedBox(width: 16),
+          StaffProfileButton(
+            staffId: widget.staffId,
+            staffName: widget.staffName,
+            companyName: widget.companyName, 
+          ),
+        ],
       ),
     );
   }

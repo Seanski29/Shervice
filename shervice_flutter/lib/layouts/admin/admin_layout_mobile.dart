@@ -9,14 +9,18 @@ import '../../screens/admin/admin_feedbacks.dart';
 import '../../login/login.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
-import '../../widgets/legal_policies_button.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
 
 class AdminMobileLayout extends StatefulWidget {
   final String adminId;
+  final String adminName;
 
-  const AdminMobileLayout({super.key, required this.adminId});
+  const AdminMobileLayout({
+    super.key,
+    required this.adminId,
+    this.adminName = 'Admin',
+  });
 
   @override
   State<AdminMobileLayout> createState() => _AdminMobileLayoutState();
@@ -32,7 +36,6 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     const AdminFleet(),
     const AdminUsers(),
     AdminSettings(adminId: widget.adminId),
-    const AdminFeedbacks(),
   ];
 
   final List<String> _shortTitles = [
@@ -42,7 +45,6 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     'Fleet',
     'Users',
     'Settings',
-    'Feedbacks',
   ];
 
   final List<IconData> _icons = [
@@ -52,22 +54,25 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     Icons.directions_car_outlined,
     Icons.admin_panel_settings_outlined,
     Icons.settings_outlined,
-    Icons.forum_outlined,
   ];
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SherviceFloatingStack(
       userRole: 'Admin',
-      userName: 'System Admin',
+      userName: widget.adminName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1E293B),
+          // Retain Dark Blue in Light Mode, shift to deep slate in Dark Mode
+          backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFF1E3A8A),
+          foregroundColor: Colors.white, // Forces all icons/text in AppBar to white
           elevation: 0,
           centerTitle: true,
-          leading: const LegalPoliciesButton(iconColor: Colors.white70),
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -93,13 +98,15 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             NotificationBell(
               role: 'Admin',
               userId: widget.adminId,
-              userName: 'Admin',
+              userName: widget.adminName,
               companyName: '',
-              iconSize: 28,
+              iconSize: 26,
             ),
+            const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
-              onPressed: () => _handleLogout(context),
+              icon: const Icon(Icons.logout, size: 22),
+              tooltip: 'Logout',
+              onPressed: () => _handleLogout(context, isDark),
             ),
             const SizedBox(width: 4),
           ],
@@ -110,22 +117,23 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             child: _screens[_selectedIndex],
           ),
         ),
-        bottomNavigationBar: _buildCustomBottomNav(),
+        bottomNavigationBar: _buildCustomBottomNav(isDark),
       ),
     );
   }
 
-  Widget _buildCustomBottomNav() {
+  Widget _buildCustomBottomNav(bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
+        color: Theme.of(context).cardColor,
+        border: Border(top: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, width: 1)),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          )
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, -4),
+            )
         ],
       ),
       child: SafeArea(
@@ -137,26 +145,31 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             child: Row(
               children: List.generate(_screens.length, (index) {
                 final isSelected = _selectedIndex == index;
+                final selectedColor = isDark ? Colors.blue.shade400 : Colors.blue.shade700;
+                final unselectedColor = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
+
                 return InkWell(
                   onTap: () => setState(() => _selectedIndex = index),
+                  splashColor: selectedColor.withOpacity(0.1),
+                  highlightColor: Colors.transparent,
                   child: Container(
-                    width: MediaQuery.of(context).size.width / 5,
+                    width: MediaQuery.of(context).size.width / 5, // Shows 5 items on screen, rest are scrollable
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           _icons[index],
-                          color: isSelected ? Colors.blue.shade600 : Colors.grey.shade400,
-                          size: 22,
+                          color: isSelected ? selectedColor : unselectedColor,
+                          size: 24,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           _shortTitles[index],
                           style: TextStyle(
-                            color: isSelected ? Colors.blue.shade700 : Colors.grey.shade500,
+                            color: isSelected ? selectedColor : unselectedColor,
                             fontSize: 10,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -173,18 +186,39 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     );
   }
 
-  void _handleLogout(BuildContext context) {
+  void _handleLogout(BuildContext context, bool isDark) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Confirm Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: const Text('Are you sure you want to log out of your account?'),
+          backgroundColor: Theme.of(context).cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.transparent),
+          ),
+          title: Text(
+            'Confirm Logout',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to log out of your account?',
+            style: TextStyle(
+              color: isDark ? Colors.grey.shade300 : const Color(0xFF475569),
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -197,10 +231,14 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                backgroundColor: const Color(0xFFEF4444), // Consistent Red
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
               ),
-              child: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         );

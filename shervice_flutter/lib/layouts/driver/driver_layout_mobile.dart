@@ -7,7 +7,6 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/legal_policies_button.dart';
 
 class DriverLayoutMobile extends StatefulWidget {
   final String driverId;
@@ -28,11 +27,11 @@ class DriverLayoutMobile extends StatefulWidget {
 class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
   int _selectedIndex = 0;
 
-  List<Widget> get _screens => [
-        DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
-        DriverSchedules(driverId: widget.driverId),
-        DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
-      ];
+  late final List<Widget> _screens = [
+    DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
+    DriverSchedules(driverId: widget.driverId),
+    DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
+  ];
 
   final List<String> _titles = ['Dashboard', 'Schedule', 'Profile'];
   final List<IconData> _icons = [
@@ -43,17 +42,21 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SherviceFloatingStack(
       userRole: 'Driver',
       userName: widget.driverName,
       localIp: localIp,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1E293B),
+          // Retain Dark Blue in Light Mode, shift to deep slate in Dark Mode
+          backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFF1E3A8A),
+          foregroundColor: Colors.white, // Forces all icons/text in AppBar to white
           elevation: 0,
-          centerTitle: true, // 👈 center the title
-          leading: const LegalPoliciesButton(iconColor: Colors.white70), // 👈 far left
+          centerTitle: true,
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -67,51 +70,50 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
                 clipBehavior: Clip.antiAlias,
                 child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Image.asset(
                 'assets/shervice - white.jpg',
-                height: 22,
+                height: 20,
                 fit: BoxFit.contain,
               ),
             ],
           ),
           actions: [
-            // 👈 right side: bell + logout
             NotificationBell(
               role: 'Driver',
               userId: widget.driverId,
               userName: widget.driverName,
               companyName: widget.companyName,
-              iconSize: 28,
+              iconSize: 26,
             ),
             IconButton(
-              icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
-              onPressed: () => _confirmLogout(context),
+              icon: const Icon(Icons.logout, size: 22),
+              tooltip: 'Logout',
+              onPressed: () => _confirmLogout(context, isDark),
             ),
+            const SizedBox(width: 4),
           ],
         ),
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: _screens[_selectedIndex],
-          ),
+          child: _screens[_selectedIndex],
         ),
-        bottomNavigationBar: _buildBottomNav(),
+        bottomNavigationBar: _buildBottomNav(isDark),
       ),
     );
   }
 
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav(bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
+        color: Theme.of(context).cardColor,
+        border: Border(top: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, width: 1)),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, -4),
+            ),
         ],
       ),
       child: SafeArea(
@@ -120,24 +122,29 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
           child: Row(
             children: List.generate(_titles.length, (index) {
               final isSelected = _selectedIndex == index;
+              final selectedColor = isDark ? Colors.blue.shade400 : Colors.blue.shade700;
+              final unselectedColor = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
+
               return Expanded(
                 child: InkWell(
                   onTap: () => setState(() => _selectedIndex = index),
+                  splashColor: selectedColor.withOpacity(0.1),
+                  highlightColor: Colors.transparent,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         _icons[index],
-                        color: isSelected ? Colors.blue.shade600 : Colors.grey.shade400,
-                        size: 22,
+                        color: isSelected ? selectedColor : unselectedColor,
+                        size: 24,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         _titles[index],
                         style: TextStyle(
-                          color: isSelected ? Colors.blue.shade700 : Colors.grey.shade500,
-                          fontSize: 10,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? selectedColor : unselectedColor,
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                         ),
                       ),
                     ],
@@ -151,32 +158,51 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
     );
   }
 
-  void _confirmLogout(BuildContext context) {
+  void _confirmLogout(BuildContext context, bool isDark) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Confirm Logout',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.transparent),
         ),
-        content: const Text(
+        title: Text(
+          'Confirm Logout',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+        ),
+        content: Text(
           'Are you sure you want to log out of your account?',
+          style: TextStyle(
+            color: isDark ? Colors.grey.shade300 : const Color(0xFF475569),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
+              backgroundColor: const Color(0xFFEF4444), // Consistent Red
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
+              elevation: 0,
             ),
             onPressed: () async {
               await SessionManager.clearSession();
+              if (!mounted) return;
               Navigator.pop(ctx);
               Navigator.pushReplacement(
                 context,
@@ -185,10 +211,7 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
             },
             child: const Text(
               'Logout',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],
