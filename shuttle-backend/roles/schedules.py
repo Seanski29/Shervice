@@ -163,16 +163,19 @@ def get_pending_schedules():
         return jsonify({"success": True, "data": query.data}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
-
-
 @schedules_bp.route('/api/schedules/dispatch-options', methods=['GET'])
 def get_dispatch_options():
     """Fetches drivers and vehicles. If 'date' is provided, filters out busy assets."""
     try:
-        # 1. Fetch ALL active assets first
-        # 👇 THE FIX: We now check the true maintenance lock ('is_available' == True)
+        # 1. Fetch ALL active vehicles
         all_vehicles = supabase.table('vehicle').select('vehicle_id, plate_number, bus_type').eq('is_available', True).execute()
-        all_drivers = supabase.table('driver_profile').select('user_id, full_name').execute()
+
+        # 👇 FIX: Fetch all drivers with their status, then use Python to strictly filter them (ignores case and spaces)
+        raw_drivers = supabase.table('driver_profile').select('user_id, full_name, employment_status').execute()
+        active_drivers = [
+            d for d in raw_drivers.data 
+            if str(d.get('employment_status', '')).strip().lower() == 'active'
+        ]
 
         # 2. Grab the date we are checking from the request URL
         target_date = request.args.get('date')
@@ -181,7 +184,7 @@ def get_dispatch_options():
             return jsonify({
                 "success": True,
                 "vehicles": all_vehicles.data,
-                "drivers": all_drivers.data
+                "drivers": active_drivers
             }), 200
 
         # 3. Find vehicles and drivers already scheduled for this specific date
@@ -196,9 +199,9 @@ def get_dispatch_options():
         busy_vehicle_ids = [t['vehicle_id'] for t in busy_query.data if t.get('vehicle_id')]
         busy_driver_uuids = [t['user_id'] for t in busy_query.data if t.get('user_id')]
 
-        # 4. Filter out the busy ones
+        # 4. Filter out the busy ones against our active-only list
         available_vehicles = [v for v in all_vehicles.data if v['vehicle_id'] not in busy_vehicle_ids]
-        available_drivers = [d for d in all_drivers.data if d['user_id'] not in busy_driver_uuids]
+        available_drivers = [d for d in active_drivers if d['user_id'] not in busy_driver_uuids]
 
         return jsonify({
             "success": True,

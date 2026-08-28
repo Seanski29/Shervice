@@ -37,7 +37,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   bool _isLoading = true;
   bool _isRefreshing = false;
   List<dynamic> _assignedTrips = [];
-  
+
   // Calendar State
   DateTime _selectedMonth = DateTime.now();
   DateTime? _selectedDate = DateTime.now();
@@ -45,7 +45,12 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   // Search & Filter
   String _searchQuery = '';
   String _statusFilter = 'All';
-  final List<String> _statusOptions = ['All', 'Scheduled', 'Unassigned', 'Rejected'];
+  final List<String> _statusOptions = [
+    'All',
+    'Scheduled',
+    'Unassigned',
+    'Rejected',
+  ];
 
   @override
   void initState() {
@@ -60,7 +65,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
       _isLoading = true;
       _isRefreshing = true;
     });
-    
+
     try {
       final tripsResponse = await http.get(
         Uri.parse('$backendUrl/schedules/staff/${widget.staffId}'),
@@ -86,31 +91,40 @@ class _StaffSchedulesState extends State<StaffSchedules> {
 
   // --- Filtering & Sorting Logic ---
   List<dynamic> _getTripsForDate(DateTime date) {
-    final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    return _assignedTrips.where((trip) => trip['schedule_date'] == dateStr).toList();
+    final dateStr =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    return _assignedTrips
+        .where((trip) => trip['schedule_date'] == dateStr)
+        .toList();
   }
 
   List<dynamic> _getFilteredTrips() {
     if (_isLoading) {
       // Mock data for skeletonizer
-      return List.generate(4, (index) => {
-        'trip_id': index,
-        'route_name': 'Loading Route Description Data',
-        'trip_status': 'Scheduled',
-        'schedule_date': '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
-        'departure_time': '00:00:00',
-        'estimated_arrival_time': '00:00:00',
-        'client_company': 'Loading Company Data',
-        'passenger_count': 0,
-        'route_distance': 0.0,
-        'driver_name': 'Loading Driver Name',
-        'vehicle_plate': 'LOADING',
-        'user_id': 1,
-        'vehicle_id': 1
-      });
+      return List.generate(
+        4,
+        (index) => {
+          'trip_id': index,
+          'route_name': 'Loading Route Description Data',
+          'trip_status': 'Scheduled',
+          'schedule_date':
+              '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
+          'departure_time': '00:00:00',
+          'estimated_arrival_time': '00:00:00',
+          'client_company': 'Loading Company Data',
+          'passenger_count': 0,
+          'route_distance': 0.0,
+          'driver_name': 'Loading Driver Name',
+          'vehicle_plate': 'LOADING',
+          'user_id': 1,
+          'vehicle_id': 1,
+        },
+      );
     }
 
-    List<dynamic> trips = _selectedDate != null ? _getTripsForDate(_selectedDate!) : List.from(_assignedTrips);
+    List<dynamic> trips = _selectedDate != null
+        ? _getTripsForDate(_selectedDate!)
+        : List.from(_assignedTrips);
 
     // 1. Search Filter
     if (_searchQuery.isNotEmpty) {
@@ -118,8 +132,12 @@ class _StaffSchedulesState extends State<StaffSchedules> {
       trips = trips.where((trip) {
         final routeName = (trip['route_name'] ?? '').toString().toLowerCase();
         final driverName = (trip['driver_name'] ?? '').toString().toLowerCase();
-        final companyName = (trip['client_company'] ?? '').toString().toLowerCase();
-        return routeName.contains(query) || driverName.contains(query) || companyName.contains(query);
+        final companyName = (trip['client_company'] ?? '')
+            .toString()
+            .toLowerCase();
+        return routeName.contains(query) ||
+            driverName.contains(query) ||
+            companyName.contains(query);
       }).toList();
     }
 
@@ -128,8 +146,13 @@ class _StaffSchedulesState extends State<StaffSchedules> {
       trips = trips.where((trip) {
         final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
         final isRejected = statusStr.toLowerCase().contains('rejected');
-        final isUnassigned = (trip['user_id'] == null || trip['vehicle_id'] == null) && !isRejected;
-        final isScheduled = trip['user_id'] != null && trip['vehicle_id'] != null && !isRejected;
+        final isUnassigned =
+            (trip['user_id'] == null || trip['vehicle_id'] == null) &&
+            !isRejected;
+        final isScheduled =
+            trip['user_id'] != null &&
+            trip['vehicle_id'] != null &&
+            !isRejected;
 
         if (_statusFilter == 'Scheduled') return isScheduled;
         if (_statusFilter == 'Unassigned') return isUnassigned;
@@ -146,8 +169,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
       final aRejected = aStatus.contains('rejected');
       final bRejected = bStatus.contains('rejected');
 
-      final aUnassigned = (a['user_id'] == null || a['vehicle_id'] == null) && !aRejected;
-      final bUnassigned = (b['user_id'] == null || b['vehicle_id'] == null) && !bRejected;
+      final aUnassigned =
+          (a['user_id'] == null || a['vehicle_id'] == null) && !aRejected;
+      final bUnassigned =
+          (b['user_id'] == null || b['vehicle_id'] == null) && !bRejected;
 
       if (aUnassigned && !bUnassigned) return -1;
       if (!aUnassigned && bUnassigned) return 1;
@@ -159,31 +184,64 @@ class _StaffSchedulesState extends State<StaffSchedules> {
 
   // --- Base Stats ---
   int get _totalTrips => _isLoading ? 8 : _assignedTrips.length;
-  
-  int get _rejectedTrips => _isLoading ? 0 : _assignedTrips.where((t) {
-    final statusStr = t['trip_status']?.toString() ?? 'Unknown';
-    return statusStr.toLowerCase().contains('rejected');
-  }).length;
 
-  int get _scheduledTrips => _isLoading ? 5 : _assignedTrips.where((t) {
-    final statusStr = t['trip_status']?.toString() ?? 'Unknown';
-    final isRejected = statusStr.toLowerCase().contains('rejected');
-    return t['user_id'] != null && t['vehicle_id'] != null && !isRejected;
-  }).length;
+  int get _rejectedTrips => _isLoading
+      ? 0
+      : _assignedTrips.where((t) {
+          final statusStr = t['trip_status']?.toString() ?? 'Unknown';
+          return statusStr.toLowerCase().contains('rejected');
+        }).length;
 
-  int get _unassignedTrips => _isLoading ? 3 : _assignedTrips.where((t) {
-    final statusStr = t['trip_status']?.toString() ?? 'Unknown';
-    final isRejected = statusStr.toLowerCase().contains('rejected');
-    return (t['user_id'] == null || t['vehicle_id'] == null) && !isRejected;
-  }).length;
+  int get _scheduledTrips => _isLoading
+      ? 5
+      : _assignedTrips.where((t) {
+          final statusStr = t['trip_status']?.toString() ?? 'Unknown';
+          final isRejected = statusStr.toLowerCase().contains('rejected');
+          return t['user_id'] != null && t['vehicle_id'] != null && !isRejected;
+        }).length;
+
+  int get _unassignedTrips => _isLoading
+      ? 3
+      : _assignedTrips.where((t) {
+          final statusStr = t['trip_status']?.toString() ?? 'Unknown';
+          final isRejected = statusStr.toLowerCase().contains('rejected');
+          return (t['user_id'] == null || t['vehicle_id'] == null) &&
+              !isRejected;
+        }).length;
 
   String _formatDateOnly(DateTime date) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
-  
+
   String _monthYearFormat(DateTime date) {
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     return '${months[date.month - 1]} ${date.year}';
   }
 
@@ -233,7 +291,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                 // ----- TOP STATS -----
                 _buildTopSummaryStats(isDark, isMobile),
                 const SizedBox(height: 24),
-                
+
                 // ----- DATE CLEAR HINT -----
                 if (_selectedDate != null) _buildActiveDateHint(isDark),
 
@@ -249,7 +307,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(flex: 1, child: _buildCompactCalendarGrid(isDark)),
+                          Expanded(
+                            flex: 1,
+                            child: _buildCompactCalendarGrid(isDark),
+                          ),
                           const SizedBox(width: 20),
                           Expanded(flex: 2, child: _buildTripListView(isDark)),
                         ],
@@ -297,7 +358,11 @@ class _StaffSchedulesState extends State<StaffSchedules> {
           const SizedBox(width: 8),
           Text(
             'Viewing trips for: ${_formatDateOnly(_selectedDate!)}',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF3B82F6)),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3B82F6),
+            ),
           ),
           const Spacer(),
           InkWell(
@@ -306,9 +371,13 @@ class _StaffSchedulesState extends State<StaffSchedules> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+                color: isDark
+                    ? const Color(0xFF1E293B)
+                    : const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
+                ),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
@@ -317,7 +386,11 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   SizedBox(width: 4),
                   Text(
                     'Clear Date Filter',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF3B82F6), fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF3B82F6),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -345,21 +418,35 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                 _searchQuery = value;
               });
             },
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontSize: 13,
+            ),
             decoration: InputDecoration(
               hintText: 'Search routes, drivers...',
               hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-              prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+              prefixIcon: const Icon(
+                Icons.search,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
               filled: true,
               fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 0,
+                horizontal: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
               ),
             ),
           ),
@@ -370,16 +457,28 @@ class _StaffSchedulesState extends State<StaffSchedules> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _statusFilter,
-              icon: const Icon(Icons.filter_alt_outlined, size: 18, color: Color(0xFF64748B)),
-              style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold),
+              icon: const Icon(
+                Icons.filter_alt_outlined,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontWeight: FontWeight.bold,
+              ),
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              items: _statusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              items: _statusOptions
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _statusFilter = val);
               },
@@ -408,10 +507,34 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   // ---- TOP SUMMARY STATS ----
   Widget _buildTopSummaryStats(bool isDark, bool isMobile) {
     final List<Map<String, dynamic>> stats = [
-      { 'label': 'Total Trips', 'value': _totalTrips.toString(), 'icon': Icons.inventory_2_outlined, 'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600, 'filter': 'All' },
-      { 'label': 'Scheduled', 'value': _scheduledTrips.toString(), 'icon': Icons.check_circle_outline, 'color': const Color(0xFF10B981), 'filter': 'Scheduled' },
-      { 'label': 'Unassigned', 'value': _unassignedTrips.toString(), 'icon': Icons.assignment_late_outlined, 'color': const Color(0xFFF59E0B), 'filter': 'Unassigned' },
-      { 'label': 'Rejected', 'value': _rejectedTrips.toString(), 'icon': Icons.cancel_outlined, 'color': const Color(0xFFEF4444), 'filter': 'Rejected' },
+      {
+        'label': 'Total Trips',
+        'value': _totalTrips.toString(),
+        'icon': Icons.inventory_2_outlined,
+        'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+        'filter': 'All',
+      },
+      {
+        'label': 'Scheduled',
+        'value': _scheduledTrips.toString(),
+        'icon': Icons.check_circle_outline,
+        'color': const Color(0xFF10B981),
+        'filter': 'Scheduled',
+      },
+      {
+        'label': 'Unassigned',
+        'value': _unassignedTrips.toString(),
+        'icon': Icons.assignment_late_outlined,
+        'color': const Color(0xFFF59E0B),
+        'filter': 'Unassigned',
+      },
+      {
+        'label': 'Rejected',
+        'value': _rejectedTrips.toString(),
+        'icon': Icons.cancel_outlined,
+        'color': const Color(0xFFEF4444),
+        'filter': 'Rejected',
+      },
     ];
 
     Widget buildCard(Map<String, dynamic> stat) {
@@ -424,10 +547,14 @@ class _StaffSchedulesState extends State<StaffSchedules> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? stat['color'].withValues(alpha: 0.1) : (isDark ? const Color(0xFF1E293B) : Colors.white),
+            color: isSelected
+                ? stat['color'].withValues(alpha: 0.1)
+                : (isDark ? const Color(0xFF1E293B) : Colors.white),
             borderRadius: BorderRadius.circular(40),
             border: Border.all(
-              color: isSelected ? stat['color'] : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+              color: isSelected
+                  ? stat['color']
+                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
               width: isSelected ? 2.0 : 1.0,
             ),
           ),
@@ -442,11 +569,22 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                 children: [
                   Text(
                     stat['value'],
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF0F172A), height: 1.1),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      height: 1.1,
+                    ),
                   ),
                   Text(
                     stat['label'],
-                    style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : const Color(0xFF64748B),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -502,7 +640,9 @@ class _StaffSchedulesState extends State<StaffSchedules> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: headerBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
             child: Row(
@@ -510,22 +650,50 @@ class _StaffSchedulesState extends State<StaffSchedules> {
               children: [
                 Text(
                   _monthYearFormat(_selectedMonth),
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                 ),
                 Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.chevron_left, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                      icon: Icon(
+                        Icons.chevron_left,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1)),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      onPressed: () => setState(
+                        () => _selectedMonth = DateTime(
+                          _selectedMonth.year,
+                          _selectedMonth.month - 1,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 4),
                     IconButton(
-                      icon: Icon(Icons.chevron_right, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                      icon: Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1)),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      onPressed: () => setState(
+                        () => _selectedMonth = DateTime(
+                          _selectedMonth.year,
+                          _selectedMonth.month + 1,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -545,9 +713,22 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   crossAxisSpacing: 3,
                   children: weekdays.map((day) {
                     return Container(
-                      decoration: BoxDecoration(color: headerBg, borderRadius: BorderRadius.circular(6), border: Border.all(color: borderColor)),
+                      decoration: BoxDecoration(
+                        color: headerBg,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: borderColor),
+                      ),
                       child: Center(
-                        child: Text(day, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.grey.shade400 : const Color(0xFF475569))),
+                        child: Text(
+                          day,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : const Color(0xFF475569),
+                          ),
+                        ),
                       ),
                     );
                   }).toList(),
@@ -566,12 +747,23 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   itemBuilder: (context, index) {
                     if (index < firstWeekday) return Container();
                     final day = index - firstWeekday + 1;
-                    final date = DateTime(_selectedMonth.year, _selectedMonth.month, day);
+                    final date = DateTime(
+                      _selectedMonth.year,
+                      _selectedMonth.month,
+                      day,
+                    );
                     final trips = _getTripsForDate(date);
                     final hasTrips = trips.isNotEmpty;
 
-                    final isSelected = _selectedDate != null && _selectedDate!.year == date.year && _selectedDate!.month == date.month && _selectedDate!.day == date.day;
-                    final isToday = DateTime.now().year == date.year && DateTime.now().month == date.month && DateTime.now().day == date.day;
+                    final isSelected =
+                        _selectedDate != null &&
+                        _selectedDate!.year == date.year &&
+                        _selectedDate!.month == date.month &&
+                        _selectedDate!.day == date.day;
+                    final isToday =
+                        DateTime.now().year == date.year &&
+                        DateTime.now().month == date.month &&
+                        DateTime.now().day == date.day;
 
                     return GestureDetector(
                       onTap: () {
@@ -581,9 +773,21 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF3B82F6) : (hasTrips ? (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF)) : (isDark ? const Color(0xFF1E293B) : Colors.white)),
+                          color: isSelected
+                              ? const Color(0xFF3B82F6)
+                              : (hasTrips
+                                    ? (isDark
+                                          ? Colors.blue.withValues(alpha: 0.2)
+                                          : const Color(0xFFEFF6FF))
+                                    : (isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white)),
                           border: Border.all(
-                            color: isToday ? const Color(0xFFF59E0B) : (isSelected ? const Color(0xFF3B82F6) : borderColor),
+                            color: isToday
+                                ? const Color(0xFFF59E0B)
+                                : (isSelected
+                                      ? const Color(0xFF3B82F6)
+                                      : borderColor),
                             width: isToday ? 1.5 : (isSelected ? 1.5 : 1),
                           ),
                           borderRadius: BorderRadius.circular(6),
@@ -593,8 +797,16 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                             day.toString(),
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
-                              color: isSelected ? Colors.white : (hasTrips ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade300 : const Color(0xFF0F172A))),
+                              fontWeight: isSelected || isToday
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (hasTrips
+                                        ? const Color(0xFF3B82F6)
+                                        : (isDark
+                                              ? Colors.grey.shade300
+                                              : const Color(0xFF0F172A))),
                             ),
                           ),
                         ),
@@ -629,7 +841,9 @@ class _StaffSchedulesState extends State<StaffSchedules> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
             child: Row(
@@ -638,12 +852,26 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                 Flexible(
                   child: Row(
                     children: [
-                      Icon(Icons.list_alt, color: isDark ? Colors.grey.shade400 : const Color(0xFF475569), size: 20),
+                      Icon(
+                        Icons.list_alt,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : const Color(0xFF475569),
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
-                          _selectedDate == null ? 'Filtered Results' : 'Schedule',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                          _selectedDate == null
+                              ? 'Filtered Results'
+                              : 'Schedule',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -651,28 +879,55 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.blue.withValues(alpha: 0.2)
+                        : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: Text(
                     '${displayedTrips.length} results',
-                    style: TextStyle(color: isDark ? Colors.blue.shade300 : const Color(0xFF3B82F6), fontSize: 12, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.blue.shade300
+                          : const Color(0xFF3B82F6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          
+
           !_isLoading && displayedTrips.isEmpty
               ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 40,
+                    horizontal: 16,
+                  ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.calendar_today_outlined, size: 48, color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 48,
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         'No trips found.',
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 15, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
@@ -683,9 +938,15 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   itemCount: displayedTrips.length,
                   itemBuilder: (context, index) {
                     final trip = displayedTrips[index];
-                    final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
-                    final isRejected = statusStr.toLowerCase().contains('rejected');
-                    final bool needsAssignment = (trip['user_id'] == null || trip['vehicle_id'] == null) && !isRejected;
+                    final statusStr =
+                        trip['trip_status']?.toString() ?? 'Unknown';
+                    final isRejected = statusStr.toLowerCase().contains(
+                      'rejected',
+                    );
+                    final bool needsAssignment =
+                        (trip['user_id'] == null ||
+                            trip['vehicle_id'] == null) &&
+                        !isRejected;
 
                     return TripCard(
                       trip: trip,
@@ -752,11 +1013,16 @@ class TripCard extends StatelessWidget {
     final String company = trip['client_company'] ?? 'Unknown Client';
     final String passengers = '${trip['passenger_count'] ?? 0} pax';
     final String distance = '${trip['route_distance'] ?? 0} km';
-    final String timeRange = _formatTimeRange(trip['departure_time'], trip['estimated_arrival_time']);
+    final String timeRange = _formatTimeRange(
+      trip['departure_time'],
+      trip['estimated_arrival_time'],
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: borderColor))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: borderColor)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -769,7 +1035,11 @@ class TripCard extends StatelessWidget {
                   children: [
                     Text(
                       routeName,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -782,10 +1052,22 @@ class TripCard extends StatelessWidget {
                         _cardIconText(Icons.business_outlined, company, isDark),
                         _cardIconText(Icons.people_outline, passengers, isDark),
                         _cardIconText(Icons.straighten, distance, isDark),
-                        if (trip['driver_name'] != null && !isUnassigned && !isRejected)
-                          _cardIconText(Icons.person_outline, trip['driver_name'], isDark),
-                        if (trip['vehicle_plate'] != null && !isUnassigned && !isRejected)
-                          _cardIconText(Icons.directions_car_outlined, trip['vehicle_plate'], isDark),
+                        if (trip['driver_name'] != null &&
+                            !isUnassigned &&
+                            !isRejected)
+                          _cardIconText(
+                            Icons.person_outline,
+                            trip['driver_name'],
+                            isDark,
+                          ),
+                        if (trip['vehicle_plate'] != null &&
+                            !isUnassigned &&
+                            !isRejected)
+                          _cardIconText(
+                            Icons.directions_car_outlined,
+                            trip['vehicle_plate'],
+                            isDark,
+                          ),
                       ],
                     ),
                   ],
@@ -797,13 +1079,18 @@ class TripCard extends StatelessWidget {
                 children: [
                   Text(
                     badgeText,
-                    style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
-          
+
           if (isUnassigned) ...[
             const SizedBox(height: 16),
             Skeleton.ignore(
@@ -817,11 +1104,24 @@ class TripCard extends StatelessWidget {
                           if (isModal) Navigator.pop(context);
                           _showAssignModal(context);
                         },
-                        icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 16),
-                        label: const Text('Assign', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                        icon: const Icon(
+                          Icons.assignment_ind,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        label: const Text(
+                          'Assign',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFF59E0B),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           elevation: 0,
                         ),
                       ),
@@ -833,11 +1133,24 @@ class TripCard extends StatelessWidget {
                       height: 40,
                       child: OutlinedButton.icon(
                         onPressed: () => _rejectTrip(context),
-                        icon: const Icon(Icons.cancel, color: Color(0xFFEF4444), size: 16),
-                        label: const Text('Reject', style: TextStyle(color: Color(0xFFEF4444), fontSize: 13, fontWeight: FontWeight.bold)),
+                        icon: const Icon(
+                          Icons.cancel,
+                          color: Color(0xFFEF4444),
+                          size: 16,
+                        ),
+                        label: const Text(
+                          'Reject',
+                          style: TextStyle(
+                            color: Color(0xFFEF4444),
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Color(0xFFEF4444)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
@@ -855,12 +1168,20 @@ class TripCard extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B)),
+        Icon(
+          icon,
+          size: 14,
+          color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B),
+        ),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
             text,
-            style: TextStyle(fontWeight: FontWeight.w500, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontSize: 12),
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+              fontSize: 12,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -882,25 +1203,41 @@ class TripCard extends StatelessWidget {
 
   Future<void> _rejectTrip(BuildContext context) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text("Reject Request?", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+        title: Text(
+          "Reject Request?",
+          style: TextStyle(color: isDark ? Colors.white : Colors.black),
+        ),
         content: Text(
           "Are you sure you want to reject this trip request?",
-          style: TextStyle(color: isDark ? Colors.grey.shade300 : Colors.black87),
+          style: TextStyle(
+            color: isDark ? Colors.grey.shade300 : Colors.black87,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text("Cancel", style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700)),
+            child: Text(
+              "Cancel",
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Reject", style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+            child: const Text(
+              "Reject",
+              style: TextStyle(
+                color: Color(0xFFEF4444),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -960,8 +1297,13 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
   Future<void> _fetchAvailability() async {
     try {
       final String tripDate = widget.trip['schedule_date'];
+      final String cacheBuster = DateTime.now().millisecondsSinceEpoch
+          .toString();
+
       final res = await http.get(
-        Uri.parse('${widget.backendUrl}/schedules/dispatch-options?date=$tripDate'),
+        Uri.parse(
+          '${widget.backendUrl}/schedules/dispatch-options?date=$tripDate&cb=$cacheBuster',
+        ),
       );
 
       if (res.statusCode == 200 && mounted) {
@@ -1011,9 +1353,11 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     final Color bgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color fieldColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final Color fieldColor = isDark
+        ? const Color(0xFF0F172A)
+        : const Color(0xFFF8FAFC);
     final Color textColor = isDark ? Colors.white : Colors.black87;
 
     return AlertDialog(
@@ -1021,7 +1365,11 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         "Dispatch: ${widget.trip['route_name']}",
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: textColor,
+        ),
       ),
       content: _isLoadingOptions
           ? const SizedBox(
@@ -1039,77 +1387,121 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                   Text(
                     "Date: ${widget.trip['schedule_date']}",
                     style: TextStyle(
-                      color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : const Color(0xFF64748B),
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
+
                   if (_drivers.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
+                        color: isDark
+                            ? const Color(0xFF450A0A)
+                            : const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
                         "⚠️ No drivers available for this date.",
-                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 13),
+                        style: TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontSize: 13,
+                        ),
                       ),
                     )
                   else
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
                         labelText: "Select Driver",
-                        labelStyle: TextStyle(fontSize: 13, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        labelStyle: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : const Color(0xFF64748B),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                         filled: true,
                         fillColor: fieldColor,
                       ),
                       dropdownColor: bgColor,
                       style: TextStyle(color: textColor, fontSize: 14),
                       initialValue: _selectedDriverUuid,
-                      items: _drivers.map((d) => DropdownMenuItem<String>(
-                        value: d['user_id'],
-                        child: Text(d['full_name']),
-                      )).toList(),
-                      onChanged: (val) => setState(() => _selectedDriverUuid = val),
+                      items: _drivers
+                          .map(
+                            (d) => DropdownMenuItem<String>(
+                              value: d['user_id'],
+                              child: Text(d['full_name']),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => _selectedDriverUuid = val),
                     ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   if (_vehicles.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
+                        color: isDark
+                            ? const Color(0xFF450A0A)
+                            : const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
                         "⚠️ No vehicles available for this date.",
-                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 13),
+                        style: TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontSize: 13,
+                        ),
                       ),
                     )
                   else
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
                         labelText: "Select Vehicle",
-                        labelStyle: TextStyle(fontSize: 13, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        labelStyle: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : const Color(0xFF64748B),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                         filled: true,
                         fillColor: fieldColor,
                       ),
                       dropdownColor: bgColor,
                       style: TextStyle(color: textColor, fontSize: 14),
                       initialValue: _selectedVehicleId,
-                      items: _vehicles.map((v) => DropdownMenuItem<String>(
-                        value: v['vehicle_id'].toString(),
-                        child: Text("${v['plate_number']} (${v['bus_type']})"),
-                      )).toList(),
-                      onChanged: (val) => setState(() => _selectedVehicleId = val),
+                      items: _vehicles
+                          .map(
+                            (v) => DropdownMenuItem<String>(
+                              value: v['vehicle_id'].toString(),
+                              child: Text(
+                                "${v['plate_number']} (${v['bus_type']})",
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => _selectedVehicleId = val),
                     ),
                 ],
               ),
@@ -1117,24 +1509,43 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text("Cancel", style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700)),
+          child: Text(
+            "Cancel",
+            style: TextStyle(
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+            ),
+          ),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFF59E0B),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
             elevation: 0,
           ),
-          onPressed: (_isSubmitting || _selectedDriverUuid == null || _selectedVehicleId == null)
+          onPressed:
+              (_isSubmitting ||
+                  _selectedDriverUuid == null ||
+                  _selectedVehicleId == null)
               ? null
               : _submitAssignment,
           child: _isSubmitting
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
                 )
-              : const Text("Confirm Assignment", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              : const Text(
+                  "Confirm Assignment",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         ),
       ],
     );
