@@ -1,10 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
 
+// ============================================================================
+// FORMATTING HELPER
+// ============================================================================
 String _formatTimeRange(String? departureTime, String? etaTime) {
   final departure = departureTime?.toString().trim();
   final eta = etaTime?.toString().trim();
@@ -19,6 +21,9 @@ String _formatTimeRange(String? departureTime, String? etaTime) {
   return '$formattedDeparture-$formattedEta';
 }
 
+// ============================================================================
+// MAIN WIDGET
+// ============================================================================
 class StaffSchedules extends StatefulWidget {
   final String staffId;
   const StaffSchedules({super.key, required this.staffId});
@@ -28,20 +33,19 @@ class StaffSchedules extends StatefulWidget {
 }
 
 class _StaffSchedulesState extends State<StaffSchedules> {
+  // --- State Variables ---
   bool _isLoading = true;
+  bool _isRefreshing = false;
   List<dynamic> _assignedTrips = [];
+  
+  // Calendar State
   DateTime _selectedMonth = DateTime.now();
   DateTime? _selectedDate = DateTime.now();
 
+  // Search & Filter
   String _searchQuery = '';
   String _statusFilter = 'All';
-  // 👇 FIX: Added 'Rejected' to the dropdown filter options
-  final List<String> _statusOptions = [
-    'All',
-    'Scheduled',
-    'Unassigned',
-    'Rejected',
-  ];
+  final List<String> _statusOptions = ['All', 'Scheduled', 'Unassigned', 'Rejected'];
 
   @override
   void initState() {
@@ -49,7 +53,14 @@ class _StaffSchedulesState extends State<StaffSchedules> {
     _fetchStaffDashboardData();
   }
 
+  // --- Data Fetching ---
   Future<void> _fetchStaffDashboardData() async {
+    if (_isRefreshing) return;
+    setState(() {
+      _isLoading = true;
+      _isRefreshing = true;
+    });
+    
     try {
       final tripsResponse = await http.get(
         Uri.parse('$backendUrl/schedules/staff/${widget.staffId}'),
@@ -59,62 +70,75 @@ class _StaffSchedulesState extends State<StaffSchedules> {
         final tripsData = jsonDecode(tripsResponse.body);
         setState(() {
           _assignedTrips = tripsData['data'] ?? [];
-          _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      debugPrint("Error fetching staff schedules: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isRefreshing = false;
+        });
+      }
     }
   }
 
+  // --- Filtering & Sorting Logic ---
   List<dynamic> _getTripsForDate(DateTime date) {
-    final dateStr =
-        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    return _assignedTrips
-        .where((trip) => trip['schedule_date'] == dateStr)
-        .toList();
+    final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    return _assignedTrips.where((trip) => trip['schedule_date'] == dateStr).toList();
   }
 
   List<dynamic> _getFilteredTrips() {
-    List<dynamic> trips = _selectedDate != null
-        ? _getTripsForDate(_selectedDate!)
-        : _assignedTrips;
+    if (_isLoading) {
+      // Mock data for skeletonizer
+      return List.generate(4, (index) => {
+        'trip_id': index,
+        'route_name': 'Loading Route Description Data',
+        'trip_status': 'Scheduled',
+        'schedule_date': '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
+        'departure_time': '00:00:00',
+        'estimated_arrival_time': '00:00:00',
+        'client_company': 'Loading Company Data',
+        'passenger_count': 0,
+        'route_distance': 0.0,
+        'driver_name': 'Loading Driver Name',
+        'vehicle_plate': 'LOADING',
+        'user_id': 1,
+        'vehicle_id': 1
+      });
+    }
 
+    List<dynamic> trips = _selectedDate != null ? _getTripsForDate(_selectedDate!) : List.from(_assignedTrips);
+
+    // 1. Search Filter
     if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
       trips = trips.where((trip) {
         final routeName = (trip['route_name'] ?? '').toString().toLowerCase();
         final driverName = (trip['driver_name'] ?? '').toString().toLowerCase();
-        final companyName = (trip['client_company'] ?? '')
-            .toString()
-            .toLowerCase();
-        return routeName.contains(_searchQuery.toLowerCase()) ||
-            driverName.contains(_searchQuery.toLowerCase()) ||
-            companyName.contains(_searchQuery.toLowerCase());
+        final companyName = (trip['client_company'] ?? '').toString().toLowerCase();
+        return routeName.contains(query) || driverName.contains(query) || companyName.contains(query);
       }).toList();
     }
 
+    // 2. Status Filter
     if (_statusFilter != 'All') {
       trips = trips.where((trip) {
         final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
         final isRejected = statusStr.toLowerCase().contains('rejected');
-        final isUnassigned =
-            (trip['user_id'] == null || trip['vehicle_id'] == null) &&
-            !isRejected;
-        final isScheduled =
-            trip['user_id'] != null &&
-            trip['vehicle_id'] != null &&
-            !isRejected;
+        final isUnassigned = (trip['user_id'] == null || trip['vehicle_id'] == null) && !isRejected;
+        final isScheduled = trip['user_id'] != null && trip['vehicle_id'] != null && !isRejected;
 
         if (_statusFilter == 'Scheduled') return isScheduled;
         if (_statusFilter == 'Unassigned') return isUnassigned;
-        // 👇 FIX: Implemented logic to filter the list specifically by Rejected items
         if (_statusFilter == 'Rejected') return isRejected;
-
         return true;
       }).toList();
     }
 
-    // ── SORT: unassigned first ──
+    // 3. Sort: Unassigned first
     trips.sort((a, b) {
       final aStatus = a['trip_status']?.toString().toLowerCase() ?? '';
       final bStatus = b['trip_status']?.toString().toLowerCase() ?? '';
@@ -122,10 +146,8 @@ class _StaffSchedulesState extends State<StaffSchedules> {
       final aRejected = aStatus.contains('rejected');
       final bRejected = bStatus.contains('rejected');
 
-      final aUnassigned =
-          (a['user_id'] == null || a['vehicle_id'] == null) && !aRejected;
-      final bUnassigned =
-          (b['user_id'] == null || b['vehicle_id'] == null) && !bRejected;
+      final aUnassigned = (a['user_id'] == null || a['vehicle_id'] == null) && !aRejected;
+      final bUnassigned = (b['user_id'] == null || b['vehicle_id'] == null) && !bRejected;
 
       if (aUnassigned && !bUnassigned) return -1;
       if (!aUnassigned && bUnassigned) return 1;
@@ -135,384 +157,170 @@ class _StaffSchedulesState extends State<StaffSchedules> {
     return trips;
   }
 
-  int get _totalTrips => _assignedTrips.length;
-
-  int get _rejectedTrips => _assignedTrips.where((t) {
+  // --- Base Stats ---
+  int get _totalTrips => _isLoading ? 8 : _assignedTrips.length;
+  
+  int get _rejectedTrips => _isLoading ? 0 : _assignedTrips.where((t) {
     final statusStr = t['trip_status']?.toString() ?? 'Unknown';
     return statusStr.toLowerCase().contains('rejected');
   }).length;
 
-  int get _scheduledTrips => _assignedTrips.where((t) {
+  int get _scheduledTrips => _isLoading ? 5 : _assignedTrips.where((t) {
     final statusStr = t['trip_status']?.toString() ?? 'Unknown';
     final isRejected = statusStr.toLowerCase().contains('rejected');
     return t['user_id'] != null && t['vehicle_id'] != null && !isRejected;
   }).length;
 
-  int get _unassignedTrips => _assignedTrips.where((t) {
+  int get _unassignedTrips => _isLoading ? 3 : _assignedTrips.where((t) {
     final statusStr = t['trip_status']?.toString() ?? 'Unknown';
     final isRejected = statusStr.toLowerCase().contains('rejected');
     return (t['user_id'] == null || t['vehicle_id'] == null) && !isRejected;
   }).length;
 
-  void _showTripDetailsModal(DateTime date, List<dynamic> trips) {
-    showDialog(
-      context: context,
-      builder: (context) => TripDetailsDialog(
-        date: date,
-        trips: trips.isEmpty ? _getFilteredTrips() : trips,
-        backendUrl: backendUrl,
-        onAssign: () {
-          setState(() => _isLoading = true);
-          _fetchStaffDashboardData();
-        },
-      ),
-    );
-  }
-
   String _formatDateOnly(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
+  
+  String _monthYearFormat(DateTime date) {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return '${months[date.month - 1]} ${date.year}';
+  }
 
+  // --- MAIN BUILD ---
   @override
   Widget build(BuildContext context) {
-    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 900;
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _fetchStaffDashboardData,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding,
-            vertical: 12.0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── HEADER ──
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Trip Assigment',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: Theme.of(context).colorScheme.onSurface,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Assign Trips and and monitor schedules.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: IconButton(
-                      onPressed: () {
-                        setState(() => _isLoading = true);
-                        _fetchStaffDashboardData();
-                      },
-                      icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6)),
-                      tooltip: 'Refresh',
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // ── STATS CHIPS ──
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _statChip(
-                    Icons.event,
-                    _totalTrips.toString(),
-                    'Total',
-                    const Color(0xFF3B82F6),
-                  ),
-                  _statChip(
-                    Icons.check_circle,
-                    _scheduledTrips.toString(),
-                    'Scheduled',
-                    const Color(0xFF10B981),
-                  ),
-                  _statChip(
-                    Icons.warning,
-                    _unassignedTrips.toString(),
-                    'Unassigned',
-                    const Color(0xFFF59E0B),
-                  ),
-                  // 👇 FIX: Added the new Rejected statistics chip
-                  _statChip(
-                    Icons.cancel,
-                    _rejectedTrips.toString(),
-                    'Rejected',
-                    const Color(0xFFEF4444),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // ── SEARCH & FILTER ──
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.start,
-                children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isMobile ? double.infinity : 280,
-                      minWidth: isMobile ? double.infinity : 200,
-                    ),
-                    child: SizedBox(
-                      height: 38,
-                      child: TextField(
-                        onChanged: (value) =>
-                            setState(() => _searchQuery = value),
-                        decoration: InputDecoration(
-                          hintText: 'Search...',
-                          hintStyle: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade500,
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.search,
-                            size: 16,
-                            color: Color(0xFF64748B),
-                          ),
-                          filled: true,
-                          fillColor: const Color(0xFFF8FAFC),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 6,
-                            horizontal: 10,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF3B82F6),
-                              width: 1.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isMobile ? double.infinity : 160,
-                      minWidth: isMobile ? double.infinity : 120,
-                    ),
-                    child: SizedBox(
-                      height: 38,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            value: _statusFilter,
-                            icon: const Icon(
-                              Icons.filter_alt_outlined,
-                              size: 16,
-                              color: Color(0xFF64748B),
-                            ),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF0F172A),
-                            ),
-                            items: _statusOptions.map((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                            onChanged: (newValue) {
-                              if (newValue != null) {
-                                setState(() => _statusFilter = newValue);
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (_selectedDate != null)
-                    GestureDetector(
-                      onTap: () => setState(() => _selectedDate = null),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.close,
-                              size: 14,
-                              color: Color(0xFF3B82F6),
-                            ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Clear',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF3B82F6),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // ── DATE HINT ──
-              if (_selectedDate != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.event,
-                        size: 16,
-                        color: Color(0xFF3B82F6),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _formatDateOnly(_selectedDate!),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF3B82F6),
-                        ),
-                      ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () => setState(() => _selectedDate = null),
-                        child: const Text(
-                          'View All',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF3B82F6),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // ── MAIN CONTENT ──
-              Expanded(
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF3B82F6),
-                        ),
+        child: Skeletonizer(
+          enabled: _isLoading,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 24.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ----- HEADER & FILTERS -----
+                isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTitleAndSubtitle(isDark),
+                          const SizedBox(height: 16),
+                          _buildSearchAndFilterRow(isDark, isMobile),
+                        ],
                       )
-                    : isMobile
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _buildTitleAndSubtitle(isDark),
+                          const Spacer(),
+                          _buildSearchAndFilterRow(isDark, isMobile),
+                        ],
+                      ),
+                const SizedBox(height: 24),
+
+                // ----- TOP STATS -----
+                _buildTopSummaryStats(isDark, isMobile),
+                const SizedBox(height: 24),
+                
+                // ----- DATE CLEAR HINT -----
+                if (_selectedDate != null) _buildActiveDateHint(isDark),
+
+                // ----- MAIN LAYOUT -----
+                isMobile
                     ? Column(
                         children: [
-                          _buildCompactCalendarGrid(),
-                          const SizedBox(height: 12),
-                          Expanded(child: _buildTripListView()),
+                          _buildCompactCalendarGrid(isDark),
+                          const SizedBox(height: 16),
+                          _buildTripListView(isDark),
                         ],
                       )
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(flex: 1, child: _buildCompactCalendarGrid()),
-                          const SizedBox(width: 16),
-                          Expanded(flex: 2, child: _buildTripListView()),
+                          Expanded(flex: 1, child: _buildCompactCalendarGrid(isDark)),
+                          const SizedBox(width: 20),
+                          Expanded(flex: 2, child: _buildTripListView(isDark)),
                         ],
                       ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _statChip(IconData icon, String value, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+  Widget _buildTitleAndSubtitle(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Trip Assignment',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            letterSpacing: -0.5,
           ),
-          const SizedBox(width: 2),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Assign trips and monitor dispatch schedules.',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveDateHint(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Icon(Icons.event_available, size: 18, color: const Color(0xFF3B82F6)),
+          const SizedBox(width: 8),
           Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF64748B),
+            'Viewing trips for: ${_formatDateOnly(_selectedDate!)}',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF3B82F6)),
+          ),
+          const Spacer(),
+          InkWell(
+            onTap: () => setState(() => _selectedDate = null),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.close, size: 14, color: Color(0xFF3B82F6)),
+                  SizedBox(width: 4),
+                  Text(
+                    'Clear Date Filter',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF3B82F6), fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -520,454 +328,393 @@ class _StaffSchedulesState extends State<StaffSchedules> {
     );
   }
 
-  Widget _buildCompactCalendarGrid() {
-    final theme = Theme.of(context);
+  // ---- SEARCH & FILTER ROW ----
+  Widget _buildSearchAndFilterRow(bool isDark, bool isMobile) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        // Search Box
+        SizedBox(
+          width: isMobile ? double.infinity : 220,
+          height: 44,
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Search routes, drivers...',
+              hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+              prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+              filled: true,
+              fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+              ),
+            ),
+          ),
+        ),
+        // Status Dropdown
+        Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _statusFilter,
+              icon: const Icon(Icons.filter_alt_outlined, size: 18, color: Color(0xFF64748B)),
+              style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold),
+              dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+              items: _statusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              onChanged: (val) {
+                if (val != null) setState(() => _statusFilter = val);
+              },
+            ),
+          ),
+        ),
+        // Refresh Button
+        Container(
+          height: 44,
+          width: 44,
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            border: Border.all(color: Colors.blue.shade600, width: 1.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            onPressed: _isRefreshing ? null : _fetchStaffDashboardData,
+            icon: const Icon(Icons.refresh, color: Colors.blue, size: 20),
+            padding: EdgeInsets.zero,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---- TOP SUMMARY STATS ----
+  Widget _buildTopSummaryStats(bool isDark, bool isMobile) {
+    final List<Map<String, dynamic>> stats = [
+      { 'label': 'Total Trips', 'value': _totalTrips.toString(), 'icon': Icons.inventory_2_outlined, 'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600, 'filter': 'All' },
+      { 'label': 'Scheduled', 'value': _scheduledTrips.toString(), 'icon': Icons.check_circle_outline, 'color': const Color(0xFF10B981), 'filter': 'Scheduled' },
+      { 'label': 'Unassigned', 'value': _unassignedTrips.toString(), 'icon': Icons.assignment_late_outlined, 'color': const Color(0xFFF59E0B), 'filter': 'Unassigned' },
+      { 'label': 'Rejected', 'value': _rejectedTrips.toString(), 'icon': Icons.cancel_outlined, 'color': const Color(0xFFEF4444), 'filter': 'Rejected' },
+    ];
+
+    Widget buildCard(Map<String, dynamic> stat) {
+      final isSelected = _statusFilter == stat['filter'];
+      return InkWell(
+        onTap: () {
+          setState(() => _statusFilter = stat['filter']);
+        },
+        borderRadius: BorderRadius.circular(40),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? stat['color'].withValues(alpha: 0.1) : (isDark ? const Color(0xFF1E293B) : Colors.white),
+            borderRadius: BorderRadius.circular(40),
+            border: Border.all(
+              color: isSelected ? stat['color'] : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+              width: isSelected ? 2.0 : 1.0,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(stat['icon'], color: stat['color'], size: 28),
+              const SizedBox(width: 12),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    stat['value'],
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF0F172A), height: 1.1),
+                  ),
+                  Text(
+                    stat['label'],
+                    style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (isMobile) {
+      return Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 12,
+        runSpacing: 12,
+        children: stats.map((stat) => buildCard(stat)).toList(),
+      );
+    } else {
+      return Row(
+        children: stats.map((stat) {
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: stat == stats.last ? 0 : 16.0),
+              child: buildCard(stat),
+            ),
+          );
+        }).toList(),
+      );
+    }
+  }
+
+  // ---- CALENDAR ----
+  Widget _buildCompactCalendarGrid(bool isDark) {
     final firstDay = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
     final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
     final daysInMonth = lastDay.day;
     final firstWeekday = firstDay.weekday % 7;
     final List<String> weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(10),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _monthYearFormat(_selectedMonth),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left, size: 18),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 28,
-                      minHeight: 28,
-                    ),
-                    onPressed: () => setState(
-                      () => _selectedMonth = DateTime(
-                        _selectedMonth.year,
-                        _selectedMonth.month - 1,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right, size: 18),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 28,
-                      minHeight: 28,
-                    ),
-                    onPressed: () => setState(
-                      () => _selectedMonth = DateTime(
-                        _selectedMonth.year,
-                        _selectedMonth.month + 1,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          GridView.count(
-            crossAxisCount: 7,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.0,
-            mainAxisSpacing: 2,
-            crossAxisSpacing: 2,
-            children: weekdays.map((day) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Center(
-                  child: Text(
-                    day,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF475569),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 2),
-          GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 0.9,
-              mainAxisSpacing: 2,
-              crossAxisSpacing: 2,
-            ),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: (daysInMonth + firstWeekday),
-            itemBuilder: (context, index) {
-              if (index < firstWeekday) {
-                return Container();
-              }
-
-              final day = index - firstWeekday + 1;
-              final date = DateTime(
-                _selectedMonth.year,
-                _selectedMonth.month,
-                day,
-              );
-              final trips = _getTripsForDate(date);
-              final hasTrips = trips.isNotEmpty;
-              final isSelected =
-                  _selectedDate?.year == date.year &&
-                  _selectedDate?.month == date.month &&
-                  _selectedDate?.day == date.day;
-              final isToday =
-                  DateTime.now().year == date.year &&
-                  DateTime.now().month == date.month &&
-                  DateTime.now().day == date.day;
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (isSelected) {
-                      _selectedDate = null;
-                    } else {
-                      _selectedDate = date;
-                    }
-                  });
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF3B82F6)
-                        : (hasTrips ? const Color(0xFFEFF6FF) : Colors.white),
-                    border: Border.all(
-                      color: isToday
-                          ? const Color(0xFFF59E0B)
-                          : (isSelected
-                                ? const Color(0xFF3B82F6)
-                                : const Color(0xFFE2E8F0)),
-                      width: isToday ? 1.5 : (isSelected ? 1.5 : 1),
-                    ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Center(
-                    child: Text(
-                      day.toString(),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: isSelected
-                            ? Colors.white
-                            : (hasTrips
-                                  ? const Color(0xFF3B82F6)
-                                  : const Color(0xFF0F172A)),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTripListView() {
-    final filteredTrips = _getFilteredTrips();
+    final headerBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final bodyBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final borderColor = isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0);
 
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: bodyBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+              color: headerBg,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border(bottom: BorderSide(color: borderColor)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Text(
+                  _monthYearFormat(_selectedMonth),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                ),
                 Row(
                   children: [
-                    const Icon(
-                      Icons.list_alt,
-                      color: Color(0xFF475569),
-                      size: 18,
+                    IconButton(
+                      icon: Icon(Icons.chevron_left, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1)),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _selectedDate == null ? 'All Trips' : 'Scheduled',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: Icon(Icons.chevron_right, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      onPressed: () => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1)),
                     ),
                   ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${filteredTrips.length}',
-                    style: const TextStyle(
-                      color: Color(0xFF3B82F6),
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
                 ),
               ],
             ),
           ),
-          Expanded(
-            child: filteredTrips.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.calendar_today_outlined,
-                          size: 40,
-                          color: Colors.grey.shade300,
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              children: [
+                GridView.count(
+                  crossAxisCount: 7,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  childAspectRatio: 1.1,
+                  mainAxisSpacing: 3,
+                  crossAxisSpacing: 3,
+                  children: weekdays.map((day) {
+                    return Container(
+                      decoration: BoxDecoration(color: headerBg, borderRadius: BorderRadius.circular(6), border: Border.all(color: borderColor)),
+                      child: Center(
+                        child: Text(day, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.grey.shade400 : const Color(0xFF475569))),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+                GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    childAspectRatio: 0.95,
+                    mainAxisSpacing: 4,
+                    crossAxisSpacing: 4,
+                  ),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: (daysInMonth + firstWeekday),
+                  itemBuilder: (context, index) {
+                    if (index < firstWeekday) return Container();
+                    final day = index - firstWeekday + 1;
+                    final date = DateTime(_selectedMonth.year, _selectedMonth.month, day);
+                    final trips = _getTripsForDate(date);
+                    final hasTrips = trips.isNotEmpty;
+
+                    final isSelected = _selectedDate != null && _selectedDate!.year == date.year && _selectedDate!.month == date.month && _selectedDate!.day == date.day;
+                    final isToday = DateTime.now().year == date.year && DateTime.now().month == date.month && DateTime.now().day == date.day;
+
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedDate = isSelected ? null : date;
+                        });
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFF3B82F6) : (hasTrips ? (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF)) : (isDark ? const Color(0xFF1E293B) : Colors.white)),
+                          border: Border.all(
+                            color: isToday ? const Color(0xFFF59E0B) : (isSelected ? const Color(0xFF3B82F6) : borderColor),
+                            width: isToday ? 1.5 : (isSelected ? 1.5 : 1),
+                          ),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _selectedDate == null
-                              ? 'No trips found for this filter.'
-                              : 'No trips on this date.',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                        child: Center(
+                          child: Text(
+                            day.toString(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
+                              color: isSelected ? Colors.white : (hasTrips ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade300 : const Color(0xFF0F172A))),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    itemCount: filteredTrips.length,
-                    itemBuilder: (context, index) {
-                      final trip = filteredTrips[index];
-                      final statusStr =
-                          trip['trip_status']?.toString() ?? 'Unknown';
-                      final isRejected = statusStr.toLowerCase().contains(
-                        'rejected',
-                      );
-                      final bool needsAssignment =
-                          (trip['user_id'] == null ||
-                              trip['vehicle_id'] == null) &&
-                          !isRejected;
-
-                      return TripCard(
-                        trip: trip,
-                        backendUrl: backendUrl,
-                        needsAssignment: needsAssignment,
-                        isModal: false,
-                        onAssign: () {
-                          setState(() => _isLoading = true);
-                          _fetchStaffDashboardData();
-                        },
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  String _monthYearFormat(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.year}';
-  }
-}
+  // ---- TRIP LIST ----
+  Widget _buildTripListView(bool isDark) {
+    final List<dynamic> displayedTrips = _getFilteredTrips();
+    final headerBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderColor = isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0);
 
-// ─── TRIP DETAILS MODAL ───
-class TripDetailsDialog extends StatefulWidget {
-  final DateTime date;
-  final List<dynamic> trips;
-  final String backendUrl;
-  final VoidCallback onAssign;
-
-  const TripDetailsDialog({
-    super.key,
-    required this.date,
-    required this.trips,
-    required this.backendUrl,
-    required this.onAssign,
-  });
-
-  @override
-  State<TripDetailsDialog> createState() => _TripDetailsDialogState();
-}
-
-class _TripDetailsDialogState extends State<TripDetailsDialog> {
-  @override
-  Widget build(BuildContext context) {
-    final bool isMobile = MediaQuery.of(context).size.width < 600;
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        width: isMobile ? double.infinity : 600,
-        constraints: BoxConstraints(
-          maxWidth: 600,
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Container(
+      decoration: BoxDecoration(
+        color: headerBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border(bottom: BorderSide(color: borderColor)),
+            ),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Trips - ${_formatDate(widget.date)}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                Flexible(
+                  child: Row(
+                    children: [
+                      Icon(Icons.list_alt, color: isDark ? Colors.grey.shade400 : const Color(0xFF475569), size: 20),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          _selectedDate == null ? 'Filtered Results' : 'Schedule',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Color(0xFF64748B)),
-                  onPressed: () => Navigator.pop(context),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(20)),
+                  child: Text(
+                    '${displayedTrips.length} results',
+                    style: TextStyle(color: isDark ? Colors.blue.shade300 : const Color(0xFF3B82F6), fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),
-            const Divider(height: 20),
-            Expanded(
-              child: widget.trips.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No trips for this date.',
-                        style: TextStyle(color: Colors.grey.shade500),
+          ),
+          
+          !_isLoading && displayedTrips.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.calendar_today_outlined, size: 48, color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No trips found.',
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 15, fontWeight: FontWeight.w500),
                       ),
-                    )
-                  : ListView.builder(
-                      itemCount: widget.trips.length,
-                      itemBuilder: (context, index) {
-                        final trip = widget.trips[index];
-                        final statusStr =
-                            trip['trip_status']?.toString() ?? 'Unknown';
-                        final isRejected = statusStr.toLowerCase().contains(
-                          'rejected',
-                        );
-                        final bool needsAssignment =
-                            (trip['user_id'] == null ||
-                                trip['vehicle_id'] == null) &&
-                            !isRejected;
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: displayedTrips.length,
+                  itemBuilder: (context, index) {
+                    final trip = displayedTrips[index];
+                    final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
+                    final isRejected = statusStr.toLowerCase().contains('rejected');
+                    final bool needsAssignment = (trip['user_id'] == null || trip['vehicle_id'] == null) && !isRejected;
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: TripCard(
-                            trip: trip,
-                            backendUrl: widget.backendUrl,
-                            needsAssignment: needsAssignment,
-                            isModal: true,
-                            onAssign: widget.onAssign,
-                          ),
-                        );
+                    return TripCard(
+                      trip: trip,
+                      backendUrl: backendUrl,
+                      needsAssignment: needsAssignment,
+                      isModal: false,
+                      isDark: isDark,
+                      borderColor: borderColor,
+                      onAssign: () {
+                        setState(() => _isLoading = true);
+                        _fetchStaffDashboardData();
                       },
-                    ),
-            ),
-          ],
-        ),
+                    );
+                  },
+                ),
+        ],
       ),
     );
   }
-
-  String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
-  }
 }
 
-// ─── UNIFIED TRIP CARD ───
+// ─── UNIFIED TRIP CARD (Modernized) ───
 class TripCard extends StatelessWidget {
   final Map<String, dynamic> trip;
   final String backendUrl;
   final bool needsAssignment;
   final bool isModal;
+  final bool isDark;
+  final Color borderColor;
   final VoidCallback onAssign;
 
   const TripCard({
@@ -976,6 +723,8 @@ class TripCard extends StatelessWidget {
     required this.backendUrl,
     required this.needsAssignment,
     this.isModal = false,
+    required this.isDark,
+    required this.borderColor,
     required this.onAssign,
   });
 
@@ -985,159 +734,116 @@ class TripCard extends StatelessWidget {
     final isRejected = statusStr.toLowerCase().contains('rejected');
     final isUnassigned = needsAssignment && !isRejected;
 
-    // Determine status styling
     Color statusColor = const Color(0xFF10B981);
-    Color bgColor = const Color(0xFFECFDF5);
-    String badgeText = 'Scheduled';
+    String badgeText = 'SCHEDULED';
 
     if (isRejected) {
       statusColor = const Color(0xFFEF4444);
-      bgColor = const Color(0xFFFEF2F2);
-      badgeText = 'Rejected';
+      badgeText = 'REJECTED';
     } else if (isUnassigned) {
       statusColor = const Color(0xFFF59E0B);
-      bgColor = const Color(0xFFFEF3C7);
-      badgeText = 'Unassigned';
+      badgeText = 'UNASSIGNED';
+    } else if (statusStr.toLowerCase().contains('ongoing')) {
+      statusColor = const Color(0xFF3B82F6);
+      badgeText = 'ONGOING';
     }
 
+    final String routeName = trip['route_name'] ?? 'Unspecified Route';
+    final String company = trip['client_company'] ?? 'Unknown Client';
+    final String passengers = '${trip['passenger_count'] ?? 0} pax';
+    final String distance = '${trip['route_distance'] ?? 0} km';
+    final String timeRange = _formatTimeRange(trip['departure_time'], trip['estimated_arrival_time']);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: borderColor))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── ROW: ROUTE + STATUS BADGE ──
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: Text(
-                  trip['route_name'] ?? 'Unspecified Route',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      routeName,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 6,
+                      children: [
+                        _cardIconText(Icons.access_time, timeRange, isDark),
+                        _cardIconText(Icons.business_outlined, company, isDark),
+                        _cardIconText(Icons.people_outline, passengers, isDark),
+                        _cardIconText(Icons.straighten, distance, isDark),
+                        if (trip['driver_name'] != null && !isUnassigned && !isRejected)
+                          _cardIconText(Icons.person_outline, trip['driver_name'], isDark),
+                        if (trip['vehicle_plate'] != null && !isUnassigned && !isRejected)
+                          _cardIconText(Icons.directions_car_outlined, trip['vehicle_plate'], isDark),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  badgeText,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    badgeText,
+                    style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5),
                   ),
-                ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 6),
-
-          // ── INFO CHIPS (larger, spaced) ──
-          Wrap(
-            spacing: 12,
-            runSpacing: 6,
-            children: [
-              _infoChip(
-                Icons.access_time,
-                _formatTimeRange(
-                  trip['departure_time'],
-                  trip['estimated_arrival_time'],
-                ),
-              ),
-              _infoChip(Icons.business, trip['client_company'] ?? 'Unknown'),
-              _infoChip(Icons.people, '${trip['passenger_count'] ?? 0} pax'),
-              _infoChip(Icons.straighten, '${trip['route_distance'] ?? 0} km'),
-              if (trip['driver_name'] != null && !isUnassigned && !isRejected)
-                _infoChip(Icons.person, trip['driver_name']),
-              if (trip['vehicle_plate'] != null && !isUnassigned && !isRejected)
-                _infoChip(Icons.directions_car, trip['vehicle_plate']),
-            ],
-          ),
-
-          // ── ACTION BUTTONS (only for unassigned) ──
+          
           if (isUnassigned) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 38,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        if (isModal) Navigator.pop(context);
-                        _showAssignModal(context);
-                      },
-                      icon: const Icon(
-                        Icons.assignment_ind,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      label: const Text(
-                        'Assign',
-                        style: TextStyle(color: Colors.white, fontSize: 13),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF59E0B),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: SizedBox(
-                    height: 38,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _rejectTrip(context),
-                      icon: const Icon(
-                        Icons.cancel,
-                        color: Color(0xFFEF4444),
-                        size: 16,
-                      ),
-                      label: const Text(
-                        'Reject',
-                        style: TextStyle(
-                          color: Color(0xFFEF4444),
-                          fontSize: 13,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFEF4444)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+            const SizedBox(height: 16),
+            Skeleton.ignore(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          if (isModal) Navigator.pop(context);
+                          _showAssignModal(context);
+                        },
+                        icon: const Icon(Icons.assignment_ind, color: Colors.white, size: 16),
+                        label: const Text('Assign', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF59E0B),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          elevation: 0,
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _rejectTrip(context),
+                        icon: const Icon(Icons.cancel, color: Color(0xFFEF4444), size: 16),
+                        label: const Text('Reject', style: TextStyle(color: Color(0xFFEF4444), fontSize: 13, fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFEF4444)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ],
@@ -1145,18 +851,17 @@ class TripCard extends StatelessWidget {
     );
   }
 
-  Widget _infoChip(IconData icon, String text) {
+  Widget _cardIconText(IconData icon, String text, bool isDark) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: const Color(0xFF64748B)),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF64748B),
-            fontWeight: FontWeight.w500,
+        Icon(icon, size: 14, color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B)),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(fontWeight: FontWeight.w500, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontSize: 12),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -1176,28 +881,26 @@ class TripCard extends StatelessWidget {
   }
 
   Future<void> _rejectTrip(BuildContext context) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Reject Request?"),
-        content: const Text(
+        title: Text("Reject Request?", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+        content: Text(
           "Are you sure you want to reject this trip request?",
+          style: TextStyle(color: isDark ? Colors.grey.shade300 : Colors.black87),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel"),
+            child: Text("Cancel", style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              "Reject",
-              style: TextStyle(
-                color: Color(0xFFEF4444),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: const Text("Reject", style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -1258,9 +961,7 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
     try {
       final String tripDate = widget.trip['schedule_date'];
       final res = await http.get(
-        Uri.parse(
-          '${widget.backendUrl}/schedules/dispatch-options?date=$tripDate',
-        ),
+        Uri.parse('${widget.backendUrl}/schedules/dispatch-options?date=$tripDate'),
       );
 
       if (res.statusCode == 200 && mounted) {
@@ -1309,12 +1010,18 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final Color bgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final Color fieldColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final Color textColor = isDark ? Colors.white : Colors.black87;
 
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: bgColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         "Dispatch: ${widget.trip['route_name']}",
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
       ),
       content: _isLoadingOptions
           ? const SizedBox(
@@ -1327,108 +1034,82 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
               width: isMobile ? double.infinity : 400,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "Date: ${widget.trip['schedule_date']}",
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
+                    style: TextStyle(
+                      color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 20),
+                  
                   if (_drivers.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
+                        color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
-                        "⚠️ No drivers available",
-                        style: TextStyle(
-                          color: Color(0xFFEF4444),
-                          fontSize: 13,
-                        ),
+                        "⚠️ No drivers available for this date.",
+                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 13),
                       ),
                     )
                   else
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
-                        labelText: "Driver",
-                        labelStyle: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF64748B),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                        labelText: "Select Driver",
+                        labelStyle: TextStyle(fontSize: 13, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: fieldColor,
                       ),
-                      value: _selectedDriverUuid,
-                      items: _drivers
-                          .map(
-                            (d) => DropdownMenuItem<String>(
-                              value: d['user_id'],
-                              child: Text(d['full_name']),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (val) =>
-                          setState(() => _selectedDriverUuid = val),
+                      dropdownColor: bgColor,
+                      style: TextStyle(color: textColor, fontSize: 14),
+                      initialValue: _selectedDriverUuid,
+                      items: _drivers.map((d) => DropdownMenuItem<String>(
+                        value: d['user_id'],
+                        child: Text(d['full_name']),
+                      )).toList(),
+                      onChanged: (val) => setState(() => _selectedDriverUuid = val),
                     ),
-                  const SizedBox(height: 12),
+                  
+                  const SizedBox(height: 16),
+                  
                   if (_vehicles.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
+                        color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
-                        "⚠️ No vehicles available",
-                        style: TextStyle(
-                          color: Color(0xFFEF4444),
-                          fontSize: 13,
-                        ),
+                        "⚠️ No vehicles available for this date.",
+                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 13),
                       ),
                     )
                   else
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
-                        labelText: "Vehicle",
-                        labelStyle: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF64748B),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                        labelText: "Select Vehicle",
+                        labelStyle: TextStyle(fontSize: 13, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: fieldColor,
                       ),
-                      value: _selectedVehicleId,
-                      items: _vehicles
-                          .map(
-                            (v) => DropdownMenuItem<String>(
-                              value: v['vehicle_id'].toString(),
-                              child: Text(
-                                "${v['plate_number']} (${v['bus_type']})",
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (val) =>
-                          setState(() => _selectedVehicleId = val),
+                      dropdownColor: bgColor,
+                      style: TextStyle(color: textColor, fontSize: 14),
+                      initialValue: _selectedVehicleId,
+                      items: _vehicles.map((v) => DropdownMenuItem<String>(
+                        value: v['vehicle_id'].toString(),
+                        child: Text("${v['plate_number']} (${v['bus_type']})"),
+                      )).toList(),
+                      onChanged: (val) => setState(() => _selectedVehicleId = val),
                     ),
                 ],
               ),
@@ -1436,38 +1117,24 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel"),
+          child: Text("Cancel", style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700)),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF3B82F6),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+            backgroundColor: const Color(0xFFF59E0B),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             elevation: 0,
           ),
-          onPressed:
-              (_isSubmitting ||
-                  _selectedDriverUuid == null ||
-                  _selectedVehicleId == null)
+          onPressed: (_isSubmitting || _selectedDriverUuid == null || _selectedVehicleId == null)
               ? null
               : _submitAssignment,
           child: _isSubmitting
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                 )
-              : const Text(
-                  "Confirm",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              : const Text("Confirm Assignment", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         ),
       ],
     );

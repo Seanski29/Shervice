@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // 👇 Added missing HTTP import
+import 'package:http/http.dart' as http;
 import '../../screens/admin/admin_dashboard.dart';
 import '../../screens/admin/admin_schedules.dart';
 import '../../screens/admin/admin_drivers.dart';
 import '../../screens/admin/admin_vehicles.dart';
 import '../../screens/admin/admin_users.dart';
 import '../../screens/admin/admin_settings.dart';
-import '../../widgets/shared_analytics_hub.dart';
+import '../../widgets/shared/shared_analytics_hub.dart';
 import '../../screens/admin/admin_feedbacks.dart';
 import '../../login/login.dart';
-import '../../widgets/notification_bell.dart';
-import '../../widgets/shervice_floating_stack.dart';
+import '../../widgets/shared/notification_bell.dart';
+import '../../widgets/shared/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/admin_profile_button.dart';
+import '../../widgets/admin/admin_profile_button.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
   final String adminId;
@@ -33,14 +33,12 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   int _selectedIndex = 0;
   bool _isSidebarExpanded = true;
 
-  // 👇 safely declare the screens list
   late List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
 
-    // 👇 Safely initialize screens to prevent Web crashes
     _screens = [
       const AdminDashboard(),
       const AdminSchedules(),
@@ -49,16 +47,13 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
       const AdminUsers(),
       SharedAnalyticsHub(),
       AdminSettings(adminId: widget.adminId),
-      // Note: You can add AdminFeedbacks() here if you want it mapped to a sidebar index!
     ];
 
-    // 👇 Triggers the silent ML sweep safely inside initState!
     _runSilentFleetMlSweep();
   }
 
   Future<void> _runSilentFleetMlSweep() async {
     try {
-      // Hits the new Python endpoint to calculate risks and auto-lock vehicles
       await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
       debugPrint("🤖 Background Fleet ML Sweep Completed.");
     } catch (e) {
@@ -172,23 +167,10 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
               padding: EdgeInsets.zero,
               children: [
                 _buildNavItem(0, 'Dashboard', Icons.dashboard_outlined),
-                _buildNavItem(
-                  1,
-                  'Schedule Management',
-                  Icons.calendar_month_outlined,
-                ),
+                _buildNavItem(1, 'Schedule Management', Icons.calendar_month_outlined),
                 _buildNavItem(2, 'Driver Management', Icons.people_outline),
-                _buildNavItem(
-                  3,
-                  'Vehicle Management',
-                  Icons.directions_car_outlined,
-                ),
-                _buildNavItem(
-                  4,
-                  'User Management',
-                  Icons.admin_panel_settings_outlined,
-                ),
-                // 👇 Updated to match Intelligence Hub naming and icon
+                _buildNavItem(3, 'Vehicle Management', Icons.directions_car_outlined),
+                _buildNavItem(4, 'User Management', Icons.admin_panel_settings_outlined),
                 _buildNavItem(5, 'Intelligence Hub', Icons.analytics),
                 _buildNavItem(6, 'Settings', Icons.settings_outlined),
               ],
@@ -201,7 +183,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     );
   }
 
-  // ─── HEADER (Now fully responsive to Dark Mode) ───
+  // ─── HEADER ───
   Widget _buildHeader(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -252,27 +234,38 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     IconData icon, {
     bool isLogout = false,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     bool isActive = _selectedIndex == index && !isLogout;
+    
     return InkWell(
       onTap: () {
         if (isLogout) {
           showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              title: const Text(
+              title: Text(
                 'Confirm Logout',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
               ),
-              content: const Text('Are you sure you want to log out?'),
+              content: Text(
+                'Are you sure you want to log out?',
+                style: TextStyle(
+                  color: isDark ? Colors.grey.shade300 : Colors.black87,
+                ),
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text(
+                  child: Text(
                     'Cancel',
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                   ),
                 ),
                 ElevatedButton(

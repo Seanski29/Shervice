@@ -222,7 +222,7 @@ class AdminFeedbacks extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: isDark ? Colors.blue.withOpacity(0.2) : Colors.blue.shade50,
+                    backgroundColor: isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50,
                     child: const Icon(Icons.person, color: Colors.blue),
                   ),
                   const SizedBox(width: 12),
@@ -251,9 +251,9 @@ class AdminFeedbacks extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.amber.withOpacity(0.1) : Colors.amber.shade50,
+                  color: isDark ? Colors.amber.withValues(alpha: 0.1) : Colors.amber.shade50,
                   border: Border.all(
-                    color: isDark ? Colors.amber.withOpacity(0.3) : Colors.amber.shade200
+                    color: isDark ? Colors.amber.withValues(alpha: 0.3) : Colors.amber.shade200
                   ),
                   borderRadius: BorderRadius.circular(20),
                 ),

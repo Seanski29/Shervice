@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../widgets/shared_drivers_view.dart';
-import '../../widgets/driver_form_dialog.dart';
-import '../../models/driver_profile_model.dart';
+import '../../widgets/shared/shared_drivers_view.dart';
+import '../../widgets/driver/driver_form_dialog.dart';
+import '../../widgets/driver/driver_profile_model.dart';
 import '../../constant.dart';
 
 class StaffDrivers extends StatefulWidget {

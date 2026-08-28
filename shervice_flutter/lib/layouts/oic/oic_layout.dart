@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'oic_layout_desktop.dart';
-import 'oic_layout_mobile.dart';
 
 class OicLayout extends StatelessWidget {
-  final String oicId; // ✅ Added
+  final String oicId;
   final String oicName;
   final String companyName;
 
   const OicLayout({
     super.key,
-    required this.oicId, // ✅ Added
+    required this.oicId,
     required this.oicName,
     required this.companyName,
   });
@@ -25,11 +24,8 @@ class OicLayout extends StatelessWidget {
             companyName: companyName,
           );
         }
-        return OicLayoutMobile(
-          oicId: oicId,
-          oicName: oicName,
-          companyName: companyName,
-        );
+        
+        return const SizedBox.shrink();
       },
     );
   }

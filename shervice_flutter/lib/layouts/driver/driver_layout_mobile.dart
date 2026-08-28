@@ -3,8 +3,8 @@ import '../../screens/driver/driver_dashboard.dart';
 import '../../screens/driver/driver_schedules.dart';
 import '../../screens/driver/driver_profile.dart';
 import '../../login/login.dart';
-import '../../widgets/notification_bell.dart';
-import '../../widgets/shervice_floating_stack.dart';
+import '../../widgets/shared/notification_bell.dart';
+import '../../widgets/shared/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
 
@@ -110,7 +110,7 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, -4),
             ),
@@ -128,7 +128,7 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
               return Expanded(
                 child: InkWell(
                   onTap: () => setState(() => _selectedIndex = index),
-                  splashColor: selectedColor.withOpacity(0.1),
+                  splashColor: selectedColor.withValues(alpha: 0.1),
                   highlightColor: Colors.transparent,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,

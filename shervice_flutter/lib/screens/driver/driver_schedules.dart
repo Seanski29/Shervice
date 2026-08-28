@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
-import '../../widgets/dark_mode_toggle.dart';
 
 class DriverSchedules extends StatefulWidget {
   final String driverId;
@@ -96,8 +96,16 @@ class _DriverSchedulesState extends State<DriverSchedules> {
 
   // --- FILTER & SORT ---
   List<dynamic> _getFilteredTrips() {
-    if (_selectedDate == null) return List<dynamic>.from(_myTrips);
-    return _myTrips.where((trip) {
+    final displayTrips = _isLoading
+        ? List.generate(5, (index) => {
+              'trip_id': index + 1, 'route_name': 'Loading Route',
+              'trip_status': 'Scheduled', 'schedule_date': DateTime.now().toIso8601String(),
+              'departure_time': '08:00', 'estimated_arrival_time': '09:00',
+              'plate_number': 'Loading Vehicle', 'passenger_count': 0,
+            })
+        : _myTrips;
+    if (_selectedDate == null) return List<dynamic>.from(displayTrips);
+    return displayTrips.where((trip) {
       final tripDate = _parseTripDate(trip['schedule_date']?.toString());
       return tripDate != null &&
           tripDate.year == _selectedDate!.year &&
@@ -164,9 +172,9 @@ class _DriverSchedulesState extends State<DriverSchedules> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
-          : RefreshIndicator(
+      body: Skeletonizer(
+        enabled: _isLoading,
+        child: RefreshIndicator(
               onRefresh: _fetchMySchedules,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -283,9 +291,9 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                               height: 44,
                               padding: const EdgeInsets.symmetric(horizontal: 12),
                               decoration: BoxDecoration(
-                                color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                                color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.5)),
+                                border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.5)),
                               ),
                               child: Row(
                                 children: [
@@ -309,7 +317,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                     const SizedBox(height: 24),
 
                     // ── TRIP SECTIONS ──
-                    if (_getFilteredTrips().isEmpty)
+                    if (!_isLoading && _getFilteredTrips().isEmpty)
                       _buildEmptyState(isDark)
                     else ...[
                       if (_ongoingTrips.isNotEmpty) _buildStatusSection('Ongoing', _ongoingTrips, const Color(0xFF3B82F6), isDark),
@@ -327,6 +335,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                 ),
               ),
             ),
+      ),
     );
   }
 
@@ -334,9 +343,9 @@ class _DriverSchedulesState extends State<DriverSchedules> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? color.withOpacity(0.1) : Theme.of(context).cardColor,
+        color: isDark ? color.withValues(alpha: 0.1) : Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? color.withOpacity(0.3) : color.withOpacity(0.5)),
+        border: Border.all(color: isDark ? color.withValues(alpha: 0.3) : color.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -393,9 +402,9 @@ class _DriverSchedulesState extends State<DriverSchedules> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? themeColor.withOpacity(0.3) : themeColor.withOpacity(0.2), width: 1.5),
+        border: Border.all(color: isDark ? themeColor.withValues(alpha: 0.3) : themeColor.withValues(alpha: 0.2), width: 1.5),
         boxShadow: [
-          if (!isDark) BoxShadow(color: themeColor.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+          if (!isDark) BoxShadow(color: themeColor.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -423,7 +432,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
             ),
           ),
           Divider(height: 1, thickness: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
-          ...trips.map((trip) => _buildTripCard(trip, isDark)).toList(),
+          ...trips.map((trip) => _buildTripCard(trip, isDark)),
         ],
       ),
     );
@@ -487,11 +496,12 @@ class _DriverSchedulesState extends State<DriverSchedules> {
     final bool isOngoing = status == 'Ongoing';
 
     Color statusColor = const Color(0xFF64748B);
-    if (isOngoing) statusColor = const Color(0xFF3B82F6);
-    else if (isCompleted) statusColor = const Color(0xFF10B981);
+    if (isOngoing) {
+      statusColor = const Color(0xFF3B82F6);
+    } else if (isCompleted) statusColor = const Color(0xFF10B981);
     else if (isScheduled) statusColor = const Color(0xFFF59E0B);
     
-    final Color bgColor = isDark ? statusColor.withOpacity(0.15) : statusColor.withOpacity(0.1);
+    final Color bgColor = isDark ? statusColor.withValues(alpha: 0.15) : statusColor.withValues(alpha: 0.1);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -587,7 +597,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
         boxShadow: [
-          if (!isDark) BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4)),
+          if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -687,7 +697,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                               color: isSelected
                                   ? const Color(0xFF3B82F6)
                                   : (hasTrip
-                                      ? (isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF))
+                                      ? (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF))
                                       : Colors.transparent),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
@@ -723,7 +733,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                          color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                           shape: BoxShape.circle,
                         ),
                       ),
