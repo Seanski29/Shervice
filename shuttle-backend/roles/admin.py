@@ -111,15 +111,36 @@ def get_admin_schedules():
 # ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
 @admin_bp.route('/api/dashboard/metrics', methods=['GET'])
 def get_dashboard_metrics():
-    """Calculates unified fleet parameters, active counts, and weekly completed trip metrics live"""
+    """Calculates unified fleet parameters, active counts, and monthly completed trip metrics live"""
     try:
-        # 1. Count Total Active Registered Drivers
-        drivers_query = supabase.table('user_account').select('user_id').eq('role', 'driver').execute()
-        total_drivers = len(drivers_query.data) if drivers_query.data else 0
+        # 1. Count all registered drivers
+        drivers_query = supabase.table('driver_profile').select(
+            '*, user_account(username)'
+        ).execute()
+        all_drivers = drivers_query.data or []
+        total_drivers = len(all_drivers)
+        driver_details = [
+            {
+                "label": driver.get('full_name') or f"Driver {driver.get('user_id', 'Unknown')}",
+                "driver_id": driver.get('driver_id'),
+                "user_id": driver.get('user_id'),
+                "username": (driver.get('user_account') or {}).get('username'),
+                "license_no": driver.get('license_no'),
+                "license_expiry": driver.get('license_expiry'),
+                "employment_status": driver.get('employment_status', 'Active'),
+                "date_hired": driver.get('date_hired'),
+                "birthday": driver.get('birthday')
+            }
+            for driver in all_drivers
+        ]
 
         # 2. Count Active Vehicles
-        vehicles_query = supabase.table('vehicle').select('vehicle_id').eq('is_available', True).execute()
+        vehicles_query = supabase.table('vehicle').select('vehicle_id, plate_number').eq('is_available', True).execute()
         active_vehicles = len(vehicles_query.data) if vehicles_query.data else 0
+        vehicle_details = [
+            {"label": vehicle.get('plate_number') or f"Vehicle {vehicle.get('vehicle_id', 'Unknown')}"}
+            for vehicle in (vehicles_query.data or [])
+        ]
 
         # 3. Count Active Maintenance Alerts
         alerts_count_query = supabase.table('vehicle').select('vehicle_id').eq('is_available', False).execute()
@@ -154,10 +175,14 @@ def get_dashboard_metrics():
 
         # 5. Count Ongoing Trips (Replaces Punctuality)
         # Added broad exact-match terms to ensure nothing gets missed
-        ongoing_query = supabase.table('trip_schedule').select('trip_id')\
+        ongoing_query = supabase.table('trip_schedule').select('trip_id, trip_status')\
             .in_('trip_status', ['Ongoing', 'ongoing', 'ONGOING', 'In Progress', 'in progress', 'IN PROGRESS'])\
             .execute()
         ongoing_trips_count = len(ongoing_query.data) if ongoing_query.data else 0
+        ongoing_trip_details = [
+            {"label": f"Trip {trip.get('trip_id', 'Unknown')}", "status": trip.get('trip_status', 'Ongoing')}
+            for trip in (ongoing_query.data or [])
+        ]
 
         # 6. Count Unassigned Schedules
         # Targeting "Pending Staff Assignment" and standard "Scheduled" formats
@@ -169,33 +194,53 @@ def get_dashboard_metrics():
         if pending_query.data:
             # Safely catch trips missing a driver OR missing a vehicle
             unassigned_count = sum(1 for t in pending_query.data if t.get('user_id') is None or t.get('vehicle_id') is None)
+        unassigned_details = [
+            {"label": f"Trip {trip.get('trip_id', 'Unknown')}", "status": "Needs assignment"}
+            for trip in (pending_query.data or [])
+            if trip.get('user_id') is None or trip.get('vehicle_id') is None
+        ]
 
-        # 7. Fetch Company Weekly Utilization Metrics Live
-        company_weekly_metrics = []
+        # 7. Fetch Company Monthly Utilization Metrics Live
+        company_monthly_metrics = []
         try:
+            selected_month = int(request.args.get('month', datetime.now().month))
+            selected_year = int(request.args.get('year', datetime.now().year))
+            if selected_month < 1 or selected_month > 12:
+                raise ValueError('month must be between 1 and 12')
+            period_start = datetime(selected_year, selected_month, 1).date().isoformat()
+            next_month = datetime(selected_year + (selected_month == 12), (selected_month % 12) + 1, 1)
+            period_end = next_month.date().isoformat()
             companies_fetch = supabase.table('oic_profile').select('company_name').execute()
             company_list = [c['company_name'] for c in companies_fetch.data if c.get('company_name')] if companies_fetch.data else []
+
+            oics_fetch = supabase.table('oic_profile').select('oic_id, company_name').execute()
+            company_by_oic_id = {
+                row['oic_id']: row.get('company_name')
+                for row in (oics_fetch.data or [])
+                if row.get('oic_id') is not None and row.get('company_name')
+            }
 
             if not company_list:
                 company_list = ["Bandai", "NX Logistics", "EPSON", "GT LANTIN"]
 
-            trips_fetch = supabase.table('trip_schedule').select('*').eq('trip_status', 'Completed').execute()
+            trips_fetch = supabase.table('trip_schedule').select('*').eq('trip_status', 'Completed').gte('schedule_date', period_start).lt('schedule_date', period_end).execute()
             counts = {name: 0 for name in company_list}
             if trips_fetch.data:
-                for idx, t in enumerate(trips_fetch.data):
-                    assigned_company = company_list[idx % len(company_list)]
-                    counts[assigned_company] += 1
+                for trip in trips_fetch.data:
+                    assigned_company = company_by_oic_id.get(trip.get('oic_id'))
+                    if assigned_company:
+                        counts[assigned_company] = counts.get(assigned_company, 0) + 1
             
             max_trips = max(counts.values()) if counts else 1
             for idx, (comp, count) in enumerate(counts.items()):
-                company_weekly_metrics.append({
+                company_monthly_metrics.append({
                     "id": idx,
                     "company_name": comp,
                     "trip_count": count,
                     "utilization": float(count / max_trips)
                 })
         except Exception as table_err:
-            print(f"⚠️ Weekly trips completed filter failed: {table_err}")
+            print(f"⚠️ Monthly trips completed filter failed: {table_err}")
 
         return jsonify({
             "success": True,
@@ -206,8 +251,15 @@ def get_dashboard_metrics():
                 "unassignedSchedules": unassigned_count,
                 "maintenanceAlerts": maintenance_alerts_count
             },
+            "details": {
+                "All Drivers": driver_details,
+                "Active Vehicles": vehicle_details,
+                "Ongoing Trips": ongoing_trip_details,
+                "Unscheduled": unassigned_details,
+                "Maintenance Alerts": formatted_alerts
+            },
             "alerts": formatted_alerts,
-            "company_weekly_metrics": company_weekly_metrics
+            "company_monthly_metrics": company_monthly_metrics
         }), 200
     except Exception as e:
         print(f"❌ Dashboard Metrics Engine Failure: {e}")

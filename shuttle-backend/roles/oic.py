@@ -17,6 +17,14 @@ def handle_trips_pipeline():
             ).execute()
             
             raw_trips = trips_res.data or []
+            oic_res = supabase.table('oic_profile').select('oic_id, company_name').execute()
+            company_by_oic_id = {
+                row['oic_id']: row.get('company_name')
+                for row in (oic_res.data or [])
+                if row.get('oic_id') is not None
+            }
+            for trip in raw_trips:
+                trip['client_company'] = company_by_oic_id.get(trip.get('oic_id'))
             return jsonify({"success": True, "trips": raw_trips}), 200
         except Exception as e:
             print(f"❌ Admin Schedule Fetch Exception: {e}")

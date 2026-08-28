@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../widgets/shared_dashboard_view.dart';
-import '../../constant.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -15,7 +14,7 @@ class AdminDashboard extends StatelessWidget {
       headerWidget: Text(
         'Admin Dashboard',
         style: TextStyle(
-          fontSize: 24,
+          fontSize: 28,
           fontWeight: FontWeight.bold,
           // Dynamic text color
           color: isDark ? Colors.white : const Color(0xFF0F172A),
