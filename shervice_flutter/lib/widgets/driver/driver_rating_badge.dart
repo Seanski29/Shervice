@@ -32,13 +32,15 @@ class _DriverRatingBadgeState extends State<DriverRatingBadge> {
     try {
       final String targetUrl =
           '${widget.backendUrl}/evaluate/driver/${widget.driverUuid}';
-      debugPrint(
-        "🔍 Badge fetching from: $targetUrl",
-      ); // Let's verify the exact URL
-
       final res = await http.get(Uri.parse(targetUrl));
 
-      if (res.statusCode == 200 && mounted) {
+      if (res.statusCode != 200) {
+        debugPrint("Badge request failed: ${res.statusCode}");
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      if (mounted) {
         final data = jsonDecode(res.body);
         final List evals = data['data'] ?? [];
 
@@ -60,12 +62,10 @@ class _DriverRatingBadgeState extends State<DriverRatingBadge> {
             _isLoading = false;
           });
         } else {
-          debugPrint("⚠️ Badge: No evaluations found for ${widget.driverUuid}");
           if (mounted) setState(() => _isLoading = false);
         }
       } else {
-        debugPrint("❌ Badge Server Error: ${res.statusCode} - ${res.body}");
-        if (mounted) setState(() => _isLoading = false);
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint("🚨 Badge Crash: $e"); // Stop hiding the error!
@@ -79,29 +79,32 @@ class _DriverRatingBadgeState extends State<DriverRatingBadge> {
     return Skeletonizer(
       enabled: _isLoading,
       child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          _totalReviews == 0 ? Icons.star_border : Icons.star,
-          color: Colors.amber.shade600,
-          size: 16,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          _totalReviews == 0 ? 'New' : _averageRating.toStringAsFixed(1),
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onSurface,
-            fontSize: 14,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _totalReviews == 0 ? Icons.star_border : Icons.star,
+            color: Colors.amber.shade600,
+            size: 16,
           ),
-        ),
-        if (_totalReviews > 0)
+          const SizedBox(width: 4),
           Text(
-            ' ($_totalReviews)',
-            style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
+            _totalReviews == 0 ? 'New' : _averageRating.toStringAsFixed(1),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+              fontSize: 14,
+            ),
           ),
-      ],
-    ),
+          if (_totalReviews > 0)
+            Text(
+              ' ($_totalReviews)',
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

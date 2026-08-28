@@ -14,7 +14,8 @@ class NotificationBell extends StatefulWidget {
     required this.role,
     required this.userId,
     required this.userName,
-    this.companyName = 'Internal', required int iconSize,
+    this.companyName = 'Internal',
+    required int iconSize,
   });
 
   @override
@@ -89,11 +90,7 @@ class _NotificationBellState extends State<NotificationBell> {
         },
       );
 
-      debugPrint('🔔 Fetching notifications from: $uri');
       final response = await http.get(uri);
-      debugPrint(
-        '🔔 notifications fetch status: ${response.statusCode} body: ${response.body}',
-      );
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         if (body['success'] == true && body['data'] != null) {
@@ -170,7 +167,10 @@ class _NotificationBellState extends State<NotificationBell> {
             const SizedBox(height: 12),
             Text(
               'Received: ${notification.createdAt.toString().substring(0, 16)}',
-              style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
             ),
             if (notification.relatedTripId != null) ...[
               const SizedBox(height: 16),
@@ -269,12 +269,14 @@ class _NotificationBellState extends State<NotificationBell> {
                             const SizedBox(height: 12),
                             Container(
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerHighest,
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: TabBar(
                                 labelColor: theme.colorScheme.primary,
-                                unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+                                unselectedLabelColor:
+                                    theme.colorScheme.onSurfaceVariant,
                                 indicatorColor: theme.colorScheme.primary,
                                 tabs: const [
                                   Tab(text: 'All'),
@@ -398,7 +400,11 @@ class _NotificationBellState extends State<NotificationBell> {
         clipBehavior: Clip.none,
         children: [
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.grey, size: 32), // 👈 enlarged
+            icon: const Icon(
+              Icons.notifications_none,
+              color: Colors.grey,
+              size: 32,
+            ), // 👈 enlarged
             onPressed: _showNotificationPanel,
           ),
           if (unreadCount > 0)

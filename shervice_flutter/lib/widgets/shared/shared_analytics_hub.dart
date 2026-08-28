@@ -136,15 +136,23 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
 
   List<dynamic> get _paginatedItems {
     if (_isLoading) {
-      return List.generate(5, (index) => _activeTab == 0
-          ? {
-              'user_id': index + 1, 'full_name': 'Loading Driver', 'rating': 0.0,
-              'employment_status': 'Active', 'license_no': 'Loading',
-            }
-          : {
-              'vehicle_id': index + 1, 'plate_number': 'LOADING-${index + 1}',
-              'bus_type': 'Loading Vehicle', 'health_status': 'Good',
-            });
+      return List.generate(
+        5,
+        (index) => _activeTab == 0
+            ? {
+                'user_id': index + 1,
+                'full_name': 'Loading Driver',
+                'rating': 0.0,
+                'employment_status': 'Active',
+                'license_no': 'Loading',
+              }
+            : {
+                'vehicle_id': index + 1,
+                'plate_number': 'LOADING-${index + 1}',
+                'bus_type': 'Loading Vehicle',
+                'health_status': 'Good',
+              },
+      );
     }
     final list = _activeTab == 0 ? _filteredDrivers : _filteredVehicles;
     if (list.isEmpty) return [];
@@ -159,11 +167,14 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
     final double padding = isMobile ? 12.0 : 24.0;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final Color bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
     final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final Color subtitleColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
+    final Color subtitleColor = isDark
+        ? Colors.grey.shade400
+        : const Color(0xFF64748B);
     final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color borderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
+    final Color borderColor = isDark
+        ? Colors.grey.shade700
+        : Colors.grey.shade300;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -199,9 +210,13 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade200,
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(10),
-                  border: isDark ? Border.all(color: Colors.grey.shade800) : null,
+                  border: isDark
+                      ? Border.all(color: Colors.grey.shade800)
+                      : null,
                 ),
                 child: Row(
                   children: [
@@ -340,7 +355,9 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                                   ? Icons.group_off
                                   : Icons.car_crash,
                               size: 48,
-                              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                              color: isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -375,10 +392,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                       children: [
                         Text(
                           'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _activeTab == 0 ? _filteredDrivers.length : _filteredVehicles.length)} of ${_activeTab == 0 ? _filteredDrivers.length : _filteredVehicles.length} records',
-                          style: TextStyle(
-                            color: subtitleColor,
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: subtitleColor, fontSize: 13),
                         ),
                         const SizedBox(width: 24),
                         Row(
@@ -395,7 +409,9 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+                                color: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFEFF6FF),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -426,18 +442,25 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
     );
   }
 
-  Widget _buildToggleButton(int index, String label, IconData icon, bool isDark) {
+  Widget _buildToggleButton(
+    int index,
+    String label,
+    IconData icon,
+    bool isDark,
+  ) {
     final bool isActive = _activeTab == index;
     final Color activeBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color inactiveText = isDark ? Colors.grey.shade500 : const Color(0xFF64748B);
-    
+    final Color inactiveText = isDark
+        ? Colors.grey.shade500
+        : const Color(0xFF64748B);
+
     return Expanded(
       child: InkWell(
         onTap: () {
           setState(() {
             _activeTab = index;
-            _searchQuery = ''; 
-            _currentSort = 'A to Z'; 
+            _searchQuery = '';
+            _currentSort = 'A to Z';
             _applyFilters();
           });
         },
@@ -494,10 +517,16 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
         : const Color(0xFFF59E0B);
 
     final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color borderColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
+    final Color borderColor = isDark
+        ? Colors.grey.shade800
+        : Colors.grey.shade200;
     final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final Color subTextColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
-    final Color iconBg = isDark ? Colors.blue.withValues(alpha: 0.15) : Colors.blue.shade50;
+    final Color subTextColor = isDark
+        ? Colors.grey.shade400
+        : const Color(0xFF64748B);
+    final Color iconBg = isDark
+        ? Colors.blue.withValues(alpha: 0.15)
+        : Colors.blue.shade50;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -564,11 +593,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.badge,
-                              size: 14,
-                              color: subTextColor,
-                            ),
+                            Icon(Icons.badge, size: 14, color: subTextColor),
                             const SizedBox(width: 4),
                             Text(
                               driver['license_no'] ?? 'N/A',
@@ -617,10 +642,16 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
         : const Color(0xFFEF4444);
 
     final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color borderColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
+    final Color borderColor = isDark
+        ? Colors.grey.shade800
+        : Colors.grey.shade200;
     final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final Color subTextColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
-    final Color iconBg = isDark ? Colors.purple.withValues(alpha: 0.15) : Colors.purple.shade50;
+    final Color subTextColor = isDark
+        ? Colors.grey.shade400
+        : const Color(0xFF64748B);
+    final Color iconBg = isDark
+        ? Colors.purple.withValues(alpha: 0.15)
+        : Colors.purple.shade50;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -671,10 +702,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                         const SizedBox(width: 4),
                         Text(
                           vehicle['bus_type'] ?? 'Unknown Type',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: subTextColor,
-                          ),
+                          style: TextStyle(fontSize: 12, color: subTextColor),
                         ),
                       ],
                     ),
@@ -722,7 +750,10 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               IconButton(
-                icon: Icon(Icons.close, color: isDark ? Colors.grey.shade400 : Colors.black87),
+                icon: Icon(
+                  Icons.close,
+                  color: isDark ? Colors.grey.shade400 : Colors.black87,
+                ),
                 onPressed: () => Navigator.pop(ctx),
               ),
               Expanded(
@@ -814,10 +845,14 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final Color iconColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
-    final Color dividerColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
+    final Color iconColor = isDark
+        ? Colors.grey.shade400
+        : const Color(0xFF64748B);
+    final Color dividerColor = isDark
+        ? Colors.grey.shade800
+        : Colors.grey.shade200;
 
     return Dialog(
       backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -913,13 +948,13 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
     String statusDesc;
 
     if (isLockout) {
-      statusColor = const Color(0xFFEF4444); 
+      statusColor = const Color(0xFFEF4444);
       bgColor = isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2);
       statusLabel = 'CLASS 1: CRITICAL RISK';
       statusDesc =
           'Algorithm dictates an imminent breakdown risk. Asset lockout triggered.';
     } else if (isWarning) {
-      statusColor = const Color(0xFFF59E0B); 
+      statusColor = const Color(0xFFF59E0B);
       bgColor = isDark ? const Color(0xFF451A03) : const Color(0xFFFFFBEB);
       statusLabel = 'WARNING: ELEVATED RISK';
       statusDesc =
@@ -940,7 +975,10 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1.5),
+            border: Border.all(
+              color: statusColor.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
           ),
           child: Column(
             children: [
@@ -1043,7 +1081,9 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1060,7 +1100,9 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                    color: isDark
+                        ? Colors.grey.shade400
+                        : const Color(0xFF64748B),
                   ),
                 ),
               ),

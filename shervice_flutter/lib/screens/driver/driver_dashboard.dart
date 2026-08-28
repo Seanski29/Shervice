@@ -60,24 +60,15 @@ class _DriverDashboardState extends State<DriverDashboard> {
     }
   }
 
-  Map<String, dynamic> get _displayActiveTrip => _isLoading
-      ? {
-          'trip_id': 'Loading', 'route_name': 'Loading Route', 'status': 'Scheduled',
-          'plate_number': 'Loading Vehicle', 'model': 'Loading Model',
-          'departure_time': '08:00', 'estimated_arrival_time': '09:00',
-          'passenger_count': 0, 'route_distance': 0,
-        }
-      : (_activeTrip ?? {});
-
   bool _hasAssignedTripData() {
-    final trip = _displayActiveTrip;
-    if (trip.isEmpty) return false;
+    if (_activeTrip == null) return false;
+    if (_activeTrip!.isEmpty) return false;
 
-    final routeName = trip['route_name'];
-    final departureTime = trip['departure_time'];
-    final estimatedArrival = trip['estimated_arrival_time'];
-    final status = trip['status'];
-    final plateNumber = trip['plate_number'];
+    final routeName = _activeTrip!['route_name'];
+    final departureTime = _activeTrip!['departure_time'];
+    final estimatedArrival = _activeTrip!['estimated_arrival_time'];
+    final status = _activeTrip!['status'];
+    final plateNumber = _activeTrip!['plate_number'];
 
     final hasRouteInfo = routeName != null && routeName.toString().trim().isNotEmpty;
     final hasScheduleInfo = departureTime != null && departureTime.toString().trim().isNotEmpty;
@@ -190,7 +181,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
     final double horizontalPadding = isMobile ? 16.0 : 32.0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-<<<<<<< HEAD
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFFF8FAFC),
@@ -198,13 +188,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
       );
     }
 
-=======
->>>>>>> 17e5752e11d7c5ce8c89c26b152e7ba8e5e35b40
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Skeletonizer(
-        enabled: _isLoading,
-        child: RefreshIndicator(
+      body: RefreshIndicator(
         onRefresh: _fetchAssignedTripData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -246,9 +232,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.amber.withValues(alpha: 0.15) : Colors.amber.shade50,
+                      color: isDark ? Colors.amber.withOpacity(0.15) : Colors.amber.shade50,
                       borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: isDark ? Colors.amber.withValues(alpha: 0.3) : Colors.amber.shade200),
+                      border: Border.all(color: isDark ? Colors.amber.withOpacity(0.3) : Colors.amber.shade200),
                     ),
                     child: DriverRatingBadge(
                       key: UniqueKey(),
@@ -303,7 +289,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
           ),
         ),
       ),
-    ),
     );
   }
 
@@ -321,14 +306,14 @@ class _DriverDashboardState extends State<DriverDashboard> {
 
   // --- TRIP CARD (Maintains the vibrant gradient for primary focus) ---
   Widget _buildActiveTripCard(bool isDark) {
-    final status = _displayActiveTrip['status'] ?? 'SCHEDULED';
+    final status = _activeTrip!['status'] ?? 'SCHEDULED';
     final isOngoing = status == 'ONGOING';
-    final departureTime = _displayActiveTrip['departure_time']?.toString();
-    final estimatedArrival = _displayActiveTrip['estimated_arrival_time']?.toString();
+    final departureTime = _activeTrip!['departure_time']?.toString();
+    final estimatedArrival = _activeTrip!['estimated_arrival_time']?.toString();
 
     final details = [
-      {'icon': Icons.people_alt_outlined, 'label': 'Passengers', 'value': '${_displayActiveTrip['passenger_count'] ?? 0}'},
-      {'icon': Icons.straighten, 'label': 'Distance', 'value': '${_displayActiveTrip['route_distance'] ?? 0} km'},
+      {'icon': Icons.people_alt_outlined, 'label': 'Passengers', 'value': '${_activeTrip!['passenger_count'] ?? 0}'},
+      {'icon': Icons.straighten, 'label': 'Distance', 'value': '${_activeTrip!['route_distance'] ?? 0} km'},
       {'icon': Icons.access_time, 'label': 'Schedule', 'value': _formatDepartureEta(departureTime, estimatedArrival)},
       {'icon': Icons.pin_drop_outlined, 'label': 'Status', 'value': isOngoing ? 'In Transit' : 'Pending'},
     ];
@@ -346,7 +331,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           if (!isDark)
-            BoxShadow(color: Colors.blue.withValues(alpha: 0.2), blurRadius: 15, offset: const Offset(0, 8)),
+            BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 8)),
         ],
       ),
       child: Column(
@@ -358,11 +343,11 @@ class _DriverDashboardState extends State<DriverDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'TRP-${_displayActiveTrip['trip_id'] ?? 'TBD'}',
+                  'TRP-${_activeTrip!['trip_id'] ?? 'TBD'}',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                 ),
               ),
@@ -383,13 +368,13 @@ class _DriverDashboardState extends State<DriverDashboard> {
           _buildTimelineRow(
             Icons.my_location,
             'ROUTE / DESTINATION',
-            _displayActiveTrip['route_name']?.toString() ?? 'Pending Assignment',
+            _activeTrip!['route_name']?.toString() ?? 'Pending Assignment',
             _formatDepartureEta(departureTime, estimatedArrival),
           ),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.only(top: 16),
-            decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.15), width: 1))),
+            decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.white.withOpacity(0.15), width: 1))),
             child: Column(
               children: [
                 Row(
@@ -415,7 +400,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
             width: double.infinity,
             height: 48,
             child: ElevatedButton.icon(
-              onPressed: () => _showPassengerQR(_displayActiveTrip['trip_id'].toString(), isDark),
+              onPressed: () => _showPassengerQR(_activeTrip!['trip_id'].toString(), isDark),
               icon: const Icon(Icons.qr_code, color: Color(0xFF1E3A8A), size: 20),
               label: const Text(
                 'Show Passenger QR',
@@ -465,7 +450,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
+            color: Colors.white.withOpacity(0.15),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: Colors.white, size: 20),
@@ -528,14 +513,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
 
   // --- VEHICLE CARD ---
   Widget _buildVehicleDetailsCard(bool isDark) {
-<<<<<<< HEAD
     final plate = _activeTrip!['plate_number']?.toString() ?? 'UNASSIGNED';
     final model =
         _activeTrip!['model']?.toString() ?? 'Contact Staff Dispatcher';
-=======
-    final plate = _displayActiveTrip['plate_number']?.toString() ?? 'UNASSIGNED';
-    final model = _displayActiveTrip['model']?.toString() ?? 'Contact Dispatch';
->>>>>>> 17e5752e11d7c5ce8c89c26b152e7ba8e5e35b40
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

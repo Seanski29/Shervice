@@ -65,7 +65,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
     });
 
     final String url = '$backendUrl/driver/all';
-    debugPrint("🔍 Fetching drivers from: $url");
 
     try {
       final response = await http
@@ -85,7 +84,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
           }
         }
       } else {
-        debugPrint("⚠️ Server returned non-200 status: ${response.statusCode}");
+        debugPrint("Driver request failed: ${response.statusCode}");
       }
     } catch (e) {
       debugPrint("❌ Error reading live driver profile streams: $e");
@@ -127,13 +126,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
       max(1, (_filteredDrivers.length / _itemsPerPage).ceil());
 
   List<DriverProfileModel> get _paginatedDrivers {
-    if (_isLoading) {
-      return List.generate(5, (index) => DriverProfileModel(
-        id: 'skeleton-$index', userId: 'skeleton-$index', name: 'Loading Driver',
-        email: 'loading@example.com', licenseNumber: 'Loading', birthday: '1995-01-01',
-        rating: 0, status: 'Active', dateHired: 'Loading', licenseExpiry: 'Loading',
-      ));
-    }
     if (_filteredDrivers.isEmpty) return [];
     int start = _currentPage * _itemsPerPage;
     int end = min(start + _itemsPerPage, _filteredDrivers.length);
@@ -152,9 +144,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Skeletonizer(
-      enabled: _isLoading,
-      child: RefreshIndicator(
+    return RefreshIndicator(
       onRefresh: _fetchDriversFromDatabase,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -191,7 +181,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
             const SizedBox(height: 24),
 
             // ─── DRIVER LIST ───
-<<<<<<< HEAD:shervice_flutter/lib/widgets/shared_drivers_view.dart
             if (_isLoading)
               const Padding(
                 padding: EdgeInsets.all(40),
@@ -200,9 +189,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
                 ),
               )
             else if (_filteredDrivers.isEmpty)
-=======
-            if (!_isLoading && _filteredDrivers.isEmpty)
->>>>>>> 17e5752e11d7c5ce8c89c26b152e7ba8e5e35b40:shervice_flutter/lib/widgets/shared/shared_drivers_view.dart
               _buildEmptyState(isDark)
             else
               Container(
@@ -238,7 +224,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
           ],
         ),
       ),
-    ),
     );
   }
 
@@ -574,13 +559,9 @@ class SharedDriversViewState extends State<SharedDriversView> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-<<<<<<< HEAD:shervice_flutter/lib/widgets/shared_drivers_view.dart
                           color: isDark
                               ? Colors.amber.withValues(alpha: 0.1)
                               : Colors.amber.shade50,
-=======
-                          color: isDark ? Colors.amber.withValues(alpha: 0.1) : Colors.amber.shade50,
->>>>>>> 17e5752e11d7c5ce8c89c26b152e7ba8e5e35b40:shervice_flutter/lib/widgets/shared/shared_drivers_view.dart
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: DriverRatingBadge(

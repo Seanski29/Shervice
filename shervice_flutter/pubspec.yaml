@@ -19,6 +19,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.15.0
   qr_flutter: ^4.1.0
+  fl_chart: ^0.70.2
 
 dev_dependencies:
   flutter_test:
