@@ -1,14 +1,12 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:skeletonizer/skeletonizer.dart';
 
-// Your Global Constants
 import '../../../constant.dart';
-
-// The new separated local tab files
-import 'fleet_overview_tab.dart';
 import 'driver_performance_tab.dart';
+import 'fleet_overview_tab.dart';
 import 'vehicle_ml_tab.dart';
 
 class SharedAnalyticsHub extends StatefulWidget {
@@ -19,11 +17,8 @@ class SharedAnalyticsHub extends StatefulWidget {
 }
 
 class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
-  int _activeTab =
-      0; // 0 = Fleet Overview, 1 = Driver Performance, 2 = Vehicle ML
+  int _activeTab = 0;
   bool _isLoading = true;
-
-  // Single Source of Truth Arrays
   List<dynamic> _allDrivers = [];
   List<dynamic> _allVehicles = [];
   List<dynamic> _allTrips = [];
@@ -37,178 +32,91 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
 
   Future<void> _fetchGlobalAnalyticsPayload() async {
     try {
-      // 1. Fetch Drivers
-      final dRes = await http.get(Uri.parse('$backendUrl/test-db'));
-      if (dRes.statusCode == 200) {
-        _allDrivers = jsonDecode(dRes.body)['sample_data_payload'] ?? [];
+      final driversResponse = await http.get(Uri.parse('$backendUrl/test-db'));
+      if (driversResponse.statusCode == 200) {
+        final data = jsonDecode(driversResponse.body);
+        _allDrivers = data is Map ? data['sample_data_payload'] ?? [] : [];
       }
 
-      // 2. Fetch Trips
-      final tRes = await http.get(Uri.parse('$backendUrl/trips'));
-      if (tRes.statusCode == 200) {
-        final tData = jsonDecode(tRes.body);
-        _allTrips = tData is List
-            ? tData
-            : (tData['trips'] ?? tData['sample_data_payload'] ?? []);
+      final tripsResponse = await http.get(Uri.parse('$backendUrl/trips'));
+      if (tripsResponse.statusCode == 200) {
+        final data = jsonDecode(tripsResponse.body);
+        _allTrips = data is List
+            ? data
+            : data['trips'] ?? data['sample_data_payload'] ?? [];
       }
 
-      // 3. Fetch Maintenance Logs
-      final mRes = await http.get(
+      final maintenanceResponse = await http.get(
         Uri.parse('$backendUrl/vehicles/maintenance'),
       );
-      if (mRes.statusCode == 200) {
-        final mData = jsonDecode(mRes.body);
-        _allMaintenanceLogs = mData['data'] ?? mData['logs'] ?? [];
+      if (maintenanceResponse.statusCode == 200) {
+        final data = jsonDecode(maintenanceResponse.body);
+        _allMaintenanceLogs = data is Map
+            ? data['data'] ?? data['logs'] ?? []
+            : [];
       }
 
-      // 4. Fetch Vehicles & Synchronize ML Scores concurrently
-      final vRes = await http.get(Uri.parse('$backendUrl/vehicles'));
-      if (vRes.statusCode == 200) {
-        List<dynamic> vehicles = jsonDecode(vRes.body)['data'] ?? [];
-        await Future.wait(
-          vehicles.map((v) async {
-            try {
-              final mlRes = await http.get(
-                Uri.parse('$backendUrl/vehicles/predict/${v['vehicle_id']}'),
-              );
-              if (mlRes.statusCode == 200) {
-                v['live_risk_score'] =
-                    (jsonDecode(mlRes.body)['risk_index'] as num?)
-                        ?.toDouble() ??
-                    0.0;
-              } else {
-                v['live_risk_score'] = 0.0;
+      final vehiclesResponse = await http.get(
+        Uri.parse('$backendUrl/vehicles'),
+      );
+      if (vehiclesResponse.statusCode == 200) {
+        final data = jsonDecode(vehiclesResponse.body);
+        final vehicles = data is Map ? data['data'] : null;
+        if (vehicles is List) {
+          await Future.wait(
+            vehicles.whereType<Map>().map((vehicle) async {
+              final vehicleId = vehicle['vehicle_id'];
+              try {
+                final predictionResponse = await http.get(
+                  Uri.parse('$backendUrl/vehicles/predict/$vehicleId'),
+                );
+                if (predictionResponse.statusCode == 200) {
+                  final prediction = jsonDecode(predictionResponse.body);
+                  vehicle['live_risk_score'] =
+                      (prediction['risk_index'] as num?)?.toDouble() ?? 0.0;
+                } else {
+                  vehicle['live_risk_score'] = 0.0;
+                }
+              } catch (_) {
+                vehicle['live_risk_score'] = 0.0;
               }
-            } catch (_) {
-              v['live_risk_score'] = 0.0;
-            }
-          }),
-        );
-        _allVehicles = vehicles;
+            }),
+          );
+          _allVehicles = vehicles;
+        }
       }
-    } catch (e) {
-      debugPrint("Global Analytics Fetch Error: $e");
+    } catch (error) {
+      debugPrint('Global analytics request failed: $error');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-<<<<<<< HEAD
-  void _applyFilters() {
-    List<dynamic> tempD = _allDrivers.where((d) {
-      final name = (d['full_name'] ?? '').toString().toLowerCase();
-      return name.contains(_searchQuery.toLowerCase());
-    }).toList();
-
-    tempD.sort((a, b) {
-      if (_currentSort == 'Rating (High-Low)') {
-        final rA = (a['rating'] as num?)?.toDouble() ?? 0.0;
-        final rB = (b['rating'] as num?)?.toDouble() ?? 0.0;
-        return rB.compareTo(rA);
-      } else if (_currentSort == 'Rating (Low-High)') {
-        final rA = (a['rating'] as num?)?.toDouble() ?? 0.0;
-        final rB = (b['rating'] as num?)?.toDouble() ?? 0.0;
-        return rA.compareTo(rB);
-      } else {
-        final nameA = (a['full_name'] ?? '').toString().toLowerCase();
-        final nameB = (b['full_name'] ?? '').toString().toLowerCase();
-        return _currentSort == 'Z to A'
-            ? nameB.compareTo(nameA)
-            : nameA.compareTo(nameB);
-      }
-    });
-
-    List<dynamic> tempV = _allVehicles.where((v) {
-      final plate = (v['plate_number'] ?? '').toString().toLowerCase();
-      final type = (v['bus_type'] ?? '').toString().toLowerCase();
-      final status = (v['health_status'] ?? 'Good').toString().toLowerCase();
-
-      bool matchesSearch =
-          plate.contains(_searchQuery.toLowerCase()) ||
-          type.contains(_searchQuery.toLowerCase());
-      bool matchesFilter = true;
-
-      if (_currentSort == 'Condition: Good/Excellent') {
-        matchesFilter = status == 'good' || status == 'excellent';
-      } else if (_currentSort == 'Condition: Needs Maint.') {
-        matchesFilter = status != 'good' && status != 'excellent';
-      }
-
-      return matchesSearch && matchesFilter;
-    }).toList();
-
-    tempV.sort((a, b) {
-      final plateA = (a['plate_number'] ?? '').toString().toLowerCase();
-      final plateB = (b['plate_number'] ?? '').toString().toLowerCase();
-      return _currentSort == 'Z to A'
-          ? plateB.compareTo(plateA)
-          : plateA.compareTo(plateB);
-    });
-
-    setState(() {
-      _filteredDrivers = tempD;
-      _filteredVehicles = tempV;
-      _currentPage = 0;
-    });
-  }
-
-  int get _totalPages {
-    final list = _activeTab == 0 ? _filteredDrivers : _filteredVehicles;
-    return (list.length / _itemsPerPage).ceil();
-  }
-
-  List<dynamic> get _paginatedItems {
-    if (_isLoading) {
-      return List.generate(
-        5,
-        (index) => _activeTab == 0
-            ? {
-                'user_id': index + 1,
-                'full_name': 'Loading Driver',
-                'rating': 0.0,
-                'employment_status': 'Active',
-                'license_no': 'Loading',
-              }
-            : {
-                'vehicle_id': index + 1,
-                'plate_number': 'LOADING-${index + 1}',
-                'bus_type': 'Loading Vehicle',
-                'health_status': 'Good',
-              },
-      );
-=======
-  // Called directly from the ML Tab's Sync AI button!
   Future<void> _handleManualSync() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
+      final response = await http.post(
+        Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'),
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Fleet sync returned ${response.statusCode}');
+      }
       await _fetchGlobalAnalyticsPayload();
-    } catch (e) {
-      debugPrint("Manual sweep failed: $e");
-      setState(() => _isLoading = false);
->>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
+    } catch (error) {
+      debugPrint('Manual fleet sync failed: $error');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isMobile = MediaQuery.of(context).size.width < 768;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-<<<<<<< HEAD
-
-=======
->>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
-    final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final Color subtitleColor = isDark
+    final isMobile = MediaQuery.of(context).size.width < 768;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final subtitleColor = isDark
         ? Colors.grey.shade400
         : const Color(0xFF64748B);
-<<<<<<< HEAD
-    final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color borderColor = isDark
-        ? Colors.grey.shade700
-        : Colors.grey.shade300;
-=======
->>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -219,28 +127,20 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── HEADER ──
               Text(
                 'Intelligence & Analytics Hub',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                   color: textColor,
-                  letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Evaluate granular driver feedback logs, monitor live fleet metrics, and execute predictive ML diagnostics.',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: subtitleColor,
-                ),
+                'Evaluate driver feedback, monitor fleet metrics, and execute predictive diagnostics.',
+                style: TextStyle(fontSize: 14, color: subtitleColor),
               ),
               const SizedBox(height: 16),
-
-              // ── 3-TAB NAVIGATOR ──
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
@@ -266,102 +166,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // ── FAST RENDERING TABS ──
-              // IndexedStack prevents Flutter from rebuilding the tabs when you switch them.
               Expanded(
-<<<<<<< HEAD
-                child: !_isLoading && _paginatedItems.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _activeTab == 0
-                                  ? Icons.group_off
-                                  : Icons.car_crash,
-                              size: 48,
-                              color: isDark
-                                  ? Colors.grey.shade700
-                                  : Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No records found matching your filter.',
-                              style: TextStyle(
-                                color: Colors.grey.shade500,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _paginatedItems.length,
-                        itemBuilder: (context, index) {
-                          final item = _paginatedItems[index];
-                          return _activeTab == 0
-                              ? _buildDriverCard(item, isDark)
-                              : _buildVehicleCard(item, isDark);
-                        },
-                      ),
-              ),
-
-              // ── PAGINATION ──
-              if (_totalPages > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _activeTab == 0 ? _filteredDrivers.length : _filteredVehicles.length)} of ${_activeTab == 0 ? _filteredDrivers.length : _filteredVehicles.length} records',
-                          style: TextStyle(color: subtitleColor, fontSize: 13),
-                        ),
-                        const SizedBox(width: 24),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.chevron_left, color: textColor),
-                              onPressed: _currentPage > 0
-                                  ? () => setState(() => _currentPage--)
-                                  : null,
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF1E293B)
-                                    : const Color(0xFFEFF6FF),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${_currentPage + 1} / $_totalPages',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF3B82F6),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.chevron_right, color: textColor),
-                              onPressed: _currentPage < _totalPages - 1
-                                  ? () => setState(() => _currentPage++)
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-=======
                 child: _isLoading && _allVehicles.isEmpty
                     ? const Center(child: CircularProgressIndicator())
                     : IndexedStack(
@@ -385,7 +190,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                         ],
                       ),
               ),
->>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
             ],
           ),
         ),
@@ -393,51 +197,31 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
     );
   }
 
-<<<<<<< HEAD
-  Widget _buildToggleButton(
-    int index,
-    String label,
-    IconData icon,
-    bool isDark,
-  ) {
-=======
   Widget _buildNavTab(int index, String label, IconData icon, bool isDark) {
->>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
-    final bool isActive = _activeTab == index;
-    final Color activeBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color inactiveText = isDark
+    final isActive = _activeTab == index;
+    final activeBackground = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final inactiveText = isDark
         ? Colors.grey.shade500
         : const Color(0xFF64748B);
 
     return Expanded(
       child: InkWell(
-<<<<<<< HEAD
-        onTap: () {
-          setState(() {
-            _activeTab = index;
-            _searchQuery = '';
-            _currentSort = 'A to Z';
-            _applyFilters();
-          });
-        },
-=======
         onTap: () => setState(() => _activeTab = index),
->>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? activeBg : Colors.transparent,
+            color: isActive ? activeBackground : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             boxShadow: isActive
-                ? [
+                ? const [
                     BoxShadow(
-                      color: isDark ? Colors.black45 : Colors.black12,
+                      color: Colors.black12,
                       blurRadius: 4,
-                      offset: const Offset(0, 2),
+                      offset: Offset(0, 2),
                     ),
                   ]
-                : [],
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -467,625 +251,4 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
       ),
     );
   }
-<<<<<<< HEAD
-
-  Widget _buildDriverCard(dynamic driver, bool isDark) {
-    final double rating = (driver['rating'] as num?)?.toDouble() ?? 0.0;
-    final String status = driver['employment_status'] ?? 'Active';
-    final Color statusColor = status.toLowerCase() == 'active'
-        ? const Color(0xFF10B981)
-        : const Color(0xFFF59E0B);
-
-    final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color borderColor = isDark
-        ? Colors.grey.shade800
-        : Colors.grey.shade200;
-    final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final Color subTextColor = isDark
-        ? Colors.grey.shade400
-        : const Color(0xFF64748B);
-    final Color iconBg = isDark
-        ? Colors.blue.withValues(alpha: 0.15)
-        : Colors.blue.shade50;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: borderColor),
-      ),
-      color: cardBg,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _showDriverEvalModal(driver['user_id']),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.person, color: Colors.blue),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      driver['full_name'] ?? 'Unknown',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: textColor,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 4,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.star,
-                              size: 14,
-                              color: Colors.amber.shade600,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              rating == 0.0 ? 'New' : rating.toStringAsFixed(1),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.badge, size: 14, color: subTextColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              driver['license_no'] ?? 'N/A',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: subTextColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  status,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right, color: Colors.grey),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVehicleCard(dynamic vehicle, bool isDark) {
-    final String status = vehicle['health_status'] ?? 'Good';
-
-    final Color statusColor =
-        (status.toLowerCase() == 'good' || status.toLowerCase() == 'excellent')
-        ? const Color(0xFF10B981)
-        : const Color(0xFFEF4444);
-
-    final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color borderColor = isDark
-        ? Colors.grey.shade800
-        : Colors.grey.shade200;
-    final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final Color subTextColor = isDark
-        ? Colors.grey.shade400
-        : const Color(0xFF64748B);
-    final Color iconBg = isDark
-        ? Colors.purple.withValues(alpha: 0.15)
-        : Colors.purple.shade50;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: borderColor),
-      ),
-      color: cardBg,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _showMlPredictionModal(vehicle),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.directions_car, color: Colors.purple),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      vehicle['plate_number'] ?? 'Unknown',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: textColor,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.directions_bus,
-                          size: 14,
-                          color: subTextColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          vehicle['bus_type'] ?? 'Unknown Type',
-                          style: TextStyle(fontSize: 12, color: subTextColor),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  status,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.memory, color: Colors.purple),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showDriverEvalModal(String driverId) {
-    final bool isMobile = MediaQuery.of(context).size.width < 600;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          width: isMobile ? double.infinity : 600,
-          height: isMobile ? MediaQuery.of(context).size.height * 0.8 : 600,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              IconButton(
-                icon: Icon(
-                  Icons.close,
-                  color: isDark ? Colors.grey.shade400 : Colors.black87,
-                ),
-                onPressed: () => Navigator.pop(ctx),
-              ),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: DriverEvaluationView(
-                    driverUuid: driverId,
-                    backendUrl: backendUrl,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showMlPredictionModal(dynamic vehicle) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) =>
-          MlPredictionDialog(vehicle: vehicle, backendUrl: backendUrl),
-    );
-  }
 }
-
-class MlPredictionDialog extends StatefulWidget {
-  final dynamic vehicle;
-  final String backendUrl;
-
-  const MlPredictionDialog({
-    super.key,
-    required this.vehicle,
-    required this.backendUrl,
-  });
-
-  @override
-  State<MlPredictionDialog> createState() => _MlPredictionDialogState();
-}
-
-class _MlPredictionDialogState extends State<MlPredictionDialog> {
-  bool _isRunning = true;
-  Map<String, dynamic>? _results;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _runDiagnostics();
-  }
-
-  Future<void> _runDiagnostics() async {
-    try {
-      final res = await http
-          .get(
-            Uri.parse(
-              '${widget.backendUrl}/vehicles/predict/${widget.vehicle['vehicle_id']}',
-            ),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (res.statusCode == 200 && mounted) {
-        setState(() {
-          _results = jsonDecode(res.body);
-          _isRunning = false;
-        });
-      } else {
-        if (mounted) {
-          setState(() {
-            _error =
-                "Failed to run diagnostics. Server returned ${res.statusCode}.";
-            _isRunning = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = "Connection error. Ensure Python backend is running.";
-          _isRunning = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isMobile = MediaQuery.of(context).size.width < 600;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final Color iconColor = isDark
-        ? Colors.grey.shade400
-        : const Color(0xFF64748B);
-    final Color dividerColor = isDark
-        ? Colors.grey.shade800
-        : Colors.grey.shade200;
-
-    return Dialog(
-      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        width: isMobile ? double.infinity : 550,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'ML Diagnostics: ${widget.vehicle['plate_number']}',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.close, color: iconColor),
-                  onPressed: () => Navigator.pop(context),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-            Divider(height: 24, color: dividerColor),
-
-            if (_isRunning)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(
-                  child: Column(
-                    children: [
-                      CircularProgressIndicator(color: Colors.purple),
-                      SizedBox(height: 16),
-                      Text(
-                        "Compiling Logistic Regression Model...",
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else if (_error != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red.shade700),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Colors.red.shade700,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              _buildResultsView(isMobile, isDark),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResultsView(bool isMobile, bool isDark) {
-    final double riskIndex = (_results!['risk_index'] ?? 0.0) * 100;
-    final Map<String, dynamic> telemetry = _results!['telemetry_metrics'] ?? {};
-
-    final bool isLockout = riskIndex >= 80.0;
-    final bool isWarning = riskIndex >= 50.0 && riskIndex < 80.0;
-
-    Color statusColor;
-    Color bgColor;
-    String statusLabel;
-    String statusDesc;
-
-    if (isLockout) {
-      statusColor = const Color(0xFFEF4444);
-      bgColor = isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2);
-      statusLabel = 'CLASS 1: CRITICAL RISK';
-      statusDesc =
-          'Algorithm dictates an imminent breakdown risk. Asset lockout triggered.';
-    } else if (isWarning) {
-      statusColor = const Color(0xFFF59E0B);
-      bgColor = isDark ? const Color(0xFF451A03) : const Color(0xFFFFFBEB);
-      statusLabel = 'WARNING: ELEVATED RISK';
-      statusDesc =
-          'Asset is operational, but structural wear is increasing. Monitor closely.';
-    } else {
-      statusColor = const Color(0xFF10B981);
-      bgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5);
-      statusLabel = 'CLASS 0: SAFE';
-      statusDesc =
-          'Baseline structural integrity is normal. Asset is cleared for operations.';
-    }
-
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: statusColor.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
-          ),
-          child: Column(
-            children: [
-              Text(
-                'LOGISTIC REGRESSION CLASSIFICATION',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: statusColor,
-                  letterSpacing: 1,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  statusLabel,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: statusColor,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                statusDesc,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark ? Colors.white : Colors.black87,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            double cardWidth = isMobile
-                ? (constraints.maxWidth - 12) / 2
-                : (constraints.maxWidth - 36) / 4;
-            return Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _buildStatCard(
-                  'Risk Prob.',
-                  '${riskIndex.toStringAsFixed(1)}%',
-                  Icons.analytics,
-                  statusColor,
-                  cardWidth,
-                  isDark,
-                ),
-                _buildStatCard(
-                  'Odometer',
-                  '${telemetry['total_mileage_km']} km',
-                  Icons.speed,
-                  const Color(0xFF3B82F6),
-                  cardWidth,
-                  isDark,
-                ),
-                _buildStatCard(
-                  'Fleet Age',
-                  '${telemetry['age_years']} yrs',
-                  Icons.calendar_today,
-                  const Color(0xFFF59E0B),
-                  cardWidth,
-                  isDark,
-                ),
-                _buildStatCard(
-                  'Repairs',
-                  '${telemetry['past_repairs_count']} logs',
-                  Icons.build,
-                  const Color(0xFF8B5CF6),
-                  cardWidth,
-                  isDark,
-                ),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-    double width,
-    bool isDark,
-  ) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? Colors.grey.shade400
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-=======
-}
->>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
