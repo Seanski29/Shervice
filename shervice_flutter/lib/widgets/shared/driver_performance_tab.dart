@@ -204,9 +204,14 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
                         (driver['rating'] as num?)?.toDouble() ?? 0.0;
                     final String status =
                         driver['employment_status'] ?? 'Active';
-                    final Color statusColor = status.toLowerCase() == 'active'
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFFF59E0B);
+                    Color statusColor;
+                    if (status.toLowerCase() == 'active') {
+                      statusColor = const Color(0xFF10B981); // Green
+                    } else if (status.toLowerCase() == 'on leave') {
+                      statusColor = const Color(0xFF64748B); // Slate Grey
+                    } else {
+                      statusColor = const Color(0xFFF59E0B); // Amber Fallback
+                    }
                     final String driverId =
                         (driver['user_id'] ?? driver['id'] ?? '').toString();
 
