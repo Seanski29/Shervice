@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
 
 class DriverSchedules extends StatefulWidget {
@@ -95,8 +96,16 @@ class _DriverSchedulesState extends State<DriverSchedules> {
 
   // --- FILTER & SORT ---
   List<dynamic> _getFilteredTrips() {
-    if (_selectedDate == null) return List<dynamic>.from(_myTrips);
-    return _myTrips.where((trip) {
+    final displayTrips = _isLoading
+        ? List.generate(5, (index) => {
+              'trip_id': index + 1, 'route_name': 'Loading Route',
+              'trip_status': 'Scheduled', 'schedule_date': DateTime.now().toIso8601String(),
+              'departure_time': '08:00', 'estimated_arrival_time': '09:00',
+              'plate_number': 'Loading Vehicle', 'passenger_count': 0,
+            })
+        : _myTrips;
+    if (_selectedDate == null) return List<dynamic>.from(displayTrips);
+    return displayTrips.where((trip) {
       final tripDate = _parseTripDate(trip['schedule_date']?.toString());
       return tripDate != null &&
           tripDate.year == _selectedDate!.year &&
@@ -163,9 +172,9 @@ class _DriverSchedulesState extends State<DriverSchedules> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
-          : RefreshIndicator(
+      body: Skeletonizer(
+        enabled: _isLoading,
+        child: RefreshIndicator(
               onRefresh: _fetchMySchedules,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -308,7 +317,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                     const SizedBox(height: 24),
 
                     // ── TRIP SECTIONS ──
-                    if (_getFilteredTrips().isEmpty)
+                    if (!_isLoading && _getFilteredTrips().isEmpty)
                       _buildEmptyState(isDark)
                     else ...[
                       if (_ongoingTrips.isNotEmpty) _buildStatusSection('Ongoing', _ongoingTrips, const Color(0xFF3B82F6), isDark),
@@ -326,6 +335,7 @@ class _DriverSchedulesState extends State<DriverSchedules> {
                 ),
               ),
             ),
+      ),
     );
   }
 

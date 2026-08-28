@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart';
 import '../driver/driver_profile_model.dart';
 import '../../constant.dart';
 import '../driver/driver_rating_badge.dart';
@@ -119,6 +120,13 @@ class SharedDriversViewState extends State<SharedDriversView> {
   int get _totalPages => max(1, (_filteredDrivers.length / _itemsPerPage).ceil());
 
   List<DriverProfileModel> get _paginatedDrivers {
+    if (_isLoading) {
+      return List.generate(5, (index) => DriverProfileModel(
+        id: 'skeleton-$index', userId: 'skeleton-$index', name: 'Loading Driver',
+        email: 'loading@example.com', licenseNumber: 'Loading', birthday: '1995-01-01',
+        rating: 0, status: 'Active', dateHired: 'Loading', licenseExpiry: 'Loading',
+      ));
+    }
     if (_filteredDrivers.isEmpty) return [];
     int start = _currentPage * _itemsPerPage;
     int end = min(start + _itemsPerPage, _filteredDrivers.length);
@@ -136,7 +144,9 @@ class SharedDriversViewState extends State<SharedDriversView> {
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return RefreshIndicator(
+    return Skeletonizer(
+      enabled: _isLoading,
+      child: RefreshIndicator(
       onRefresh: _fetchDriversFromDatabase,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -170,12 +180,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
             const SizedBox(height: 24),
 
             // ─── DRIVER LIST ───
-            if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.all(40),
-                child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
-              )
-            else if (_filteredDrivers.isEmpty)
+            if (!_isLoading && _filteredDrivers.isEmpty)
               _buildEmptyState(isDark)
             else
               Container(
@@ -203,6 +208,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
           ],
         ),
       ),
+    ),
     );
   }
 

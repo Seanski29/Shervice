@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../../constant.dart';
-// Adjust this import path if your file is located elsewhere!
 import '../../../widgets/driver/driver_evaluation_view.dart';
 
 class SharedAnalyticsHub extends StatefulWidget {
@@ -28,7 +28,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
   String _searchQuery = '';
   String _currentSort = 'A to Z';
 
-  // 👇 FIX: Added "Excellent" to the Vehicle dropdown option
   List<String> get _currentSortOptions {
     return _activeTab == 0
         ? ['A to Z', 'Z to A', 'Rating (High-Low)', 'Rating (Low-High)']
@@ -51,14 +50,12 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
 
   Future<void> _fetchData() async {
     try {
-      // 1. Fetch Drivers (Using test-db which aggregates ratings)
       final dRes = await http.get(Uri.parse('$backendUrl/test-db'));
       if (dRes.statusCode == 200) {
         final dData = jsonDecode(dRes.body);
         _allDrivers = dData['sample_data_payload'] ?? [];
       }
 
-      // 2. Fetch Vehicles
       final vRes = await http.get(Uri.parse('$backendUrl/vehicles'));
       if (vRes.statusCode == 200) {
         final vData = jsonDecode(vRes.body);
@@ -75,7 +72,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
   }
 
   void _applyFilters() {
-    // ─── FILTER & SORT DRIVERS ───
     List<dynamic> tempD = _allDrivers.where((d) {
       final name = (d['full_name'] ?? '').toString().toLowerCase();
       return name.contains(_searchQuery.toLowerCase());
@@ -85,11 +81,11 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
       if (_currentSort == 'Rating (High-Low)') {
         final rA = (a['rating'] as num?)?.toDouble() ?? 0.0;
         final rB = (b['rating'] as num?)?.toDouble() ?? 0.0;
-        return rB.compareTo(rA); // Highest first
+        return rB.compareTo(rA);
       } else if (_currentSort == 'Rating (Low-High)') {
         final rA = (a['rating'] as num?)?.toDouble() ?? 0.0;
         final rB = (b['rating'] as num?)?.toDouble() ?? 0.0;
-        return rA.compareTo(rB); // Lowest first
+        return rA.compareTo(rB);
       } else {
         final nameA = (a['full_name'] ?? '').toString().toLowerCase();
         final nameB = (b['full_name'] ?? '').toString().toLowerCase();
@@ -99,7 +95,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
       }
     });
 
-    // ─── FILTER & SORT VEHICLES ───
     List<dynamic> tempV = _allVehicles.where((v) {
       final plate = (v['plate_number'] ?? '').toString().toLowerCase();
       final type = (v['bus_type'] ?? '').toString().toLowerCase();
@@ -110,7 +105,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
           type.contains(_searchQuery.toLowerCase());
       bool matchesFilter = true;
 
-      // 👇 FIX: Logic properly groups both 'good' and 'excellent'
       if (_currentSort == 'Condition: Good/Excellent') {
         matchesFilter = status == 'good' || status == 'excellent';
       } else if (_currentSort == 'Condition: Needs Maint.') {
@@ -141,6 +135,17 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
   }
 
   List<dynamic> get _paginatedItems {
+    if (_isLoading) {
+      return List.generate(5, (index) => _activeTab == 0
+          ? {
+              'user_id': index + 1, 'full_name': 'Loading Driver', 'rating': 0.0,
+              'employment_status': 'Active', 'license_no': 'Loading',
+            }
+          : {
+              'vehicle_id': index + 1, 'plate_number': 'LOADING-${index + 1}',
+              'bus_type': 'Loading Vehicle', 'health_status': 'Good',
+            });
+    }
     final list = _activeTab == 0 ? _filteredDrivers : _filteredVehicles;
     if (list.isEmpty) return [];
     int start = _currentPage * _itemsPerPage;
@@ -152,278 +157,287 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 768;
     final double padding = isMobile ? 12.0 : 24.0;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final Color bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final Color subtitleColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
+    final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final Color borderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
-            )
-          : Padding(
-              padding: EdgeInsets.all(padding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── HEADER ──
-                  const Text(
-                    'Analytics',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Evaluate driver performance scores and execute predictive maintenance algorithms.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Skeletonizer(
+        enabled: _isLoading,
+        child: Padding(
+          padding: EdgeInsets.all(padding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── HEADER ──
+              Text(
+                'Analytics',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: textColor,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Evaluate driver performance scores and execute predictive maintenance algorithms.',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: subtitleColor,
+                ),
+              ),
+              const SizedBox(height: 16),
 
-                  // ── TOGGLE BUTTONS ──
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(10),
+              // ── TOGGLE BUTTONS ──
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(10),
+                  border: isDark ? Border.all(color: Colors.grey.shade800) : null,
+                ),
+                child: Row(
+                  children: [
+                    _buildToggleButton(
+                      0,
+                      'Driver Performance',
+                      Icons.person,
+                      isDark,
                     ),
-                    child: Row(
-                      children: [
-                        _buildToggleButton(
-                          0,
-                          'Driver Performance',
-                          Icons.person,
+                    _buildToggleButton(
+                      1,
+                      'Vehicle Predictive ML',
+                      Icons.memory,
+                      isDark,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ── SEARCH & SORT BAR ──
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.start,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isMobile ? double.infinity : 350,
+                      minWidth: isMobile ? double.infinity : 200,
+                    ),
+                    child: SizedBox(
+                      height: 42,
+                      child: TextField(
+                        onChanged: (value) {
+                          _searchQuery = value;
+                          _applyFilters();
+                        },
+                        style: TextStyle(color: textColor, fontSize: 13),
+                        decoration: InputDecoration(
+                          hintText: _activeTab == 0
+                              ? 'Search drivers...'
+                              : 'Search vehicles...',
+                          hintStyle: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            size: 18,
+                            color: subtitleColor,
+                          ),
+                          filled: true,
+                          fillColor: cardBg,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF3B82F6),
+                            ),
+                          ),
                         ),
-                        _buildToggleButton(
-                          1,
-                          'Vehicle Predictive ML',
-                          Icons.memory,
+                      ),
+                    ),
+                  ),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isMobile ? double.infinity : 230,
+                      minWidth: isMobile ? double.infinity : 150,
+                    ),
+                    child: SizedBox(
+                      height: 42,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          border: Border.all(color: borderColor),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: _currentSort,
+                            dropdownColor: cardBg,
+                            icon: Icon(
+                              Icons.sort,
+                              size: 18,
+                              color: subtitleColor,
+                            ),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: textColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            items: _currentSortOptions.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                _currentSort = val;
+                                _applyFilters();
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // ── LIST CONTENT ──
+              Expanded(
+                child: !_isLoading && _paginatedItems.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _activeTab == 0
+                                  ? Icons.group_off
+                                  : Icons.car_crash,
+                              size: 48,
+                              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No records found matching your filter.',
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _paginatedItems.length,
+                        itemBuilder: (context, index) {
+                          final item = _paginatedItems[index];
+                          return _activeTab == 0
+                              ? _buildDriverCard(item, isDark)
+                              : _buildVehicleCard(item, isDark);
+                        },
+                      ),
+              ),
+
+              // ── PAGINATION ──
+              if (_totalPages > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _activeTab == 0 ? _filteredDrivers.length : _filteredVehicles.length)} of ${_activeTab == 0 ? _filteredDrivers.length : _filteredVehicles.length} records',
+                          style: TextStyle(
+                            color: subtitleColor,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.chevron_left, color: textColor),
+                              onPressed: _currentPage > 0
+                                  ? () => setState(() => _currentPage--)
+                                  : null,
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '${_currentPage + 1} / $_totalPages',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF3B82F6),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.chevron_right, color: textColor),
+                              onPressed: _currentPage < _totalPages - 1
+                                  ? () => setState(() => _currentPage++)
+                                  : null,
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  // ── SEARCH & SORT BAR ──
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    alignment: WrapAlignment.start,
-                    children: [
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: isMobile ? double.infinity : 350,
-                          minWidth: isMobile ? double.infinity : 200,
-                        ),
-                        child: SizedBox(
-                          height: 42,
-                          child: TextField(
-                            onChanged: (value) {
-                              _searchQuery = value;
-                              _applyFilters();
-                            },
-                            decoration: InputDecoration(
-                              hintText: _activeTab == 0
-                                  ? 'Search drivers...'
-                                  : 'Search vehicles...',
-                              hintStyle: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade500,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.search,
-                                size: 18,
-                                color: Color(0xFF64748B),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 8,
-                                horizontal: 12,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(
-                                  color: Colors.grey.shade300,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(
-                                  color: Colors.grey.shade300,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF3B82F6),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: isMobile ? double.infinity : 230,
-                          minWidth: isMobile ? double.infinity : 150,
-                        ),
-                        child: SizedBox(
-                          height: 42,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                isExpanded: true,
-                                value: _currentSort,
-                                icon: const Icon(
-                                  Icons.sort,
-                                  size: 18,
-                                  color: Color(0xFF64748B),
-                                ),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF0F172A),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                items: _currentSortOptions.map((String value) {
-                                  return DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    _currentSort = val;
-                                    _applyFilters();
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── LIST CONTENT ──
-                  Expanded(
-                    child: _paginatedItems.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  _activeTab == 0
-                                      ? Icons.group_off
-                                      : Icons.car_crash,
-                                  size: 48,
-                                  color: Colors.grey.shade300,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'No records found matching your filter.',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade500,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: _paginatedItems.length,
-                            itemBuilder: (context, index) {
-                              final item = _paginatedItems[index];
-                              return _activeTab == 0
-                                  ? _buildDriverCard(item)
-                                  : _buildVehicleCard(item);
-                            },
-                          ),
-                  ),
-
-                  // ── PAGINATION ──
-                  if (_totalPages > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _activeTab == 0 ? _filteredDrivers.length : _filteredVehicles.length)} of ${_activeTab == 0 ? _filteredDrivers.length : _filteredVehicles.length} records',
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.chevron_left),
-                                  onPressed: _currentPage > 0
-                                      ? () => setState(() => _currentPage--)
-                                      : null,
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEFF6FF),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '${_currentPage + 1} / $_totalPages',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF3B82F6),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.chevron_right),
-                                  onPressed: _currentPage < _totalPages - 1
-                                      ? () => setState(() => _currentPage++)
-                                      : null,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildToggleButton(int index, String label, IconData icon) {
+  Widget _buildToggleButton(int index, String label, IconData icon, bool isDark) {
     final bool isActive = _activeTab == index;
+    final Color activeBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final Color inactiveText = isDark ? Colors.grey.shade500 : const Color(0xFF64748B);
+    
     return Expanded(
       child: InkWell(
         onTap: () {
           setState(() {
             _activeTab = index;
-            _searchQuery = ''; // Reset search query string
-            _currentSort =
-                'A to Z'; // Safely reset sort to default when switching tabs
+            _searchQuery = ''; 
+            _currentSort = 'A to Z'; 
             _applyFilters();
           });
         },
@@ -431,14 +445,14 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? Colors.white : Colors.transparent,
+            color: isActive ? activeBg : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             boxShadow: isActive
                 ? [
-                    const BoxShadow(
-                      color: Colors.black12,
+                    BoxShadow(
+                      color: isDark ? Colors.black45 : Colors.black12,
                       blurRadius: 4,
-                      offset: Offset(0, 2),
+                      offset: const Offset(0, 2),
                     ),
                   ]
                 : [],
@@ -449,9 +463,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
               Icon(
                 icon,
                 size: 16,
-                color: isActive
-                    ? const Color(0xFF3B82F6)
-                    : const Color(0xFF64748B),
+                color: isActive ? const Color(0xFF3B82F6) : inactiveText,
               ),
               const SizedBox(width: 8),
               Flexible(
@@ -462,9 +474,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                     style: TextStyle(
                       fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
                       fontSize: 13,
-                      color: isActive
-                          ? const Color(0xFF3B82F6)
-                          : const Color(0xFF64748B),
+                      color: isActive ? const Color(0xFF3B82F6) : inactiveText,
                     ),
                   ),
                 ),
@@ -476,22 +486,27 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
     );
   }
 
-  // ─── DRIVER CARD ───
-  Widget _buildDriverCard(dynamic driver) {
+  Widget _buildDriverCard(dynamic driver, bool isDark) {
     final double rating = (driver['rating'] as num?)?.toDouble() ?? 0.0;
     final String status = driver['employment_status'] ?? 'Active';
     final Color statusColor = status.toLowerCase() == 'active'
         ? const Color(0xFF10B981)
         : const Color(0xFFF59E0B);
 
+    final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final Color borderColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
+    final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final Color subTextColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
+    final Color iconBg = isDark ? Colors.blue.withValues(alpha: 0.15) : Colors.blue.shade50;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: borderColor),
       ),
-      color: Colors.white,
+      color: cardBg,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () => _showDriverEvalModal(driver['user_id']),
@@ -502,7 +517,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: iconBg,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.person, color: Colors.blue),
@@ -514,10 +529,10 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                   children: [
                     Text(
                       driver['full_name'] ?? 'Unknown',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
-                        color: Color(0xFF0F172A),
+                        color: textColor,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -538,9 +553,10 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                             const SizedBox(width: 4),
                             Text(
                               rating == 0.0 ? 'New' : rating.toStringAsFixed(1),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
+                                color: textColor,
                               ),
                             ),
                           ],
@@ -548,17 +564,17 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.badge,
                               size: 14,
-                              color: Color(0xFF64748B),
+                              color: subTextColor,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               driver['license_no'] ?? 'N/A',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF64748B),
+                                color: subTextColor,
                               ),
                             ),
                           ],
@@ -571,7 +587,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -592,24 +608,28 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
     );
   }
 
-  // ─── VEHICLE CARD ───
-  Widget _buildVehicleCard(dynamic vehicle) {
+  Widget _buildVehicleCard(dynamic vehicle, bool isDark) {
     final String status = vehicle['health_status'] ?? 'Good';
 
-    // 👇 FIX: Color badge turns Green for both 'Good' AND 'Excellent'
     final Color statusColor =
         (status.toLowerCase() == 'good' || status.toLowerCase() == 'excellent')
         ? const Color(0xFF10B981)
         : const Color(0xFFEF4444);
+
+    final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final Color borderColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
+    final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final Color subTextColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
+    final Color iconBg = isDark ? Colors.purple.withValues(alpha: 0.15) : Colors.purple.shade50;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: borderColor),
       ),
-      color: Colors.white,
+      color: cardBg,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () => _showMlPredictionModal(vehicle),
@@ -620,7 +640,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
+                  color: iconBg,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.directions_car, color: Colors.purple),
@@ -632,10 +652,10 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                   children: [
                     Text(
                       vehicle['plate_number'] ?? 'Unknown',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
-                        color: Color(0xFF0F172A),
+                        color: textColor,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -643,17 +663,17 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.directions_bus,
                           size: 14,
-                          color: Color(0xFF64748B),
+                          color: subTextColor,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           vehicle['bus_type'] ?? 'Unknown Type',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF64748B),
+                            color: subTextColor,
                           ),
                         ),
                       ],
@@ -664,7 +684,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -685,12 +705,14 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
     );
   }
 
-  // ─── MODAL LAUNCHERS ───
   void _showDriverEvalModal(String driverId) {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
           width: isMobile ? double.infinity : 600,
@@ -700,7 +722,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: Icon(Icons.close, color: isDark ? Colors.grey.shade400 : Colors.black87),
                 onPressed: () => Navigator.pop(ctx),
               ),
               Expanded(
@@ -729,7 +751,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
   }
 }
 
-// ─── DEDICATED ML PREDICTION DIALOG ───
 class MlPredictionDialog extends StatefulWidget {
   final dynamic vehicle;
   final String backendUrl;
@@ -771,27 +792,35 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
           _isRunning = false;
         });
       } else {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _error =
                 "Failed to run diagnostics. Server returned ${res.statusCode}.";
             _isRunning = false;
           });
+        }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = "Connection error. Ensure Python backend is running.";
           _isRunning = false;
         });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final Color iconColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
+    final Color dividerColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
 
     return Dialog(
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: isMobile ? double.infinity : 550,
@@ -806,24 +835,24 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
                 Expanded(
                   child: Text(
                     'ML Diagnostics: ${widget.vehicle['plate_number']}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                      color: textColor,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                  icon: Icon(Icons.close, color: iconColor),
                   onPressed: () => Navigator.pop(context),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
               ],
             ),
-            const Divider(height: 24),
+            Divider(height: 24, color: dividerColor),
 
             if (_isRunning)
               const Padding(
@@ -864,18 +893,17 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
                 ),
               )
             else
-              _buildResultsView(isMobile),
+              _buildResultsView(isMobile, isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildResultsView(bool isMobile) {
+  Widget _buildResultsView(bool isMobile, bool isDark) {
     final double riskIndex = (_results!['risk_index'] ?? 0.0) * 100;
     final Map<String, dynamic> telemetry = _results!['telemetry_metrics'] ?? {};
 
-    // Apply the 80% business logic threshold
     final bool isLockout = riskIndex >= 80.0;
     final bool isWarning = riskIndex >= 50.0 && riskIndex < 80.0;
 
@@ -885,20 +913,20 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
     String statusDesc;
 
     if (isLockout) {
-      statusColor = const Color(0xFFEF4444); // Red
-      bgColor = const Color(0xFFFEF2F2);
+      statusColor = const Color(0xFFEF4444); 
+      bgColor = isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2);
       statusLabel = 'CLASS 1: CRITICAL RISK';
       statusDesc =
           'Algorithm dictates an imminent breakdown risk. Asset lockout triggered.';
     } else if (isWarning) {
-      statusColor = const Color(0xFFF59E0B); // Orange
-      bgColor = const Color(0xFFFFFBEB);
+      statusColor = const Color(0xFFF59E0B); 
+      bgColor = isDark ? const Color(0xFF451A03) : const Color(0xFFFFFBEB);
       statusLabel = 'WARNING: ELEVATED RISK';
       statusDesc =
           'Asset is operational, but structural wear is increasing. Monitor closely.';
     } else {
-      statusColor = const Color(0xFF10B981); // Green
-      bgColor = const Color(0xFFECFDF5);
+      statusColor = const Color(0xFF10B981);
+      bgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5);
       statusLabel = 'CLASS 0: SAFE';
       statusDesc =
           'Baseline structural integrity is normal. Asset is cleared for operations.';
@@ -912,7 +940,7 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: statusColor.withOpacity(0.3), width: 1.5),
+            border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1.5),
           ),
           child: Column(
             children: [
@@ -942,9 +970,9 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
               Text(
                 statusDesc,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: Colors.black87,
+                  color: isDark ? Colors.white : Colors.black87,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -967,6 +995,7 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
                   Icons.analytics,
                   statusColor,
                   cardWidth,
+                  isDark,
                 ),
                 _buildStatCard(
                   'Odometer',
@@ -974,6 +1003,7 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
                   Icons.speed,
                   const Color(0xFF3B82F6),
                   cardWidth,
+                  isDark,
                 ),
                 _buildStatCard(
                   'Fleet Age',
@@ -981,6 +1011,7 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
                   Icons.calendar_today,
                   const Color(0xFFF59E0B),
                   cardWidth,
+                  isDark,
                 ),
                 _buildStatCard(
                   'Repairs',
@@ -988,6 +1019,7 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
                   Icons.build,
                   const Color(0xFF8B5CF6),
                   cardWidth,
+                  isDark,
                 ),
               ],
             );
@@ -1003,14 +1035,15 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
     IconData icon,
     Color color,
     double width,
+    bool isDark,
   ) {
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1024,10 +1057,10 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
+                    color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
                   ),
                 ),
               ),

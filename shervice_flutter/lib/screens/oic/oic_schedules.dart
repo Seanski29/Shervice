@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
 
 class OicSchedules extends StatefulWidget {
@@ -107,7 +108,20 @@ class _OicSchedulesState extends State<OicSchedules> {
 
   // --- Filtering & Sorting ---
   List<dynamic> get _filteredAndSortedTrips {
-    List<dynamic> filtered = _myTrips.where((trip) {
+    final placeholderStatus = _statusFilter == 'All' ? 'Scheduled' : _statusFilter;
+    final displayTrips = _isLoading
+        ? List.generate(5, (index) => {
+              'trip_id': index + 1,
+              'route_name': 'Loading Route',
+              'trip_status': placeholderStatus,
+              'schedule_date': DateTime.now().toIso8601String(),
+              'driver_name': 'Loading Driver',
+              'plate_number': 'Loading Vehicle',
+              'departure_time': '08:00',
+              'estimated_arrival_time': '09:00',
+            })
+        : _myTrips;
+    List<dynamic> filtered = displayTrips.where((trip) {
       final route = (trip['route_name'] ?? '').toString().toLowerCase();
       final status = (trip['trip_status'] ?? '').toString().toLowerCase();
       final query = _searchQuery.toLowerCase();
@@ -260,7 +274,9 @@ class _OicSchedulesState extends State<OicSchedules> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: RefreshIndicator(
+      body: Skeletonizer(
+        enabled: _isLoading,
+        child: RefreshIndicator(
         onRefresh: _fetchMyTrips,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -289,17 +305,11 @@ class _OicSchedulesState extends State<OicSchedules> {
               const SizedBox(height: 24),
 
               // ----- SUMMARY PILL CARDS -----
-              if (!_isLoading) _buildTopSummaryStats(isDark, isMobile),
-              if (!_isLoading) const SizedBox(height: 24),
+              _buildTopSummaryStats(isDark, isMobile),
+              const SizedBox(height: 24),
 
               // ----- MAIN CONTENT (Desktop: Row, Mobile: Column) -----
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
-                )
-              else
-                isMobile
+              isMobile
                     ? Column(
                         children: [
                           _buildCompactCalendarGrid(isDark),
@@ -323,6 +333,7 @@ class _OicSchedulesState extends State<OicSchedules> {
                       ),
             ],
           ),
+        ),
         ),
       ),
     );

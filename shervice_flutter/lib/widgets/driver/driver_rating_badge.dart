@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart';
 
 class DriverRatingBadge extends StatefulWidget {
   final String driverUuid;
@@ -74,16 +75,10 @@ class _DriverRatingBadgeState extends State<DriverRatingBadge> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
-    }
-
     final theme = Theme.of(context);
-    return Row(
+    return Skeletonizer(
+      enabled: _isLoading,
+      child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
@@ -106,6 +101,7 @@ class _DriverRatingBadgeState extends State<DriverRatingBadge> {
             style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
           ),
       ],
+    ),
     );
   }
 }

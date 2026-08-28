@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/shared/legal_policies_button.dart';
 import '../../theme/dark_mode_toggle.dart'; // Added Import!
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
 import '../../widgets/driver/driver_rating_badge.dart';
 
@@ -132,13 +133,6 @@ class _DriverProfileState extends State<DriverProfile> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC);
 
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: bgColor,
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
     final bool isMobile = MediaQuery.of(context).size.width < 800;
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
 
@@ -154,7 +148,9 @@ class _DriverProfileState extends State<DriverProfile> {
 
     return Scaffold(
       backgroundColor: bgColor,
-      body: ListView(
+      body: Skeletonizer(
+        enabled: _isLoading,
+        child: ListView(
         padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 20.0),
         children: [
           // ─── HEADER ───
@@ -349,6 +345,7 @@ class _DriverProfileState extends State<DriverProfile> {
           const SizedBox(height: 20),
         ],
       ),
+    ),
     );
   }
 

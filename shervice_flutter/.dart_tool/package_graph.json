@@ -18,7 +18,15 @@
       "devDependencies": [
         "flutter_launcher_icons",
         "flutter_lints",
-        "flutter_test"
+        "flutter_test",
+        "skeletonizer"
+      ]
+    },
+    {
+      "name": "skeletonizer",
+      "version": "2.1.3",
+      "dependencies": [
+        "flutter"
       ]
     },
     {

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
 
 class OicDashboard extends StatefulWidget {
@@ -93,7 +94,22 @@ class _OicDashboardState extends State<OicDashboard> {
 
   // --- FILTERING & SORTING ---
   List<dynamic> get _filteredAndSortedTrips {
-    final filtered = _allTrips.where((t) {
+    final placeholderStatus = _statusFilter == 'Total' ? 'Scheduled' : _statusFilter;
+    final displayTrips = _isLoading
+        ? List.generate(5, (index) => {
+              'trip_id': index + 1,
+              'route_name': 'Loading Route',
+              'trip_status': placeholderStatus,
+              'schedule_date': DateTime.now().toIso8601String(),
+              'driver_name': 'Loading Driver',
+              'plate_number': 'Loading Vehicle',
+              'departure_time': '08:00',
+              'estimated_arrival_time': '09:00',
+              'passenger_count': 0,
+              'route_distance': 0,
+            })
+        : _allTrips;
+    final filtered = displayTrips.where((t) {
       final s = (t['trip_status'] ?? '').toString().toLowerCase().trim();
       final dateStr = t['schedule_date']?.toString() ?? '';
 
@@ -162,7 +178,9 @@ class _OicDashboardState extends State<OicDashboard> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: RefreshIndicator(
+      body: Skeletonizer(
+        enabled: _isLoading,
+        child: RefreshIndicator(
         onRefresh: _fetchLiveSchedules,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -191,19 +209,14 @@ class _OicDashboardState extends State<OicDashboard> {
               const SizedBox(height: 24),
 
               // --- INTERACTIVE PILLS ---
-              if (!_isLoading) _buildTopSummaryStats(isDark, isMobile),
-              if (!_isLoading) const SizedBox(height: 24),
+              _buildTopSummaryStats(isDark, isMobile),
+              const SizedBox(height: 24),
 
               // --- MAIN CONTENT ---
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
-                )
-              else
-                _buildPaginatedGrid(isMobile, isDark),
+              _buildPaginatedGrid(isMobile, isDark),
             ],
           ),
+        ),
         ),
       ),
     );

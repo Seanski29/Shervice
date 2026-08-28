@@ -25,7 +25,7 @@ class _AdminFleetState extends State<AdminFleet> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: VehicleFleetView(
         key: ValueKey('admin_fleet_list_$_refreshSeed'),
-        userRole: 'admin', // 🔓 Unlocks Admin Add/Delete actions in the shared view
+        userRole: 'admin', 
         onRefreshNeeded: _triggerInstantRefresh,
         title: 'Vehicle Management',
         subtitle: 'Manage vehicle profiles, documents, and compliance status.',
