@@ -1,10 +1,15 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:skeletonizer/skeletonizer.dart';
+
+// Your Global Constants
 import '../../../constant.dart';
-import '../../../widgets/driver/driver_evaluation_view.dart';
+
+// The new separated local tab files
+import 'fleet_overview_tab.dart';
+import 'driver_performance_tab.dart';
+import 'vehicle_ml_tab.dart';
 
 class SharedAnalyticsHub extends StatefulWidget {
   const SharedAnalyticsHub({super.key});
@@ -14,63 +19,81 @@ class SharedAnalyticsHub extends StatefulWidget {
 }
 
 class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
-  // 0 = Driver Performance, 1 = Vehicle ML Prediction
-  int _activeTab = 0;
-
+  int _activeTab =
+      0; // 0 = Fleet Overview, 1 = Driver Performance, 2 = Vehicle ML
   bool _isLoading = true;
+
+  // Single Source of Truth Arrays
   List<dynamic> _allDrivers = [];
-  List<dynamic> _filteredDrivers = [];
-
   List<dynamic> _allVehicles = [];
-  List<dynamic> _filteredVehicles = [];
-
-  // Search, Filter & Pagination
-  String _searchQuery = '';
-  String _currentSort = 'A to Z';
-
-  List<String> get _currentSortOptions {
-    return _activeTab == 0
-        ? ['A to Z', 'Z to A', 'Rating (High-Low)', 'Rating (Low-High)']
-        : [
-            'A to Z',
-            'Z to A',
-            'Condition: Good/Excellent',
-            'Condition: Needs Maint.',
-          ];
-  }
-
-  int _currentPage = 0;
-  final int _itemsPerPage = 6;
+  List<dynamic> _allTrips = [];
+  List<dynamic> _allMaintenanceLogs = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
+    _fetchGlobalAnalyticsPayload();
   }
 
-  Future<void> _fetchData() async {
+  Future<void> _fetchGlobalAnalyticsPayload() async {
     try {
+      // 1. Fetch Drivers
       final dRes = await http.get(Uri.parse('$backendUrl/test-db'));
       if (dRes.statusCode == 200) {
-        final dData = jsonDecode(dRes.body);
-        _allDrivers = dData['sample_data_payload'] ?? [];
+        _allDrivers = jsonDecode(dRes.body)['sample_data_payload'] ?? [];
       }
 
+      // 2. Fetch Trips
+      final tRes = await http.get(Uri.parse('$backendUrl/trips'));
+      if (tRes.statusCode == 200) {
+        final tData = jsonDecode(tRes.body);
+        _allTrips = tData is List
+            ? tData
+            : (tData['trips'] ?? tData['sample_data_payload'] ?? []);
+      }
+
+      // 3. Fetch Maintenance Logs
+      final mRes = await http.get(
+        Uri.parse('$backendUrl/vehicles/maintenance'),
+      );
+      if (mRes.statusCode == 200) {
+        final mData = jsonDecode(mRes.body);
+        _allMaintenanceLogs = mData['data'] ?? mData['logs'] ?? [];
+      }
+
+      // 4. Fetch Vehicles & Synchronize ML Scores concurrently
       final vRes = await http.get(Uri.parse('$backendUrl/vehicles'));
       if (vRes.statusCode == 200) {
-        final vData = jsonDecode(vRes.body);
-        _allVehicles = vData['data'] ?? [];
+        List<dynamic> vehicles = jsonDecode(vRes.body)['data'] ?? [];
+        await Future.wait(
+          vehicles.map((v) async {
+            try {
+              final mlRes = await http.get(
+                Uri.parse('$backendUrl/vehicles/predict/${v['vehicle_id']}'),
+              );
+              if (mlRes.statusCode == 200) {
+                v['live_risk_score'] =
+                    (jsonDecode(mlRes.body)['risk_index'] as num?)
+                        ?.toDouble() ??
+                    0.0;
+              } else {
+                v['live_risk_score'] = 0.0;
+              }
+            } catch (_) {
+              v['live_risk_score'] = 0.0;
+            }
+          }),
+        );
+        _allVehicles = vehicles;
       }
     } catch (e) {
-      debugPrint("Analytics Fetch Error: $e");
+      debugPrint("Global Analytics Fetch Error: $e");
     } finally {
-      if (mounted) {
-        _applyFilters();
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
+<<<<<<< HEAD
   void _applyFilters() {
     List<dynamic> tempD = _allDrivers.where((d) {
       final name = (d['full_name'] ?? '').toString().toLowerCase();
@@ -153,41 +176,52 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                 'health_status': 'Good',
               },
       );
+=======
+  // Called directly from the ML Tab's Sync AI button!
+  Future<void> _handleManualSync() async {
+    setState(() => _isLoading = true);
+    try {
+      await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
+      await _fetchGlobalAnalyticsPayload();
+    } catch (e) {
+      debugPrint("Manual sweep failed: $e");
+      setState(() => _isLoading = false);
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
     }
-    final list = _activeTab == 0 ? _filteredDrivers : _filteredVehicles;
-    if (list.isEmpty) return [];
-    int start = _currentPage * _itemsPerPage;
-    int end = min(start + _itemsPerPage, list.length);
-    return list.sublist(start, end);
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 768;
-    final double padding = isMobile ? 12.0 : 24.0;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+<<<<<<< HEAD
 
+=======
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
     final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final Color subtitleColor = isDark
         ? Colors.grey.shade400
         : const Color(0xFF64748B);
+<<<<<<< HEAD
     final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final Color borderColor = isDark
         ? Colors.grey.shade700
         : Colors.grey.shade300;
+=======
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Skeletonizer(
         enabled: _isLoading,
         child: Padding(
-          padding: EdgeInsets.all(padding),
+          padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── HEADER ──
               Text(
-                'Analytics',
+                'Intelligence & Analytics Hub',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -197,7 +231,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Evaluate driver performance scores and execute predictive maintenance algorithms.',
+                'Evaluate granular driver feedback logs, monitor live fleet metrics, and execute predictive ML diagnostics.',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
@@ -206,7 +240,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
               ),
               const SizedBox(height: 16),
 
-              // ── TOGGLE BUTTONS ──
+              // ── 3-TAB NAVIGATOR ──
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
@@ -220,14 +254,10 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                 ),
                 child: Row(
                   children: [
-                    _buildToggleButton(
-                      0,
-                      'Driver Performance',
-                      Icons.person,
-                      isDark,
-                    ),
-                    _buildToggleButton(
-                      1,
+                    _buildNavTab(0, 'Fleet Overview', Icons.dashboard, isDark),
+                    _buildNavTab(1, 'Driver Performance', Icons.person, isDark),
+                    _buildNavTab(
+                      2,
                       'Vehicle Predictive ML',
                       Icons.memory,
                       isDark,
@@ -237,114 +267,10 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
               ),
               const SizedBox(height: 16),
 
-              // ── SEARCH & SORT BAR ──
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.start,
-                children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isMobile ? double.infinity : 350,
-                      minWidth: isMobile ? double.infinity : 200,
-                    ),
-                    child: SizedBox(
-                      height: 42,
-                      child: TextField(
-                        onChanged: (value) {
-                          _searchQuery = value;
-                          _applyFilters();
-                        },
-                        style: TextStyle(color: textColor, fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: _activeTab == 0
-                              ? 'Search drivers...'
-                              : 'Search vehicles...',
-                          hintStyle: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade500,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.search,
-                            size: 18,
-                            color: subtitleColor,
-                          ),
-                          filled: true,
-                          fillColor: cardBg,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 12,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: borderColor),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: borderColor),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF3B82F6),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isMobile ? double.infinity : 230,
-                      minWidth: isMobile ? double.infinity : 150,
-                    ),
-                    child: SizedBox(
-                      height: 42,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          border: Border.all(color: borderColor),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            value: _currentSort,
-                            dropdownColor: cardBg,
-                            icon: Icon(
-                              Icons.sort,
-                              size: 18,
-                              color: subtitleColor,
-                            ),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            items: _currentSortOptions.map((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                _currentSort = val;
-                                _applyFilters();
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ── LIST CONTENT ──
+              // ── FAST RENDERING TABS ──
+              // IndexedStack prevents Flutter from rebuilding the tabs when you switch them.
               Expanded(
+<<<<<<< HEAD
                 child: !_isLoading && _paginatedItems.isEmpty
                     ? Center(
                         child: Column(
@@ -435,6 +361,31 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                     ),
                   ),
                 ),
+=======
+                child: _isLoading && _allVehicles.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : IndexedStack(
+                        index: _activeTab,
+                        children: [
+                          FleetOverviewTab(
+                            vehicles: _allVehicles,
+                            drivers: _allDrivers,
+                            trips: _allTrips,
+                            maintenanceLogs: _allMaintenanceLogs,
+                          ),
+                          DriverPerformanceTab(
+                            drivers: _allDrivers,
+                            backendUrl: backendUrl,
+                          ),
+                          VehicleMlTab(
+                            vehicles: _allVehicles,
+                            backendUrl: backendUrl,
+                            onSyncAction: _handleManualSync,
+                          ),
+                        ],
+                      ),
+              ),
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
             ],
           ),
         ),
@@ -442,12 +393,16 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
     );
   }
 
+<<<<<<< HEAD
   Widget _buildToggleButton(
     int index,
     String label,
     IconData icon,
     bool isDark,
   ) {
+=======
+  Widget _buildNavTab(int index, String label, IconData icon, bool isDark) {
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
     final bool isActive = _activeTab == index;
     final Color activeBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final Color inactiveText = isDark
@@ -456,6 +411,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
 
     return Expanded(
       child: InkWell(
+<<<<<<< HEAD
         onTap: () {
           setState(() {
             _activeTab = index;
@@ -464,6 +420,9 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
             _applyFilters();
           });
         },
+=======
+        onTap: () => setState(() => _activeTab = index),
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -508,6 +467,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
       ),
     );
   }
+<<<<<<< HEAD
 
   Widget _buildDriverCard(dynamic driver, bool isDark) {
     final double rating = (driver['rating'] as num?)?.toDouble() ?? 0.0;
@@ -1126,3 +1086,6 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
     );
   }
 }
+=======
+}
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445

@@ -3,115 +3,191 @@
   "packages": [
     {
       "name": "app_links",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/app_links-7.2.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/app_links-7.2.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.12"
     },
     {
       "name": "app_links_linux",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/app_links_linux-1.0.3",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/app_links_linux-1.0.3",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
     {
       "name": "app_links_platform_interface",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/app_links_platform_interface-2.0.3",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/app_links_platform_interface-2.0.3",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.12"
     },
     {
       "name": "app_links_web",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/app_links_web-1.0.4",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/app_links_web-1.0.4",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
     {
       "name": "archive",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/archive-4.0.9",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/archive-4.0.9",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "args",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/args-2.7.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/args-2.7.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
       "name": "async",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/async-2.13.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/async-2.13.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "boolean_selector",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/boolean_selector-2.1.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/boolean_selector-2.1.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.1"
     },
     {
       "name": "characters",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/characters-1.4.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/characters-1.4.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "checked_yaml",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/checked_yaml-2.0.4",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/checked_yaml-2.0.4",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
     {
       "name": "cli_util",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/cli_util-0.4.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/cli_util-0.4.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "clock",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/clock-1.1.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/clock-1.1.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "collection",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/collection-1.19.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/collection-1.19.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "convert",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/convert-3.1.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/convert-3.1.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "crypto",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/crypto-3.0.7",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/crypto-3.0.7",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "cupertino_icons",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/cupertino_icons-1.0.9",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/cupertino_icons-1.0.9",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "dart_jsonwebtoken",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/dart_jsonwebtoken-3.4.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/dart_jsonwebtoken-3.4.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "device_info_plus",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/device_info_plus-13.1.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/device_info_plus-13.1.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "device_info_plus_platform_interface",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/device_info_plus_platform_interface-8.1.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/device_info_plus_platform_interface-8.1.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
@@ -123,25 +199,41 @@
     },
     {
       "name": "fake_async",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/fake_async-1.3.3",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/fake_async-1.3.3",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
       "name": "ffi",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/ffi-2.2.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/ffi-2.2.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.7"
     },
     {
       "name": "ffi_leak_tracker",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/ffi_leak_tracker-0.1.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/ffi_leak_tracker-0.1.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "file",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/file-7.0.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/file-7.0.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
@@ -153,511 +245,851 @@
     },
     {
       "name": "flutter",
+<<<<<<< HEAD
       "rootUri": "file:///C:/develop/flutter/packages/flutter",
+=======
+      "rootUri": "file:///C:/Users/Ralph/develop/flutter/packages/flutter",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "flutter_launcher_icons",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_launcher_icons-0.13.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_launcher_icons-0.13.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "2.18"
     },
     {
       "name": "flutter_lints",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_lints-6.0.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_lints-6.0.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
     {
       "name": "flutter_test",
+<<<<<<< HEAD
       "rootUri": "file:///C:/develop/flutter/packages/flutter_test",
+=======
+      "rootUri": "file:///C:/Users/Ralph/develop/flutter/packages/flutter_test",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "flutter_web_plugins",
+<<<<<<< HEAD
       "rootUri": "file:///C:/develop/flutter/packages/flutter_web_plugins",
+=======
+      "rootUri": "file:///C:/Users/Ralph/develop/flutter/packages/flutter_web_plugins",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "functions_client",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/functions_client-2.6.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/functions_client-2.6.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "gotrue",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/gotrue-2.22.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/gotrue-2.22.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "gtk",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/gtk-2.2.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/gtk-2.2.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "http",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/http-1.6.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/http-1.6.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "http_parser",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/http_parser-4.1.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/http_parser-4.1.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "image",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/image-4.9.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/image-4.9.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "json_annotation",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/json_annotation-4.12.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/json_annotation-4.12.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "jwt_decode",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/jwt_decode-0.3.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/jwt_decode-0.3.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "2.12"
     },
     {
       "name": "leak_tracker",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker-11.0.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker-11.0.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
     {
       "name": "leak_tracker_flutter_testing",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker_flutter_testing-3.0.10",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker_flutter_testing-3.0.10",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
     {
       "name": "leak_tracker_testing",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker_testing-3.0.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker_testing-3.0.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
     {
       "name": "lints",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/lints-6.1.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/lints-6.1.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
     {
       "name": "logging",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/logging-1.3.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/logging-1.3.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "matcher",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/matcher-0.12.19",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/matcher-0.12.19",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.7"
     },
     {
       "name": "material_color_utilities",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/material_color_utilities-0.13.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/material_color_utilities-0.13.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
     {
       "name": "meta",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.18.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.18.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
     {
       "name": "mime",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/mime-2.0.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/mime-2.0.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
     {
       "name": "package_info_plus",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus-10.1.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus-10.1.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "package_info_plus_platform_interface",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus_platform_interface-4.1.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus_platform_interface-4.1.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "passkeys",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys-2.20.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys-2.20.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "passkeys_android",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_android-2.12.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_android-2.12.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "passkeys_darwin",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_darwin-0.4.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_darwin-0.4.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "passkeys_doctor",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_doctor-1.4.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_doctor-1.4.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "passkeys_platform_interface",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_platform_interface-2.6.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_platform_interface-2.6.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "passkeys_web",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_web-2.9.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_web-2.9.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "passkeys_windows",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_windows-0.1.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/passkeys_windows-0.1.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "path",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/path-1.9.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/path-1.9.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "path_provider_linux",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_linux-2.2.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_linux-2.2.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "path_provider_platform_interface",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_platform_interface-2.1.3",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_platform_interface-2.1.3",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "path_provider_windows",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_windows-2.3.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_windows-2.3.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
     {
       "name": "petitparser",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/petitparser-7.0.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/petitparser-7.0.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
     {
       "name": "platform",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/platform-3.1.6",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/platform-3.1.6",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
     {
       "name": "plugin_platform_interface",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/plugin_platform_interface-2.1.8",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/plugin_platform_interface-2.1.8",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "pointycastle",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/pointycastle-4.0.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/pointycastle-4.0.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
     {
       "name": "posix",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/posix-6.5.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/posix-6.5.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "postgrest",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/postgrest-2.7.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/postgrest-2.7.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "qr",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/qr-3.0.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/qr-3.0.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "qr_flutter",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/qr_flutter-4.1.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/qr_flutter-4.1.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "2.19"
     },
     {
       "name": "realtime_client",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/realtime_client-2.8.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/realtime_client-2.8.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "retry",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/retry-3.1.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/retry-3.1.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
       "name": "rxdart",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/rxdart-0.28.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/rxdart-0.28.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "2.12"
     },
     {
       "name": "shared_preferences",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences-2.5.5",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences-2.5.5",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "shared_preferences_android",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_android-2.4.26",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_android-2.4.26",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.12"
     },
     {
       "name": "shared_preferences_foundation",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_foundation-2.5.6",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_foundation-2.5.6",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "shared_preferences_linux",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_linux-2.4.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_linux-2.4.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
       "name": "shared_preferences_platform_interface",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_platform_interface-2.4.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_platform_interface-2.4.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "shared_preferences_web",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_web-2.4.3",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_web-2.4.3",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "shared_preferences_windows",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_windows-2.4.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_windows-2.4.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
       "name": "skeletonizer",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/skeletonizer-2.1.3",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/skeletonizer-2.1.3",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.7"
     },
     {
       "name": "sky_engine",
+<<<<<<< HEAD
       "rootUri": "file:///C:/develop/flutter/bin/cache/pkg/sky_engine",
+=======
+      "rootUri": "file:///C:/Users/Ralph/develop/flutter/bin/cache/pkg/sky_engine",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "source_span",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/source_span-1.10.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/source_span-1.10.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.1"
     },
     {
       "name": "stack_trace",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/stack_trace-1.12.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/stack_trace-1.12.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "storage_client",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/storage_client-2.5.7",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/storage_client-2.5.7",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "stream_channel",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/stream_channel-2.1.4",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/stream_channel-2.1.4",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
       "name": "string_scanner",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/string_scanner-1.4.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/string_scanner-1.4.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.1"
     },
     {
       "name": "supabase",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/supabase-2.13.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/supabase-2.13.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "supabase_flutter",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/supabase_flutter-2.15.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/supabase_flutter-2.15.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "term_glyph",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/term_glyph-1.2.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/term_glyph-1.2.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.1"
     },
     {
       "name": "test_api",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/test_api-0.7.11",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/test_api-0.7.11",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.7"
     },
     {
       "name": "typed_data",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/typed_data-1.4.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/typed_data-1.4.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
     {
       "name": "ua_client_hints",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/ua_client_hints-1.7.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/ua_client_hints-1.7.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
       "name": "url_launcher",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher-6.3.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher-6.3.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.6"
     },
     {
       "name": "url_launcher_android",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_android-6.3.32",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_android-6.3.32",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.12"
     },
     {
       "name": "url_launcher_ios",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_ios-6.4.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_ios-6.4.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "url_launcher_linux",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_linux-3.2.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_linux-3.2.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
     {
       "name": "url_launcher_macos",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_macos-3.2.5",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_macos-3.2.5",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "url_launcher_platform_interface",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_platform_interface-2.3.2",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_platform_interface-2.3.2",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.1"
     },
     {
       "name": "url_launcher_web",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_web-2.4.3",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_web-2.4.3",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "url_launcher_windows",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_windows-3.1.5",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_windows-3.1.5",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
     {
       "name": "vector_math",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/vector_math-2.2.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/vector_math-2.2.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.1"
     },
     {
       "name": "vm_service",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/vm_service-15.2.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/vm_service-15.2.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
     {
       "name": "web",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/web-1.1.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/web-1.1.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "web_socket",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/web_socket-1.0.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/web_socket-1.0.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "web_socket_channel",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/web_socket_channel-3.0.3",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/web_socket_channel-3.0.3",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
       "name": "win32",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/win32-6.3.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/win32-6.3.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "win32_registry",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/win32_registry-3.0.3",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/win32_registry-3.0.3",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.10"
     },
     {
       "name": "xdg_directories",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/xdg_directories-1.1.0",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/xdg_directories-1.1.0",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
       "name": "xml",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/xml-7.0.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/xml-7.0.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.11"
     },
     {
       "name": "yaml",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/yaml-3.1.3",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/yaml-3.1.3",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "yet_another_json_isolate",
+<<<<<<< HEAD
       "rootUri": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache/hosted/pub.dev/yet_another_json_isolate-2.1.1",
+=======
+      "rootUri": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache/hosted/pub.dev/yet_another_json_isolate-2.1.1",
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
@@ -670,7 +1102,13 @@
   ],
   "generator": "pub",
   "generatorVersion": "3.12.2",
+<<<<<<< HEAD
   "flutterRoot": "file:///C:/develop/flutter",
   "flutterVersion": "3.44.2",
   "pubCache": "file:///C:/Users/Lemon%20Mendoza/AppData/Local/Pub/Cache"
+=======
+  "flutterRoot": "file:///C:/Users/Ralph/develop/flutter",
+  "flutterVersion": "3.44.3",
+  "pubCache": "file:///C:/Users/Ralph/AppData/Local/Pub/Cache"
+>>>>>>> 57f011d9f70d08b9748564f3dd2a2b70cd3fc445
 }
