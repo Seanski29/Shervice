@@ -23,10 +23,19 @@ class _StaffTripsState extends State<StaffTrips> {
   // Filtering, Searching & Sorting
   String _searchTerm = '';
   String _statusFilter = 'All';
-  final List<String> _statusOptions = ['All', 'Scheduled', 'Ongoing', 'Completed'];
+  final List<String> _statusOptions = [
+    'All',
+    'Scheduled',
+    'Ongoing',
+    'Completed',
+  ];
 
   String _sortOption = 'Date (Newest)';
-  final List<String> _sortOptions = ['Date (Newest)', 'Date (Oldest)', 'Route Name'];
+  final List<String> _sortOptions = [
+    'Date (Newest)',
+    'Date (Oldest)',
+    'Route Name',
+  ];
 
   // Calendar State
   DateTime _focusedMonth = DateTime.now();
@@ -82,7 +91,8 @@ class _StaffTripsState extends State<StaffTrips> {
       // 1. Date Filter
       if (_filterDate != null) {
         final dateStr = trip['schedule_date']?.toString() ?? '';
-        final todayStr = '${_filterDate!.year}-${_filterDate!.month.toString().padLeft(2, '0')}-${_filterDate!.day.toString().padLeft(2, '0')}';
+        final todayStr =
+            '${_filterDate!.year}-${_filterDate!.month.toString().padLeft(2, '0')}-${_filterDate!.day.toString().padLeft(2, '0')}';
         if (!dateStr.startsWith(todayStr)) return false;
       }
 
@@ -92,7 +102,9 @@ class _StaffTripsState extends State<StaffTrips> {
         final driver = (trip['driver_name'] ?? '').toString().toLowerCase();
         final client = (trip['client_company'] ?? '').toString().toLowerCase();
         final query = _searchTerm.toLowerCase();
-        if (!route.contains(query) && !driver.contains(query) && !client.contains(query)) {
+        if (!route.contains(query) &&
+            !driver.contains(query) &&
+            !client.contains(query)) {
           return false;
         }
       }
@@ -151,14 +163,16 @@ class _StaffTripsState extends State<StaffTrips> {
   }
 
   List<dynamic> _schedulesForDate(DateTime day) {
-    final dateStr = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+    final dateStr =
+        '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
     return _trips.where((trip) {
       final tripDate = trip['schedule_date']?.toString() ?? '';
       return tripDate.startsWith(dateStr);
     }).toList();
   }
 
-  int get _totalPages => (_filteredAndSortedTrips.length / _itemsPerPage).ceil();
+  int get _totalPages =>
+      (_filteredAndSortedTrips.length / _itemsPerPage).ceil();
 
   List<dynamic> get _paginatedTrips {
     final start = _currentPage * _itemsPerPage;
@@ -176,24 +190,51 @@ class _StaffTripsState extends State<StaffTrips> {
   // --- Base Stats ---
   int get _totalTrips => _trips.length;
   int get _todayTrips => _trips.where((t) {
-        final dateStr = t['schedule_date']?.toString() ?? '';
-        final todayStr = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
-        return dateStr.startsWith(todayStr);
-      }).length;
-  int get _scheduledTrips => _trips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'scheduled').length;
-  int get _ongoingTrips => _trips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'ongoing').length;
-  int get _completedTrips => _trips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'completed').length;
+    final dateStr = t['schedule_date']?.toString() ?? '';
+    final todayStr =
+        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
+    return dateStr.startsWith(todayStr);
+  }).length;
+  int get _scheduledTrips => _trips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'scheduled',
+      )
+      .length;
+  int get _ongoingTrips => _trips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'ongoing',
+      )
+      .length;
+  int get _completedTrips => _trips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'completed',
+      )
+      .length;
 
   Color _getStatusColor(String status) {
     final s = status.toLowerCase();
     if (s.contains('ongoing')) return const Color(0xFFF59E0B);
     if (s.contains('completed')) return const Color(0xFF10B981);
-    if (s.contains('reject') || s.contains('cancel')) return const Color(0xFFEF4444);
+    if (s.contains('reject') || s.contains('cancel'))
+      return const Color(0xFFEF4444);
     return const Color(0xFF3B82F6);
   }
 
   String _monthYearFormat(DateTime date) {
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     return '${months[date.month - 1]} ${date.year}';
   }
 
@@ -256,7 +297,10 @@ class _StaffTripsState extends State<StaffTrips> {
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(flex: 1, child: _buildCompactCalendarGrid(isDark)),
+                          Expanded(
+                            flex: 1,
+                            child: _buildCompactCalendarGrid(isDark),
+                          ),
                           const SizedBox(width: 20),
                           Expanded(flex: 2, child: _buildTripListView(isDark)),
                         ],
@@ -320,17 +364,28 @@ class _StaffTripsState extends State<StaffTrips> {
             decoration: InputDecoration(
               hintText: 'Search routes, drivers...',
               hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-              prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+              prefixIcon: const Icon(
+                Icons.search,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
               filled: true,
               fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 0,
+                horizontal: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
               ),
             ),
           ),
@@ -341,18 +396,30 @@ class _StaffTripsState extends State<StaffTrips> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _sortOption,
               icon: const Icon(Icons.sort, size: 18, color: Color(0xFF64748B)),
-              style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontWeight: FontWeight.bold,
+              ),
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              items: _sortOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              items: _sortOptions
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .toList(),
               onChanged: (val) {
-                if (val != null) setState(() { _sortOption = val; _currentPage = 0; });
+                if (val != null)
+                  setState(() {
+                    _sortOption = val;
+                    _currentPage = 0;
+                  });
               },
             ),
           ),
@@ -363,18 +430,34 @@ class _StaffTripsState extends State<StaffTrips> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _statusFilter,
-              icon: const Icon(Icons.filter_alt_outlined, size: 18, color: Color(0xFF64748B)),
-              style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold),
+              icon: const Icon(
+                Icons.filter_alt_outlined,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontWeight: FontWeight.bold,
+              ),
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              items: _statusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              items: _statusOptions
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .toList(),
               onChanged: (val) {
-                if (val != null) setState(() { _statusFilter = val; _currentPage = 0; });
+                if (val != null)
+                  setState(() {
+                    _statusFilter = val;
+                    _currentPage = 0;
+                  });
               },
             ),
           ),
@@ -401,31 +484,72 @@ class _StaffTripsState extends State<StaffTrips> {
   // ---- TOP SUMMARY STATS ----
   Widget _buildTopSummaryStats(bool isDark, bool isMobile) {
     final List<Map<String, dynamic>> stats = [
-      { 'label': 'Total Trips', 'value': _totalTrips.toString(), 'icon': Icons.inventory_2_outlined, 'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600, 'filter': 'All' },
-      { 'label': 'Today', 'value': _todayTrips.toString(), 'icon': Icons.today, 'color': const Color(0xFF8B5CF6), 'filter': 'All' },
-      { 'label': 'Scheduled', 'value': _scheduledTrips.toString(), 'icon': Icons.schedule, 'color': const Color(0xFF3B82F6), 'filter': 'Scheduled' },
-      { 'label': 'Ongoing', 'value': _ongoingTrips.toString(), 'icon': Icons.play_arrow, 'color': const Color(0xFFF59E0B), 'filter': 'Ongoing' },
-      { 'label': 'Completed', 'value': _completedTrips.toString(), 'icon': Icons.check_circle, 'color': const Color(0xFF10B981), 'filter': 'Completed' },
+      {
+        'label': 'Total Trips',
+        'value': _totalTrips.toString(),
+        'icon': Icons.inventory_2_outlined,
+        'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+        'filter': 'All',
+      },
+      {
+        'label': 'Today',
+        'value': _todayTrips.toString(),
+        'icon': Icons.today,
+        'color': const Color(0xFF8B5CF6),
+        'filter': 'All',
+      },
+      {
+        'label': 'Scheduled',
+        'value': _scheduledTrips.toString(),
+        'icon': Icons.schedule,
+        'color': const Color(0xFF3B82F6),
+        'filter': 'Scheduled',
+      },
+      {
+        'label': 'Ongoing',
+        'value': _ongoingTrips.toString(),
+        'icon': Icons.play_arrow,
+        'color': const Color(0xFFF59E0B),
+        'filter': 'Ongoing',
+      },
+      {
+        'label': 'Completed',
+        'value': _completedTrips.toString(),
+        'icon': Icons.check_circle,
+        'color': const Color(0xFF10B981),
+        'filter': 'Completed',
+      },
     ];
 
     Widget buildCard(Map<String, dynamic> stat) {
-      final isSelected = _statusFilter == stat['filter'] && stat['label'] != 'Today';
+      final isSelected =
+          _statusFilter == stat['filter'] && stat['label'] != 'Today';
       return InkWell(
         onTap: () {
           if (stat['label'] == 'Today') {
-            setState(() { _filterDate = DateTime.now(); _currentPage = 0; });
+            setState(() {
+              _filterDate = DateTime.now();
+              _currentPage = 0;
+            });
           } else {
-            setState(() { _statusFilter = stat['filter']; _currentPage = 0; });
+            setState(() {
+              _statusFilter = stat['filter'];
+              _currentPage = 0;
+            });
           }
         },
         borderRadius: BorderRadius.circular(40),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? stat['color'].withValues(alpha: 0.1) : (isDark ? const Color(0xFF1E293B) : Colors.white),
+            color: isSelected
+                ? stat['color'].withValues(alpha: 0.1)
+                : (isDark ? const Color(0xFF1E293B) : Colors.white),
             borderRadius: BorderRadius.circular(40),
             border: Border.all(
-              color: isSelected ? stat['color'] : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+              color: isSelected
+                  ? stat['color']
+                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
               width: isSelected ? 2.0 : 1.0,
             ),
           ),
@@ -440,11 +564,22 @@ class _StaffTripsState extends State<StaffTrips> {
                 children: [
                   Text(
                     stat['value'],
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF0F172A), height: 1.1),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      height: 1.1,
+                    ),
                   ),
                   Text(
                     stat['label'],
-                    style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : const Color(0xFF64748B),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -500,7 +635,9 @@ class _StaffTripsState extends State<StaffTrips> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: headerBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
             child: Row(
@@ -508,22 +645,50 @@ class _StaffTripsState extends State<StaffTrips> {
               children: [
                 Text(
                   _monthYearFormat(_focusedMonth),
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                 ),
                 Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.chevron_left, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                      icon: Icon(
+                        Icons.chevron_left,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      onPressed: () => setState(
+                        () => _focusedMonth = DateTime(
+                          _focusedMonth.year,
+                          _focusedMonth.month - 1,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 4),
                     IconButton(
-                      icon: Icon(Icons.chevron_right, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                      icon: Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      onPressed: () => setState(
+                        () => _focusedMonth = DateTime(
+                          _focusedMonth.year,
+                          _focusedMonth.month + 1,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -543,9 +708,22 @@ class _StaffTripsState extends State<StaffTrips> {
                   crossAxisSpacing: 3,
                   children: weekdays.map((day) {
                     return Container(
-                      decoration: BoxDecoration(color: headerBg, borderRadius: BorderRadius.circular(6), border: Border.all(color: borderColor)),
+                      decoration: BoxDecoration(
+                        color: headerBg,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: borderColor),
+                      ),
                       child: Center(
-                        child: Text(day, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.grey.shade400 : const Color(0xFF475569))),
+                        child: Text(
+                          day,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : const Color(0xFF475569),
+                          ),
+                        ),
                       ),
                     );
                   }).toList(),
@@ -564,12 +742,23 @@ class _StaffTripsState extends State<StaffTrips> {
                   itemBuilder: (context, index) {
                     if (index < firstWeekday) return Container();
                     final day = index - firstWeekday + 1;
-                    final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+                    final date = DateTime(
+                      _focusedMonth.year,
+                      _focusedMonth.month,
+                      day,
+                    );
                     final trips = _schedulesForDate(date);
                     final hasTrips = trips.isNotEmpty;
 
-                    final isSelected = _filterDate != null && _filterDate!.year == date.year && _filterDate!.month == date.month && _filterDate!.day == date.day;
-                    final isToday = DateTime.now().year == date.year && DateTime.now().month == date.month && DateTime.now().day == date.day;
+                    final isSelected =
+                        _filterDate != null &&
+                        _filterDate!.year == date.year &&
+                        _filterDate!.month == date.month &&
+                        _filterDate!.day == date.day;
+                    final isToday =
+                        DateTime.now().year == date.year &&
+                        DateTime.now().month == date.month &&
+                        DateTime.now().day == date.day;
 
                     return GestureDetector(
                       onTap: () {
@@ -580,9 +769,21 @@ class _StaffTripsState extends State<StaffTrips> {
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF3B82F6) : (hasTrips ? (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF)) : (isDark ? const Color(0xFF1E293B) : Colors.white)),
+                          color: isSelected
+                              ? const Color(0xFF3B82F6)
+                              : (hasTrips
+                                    ? (isDark
+                                          ? Colors.blue.withValues(alpha: 0.2)
+                                          : const Color(0xFFEFF6FF))
+                                    : (isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white)),
                           border: Border.all(
-                            color: isToday ? const Color(0xFFF59E0B) : (isSelected ? const Color(0xFF3B82F6) : borderColor),
+                            color: isToday
+                                ? const Color(0xFFF59E0B)
+                                : (isSelected
+                                      ? const Color(0xFF3B82F6)
+                                      : borderColor),
                             width: isToday ? 1.5 : (isSelected ? 1.5 : 1),
                           ),
                           borderRadius: BorderRadius.circular(6),
@@ -592,8 +793,16 @@ class _StaffTripsState extends State<StaffTrips> {
                             day.toString(),
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
-                              color: isSelected ? Colors.white : (hasTrips ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade300 : const Color(0xFF0F172A))),
+                              fontWeight: isSelected || isToday
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (hasTrips
+                                        ? const Color(0xFF3B82F6)
+                                        : (isDark
+                                              ? Colors.grey.shade300
+                                              : const Color(0xFF0F172A))),
                             ),
                           ),
                         ),
@@ -613,18 +822,21 @@ class _StaffTripsState extends State<StaffTrips> {
   Widget _buildTripListView(bool isDark) {
     // Dummy list data during `_isLoading` so Skeletonizer can render the structure
     final List<dynamic> displayedTrips = _isLoading
-        ? List.generate(4, (index) => {
-            'route_name': 'Skeleton Route Data',
-            'trip_status': 'Scheduled',
-            'schedule_date': '2026-08-28',
-            'departure_time': '08:00 AM',
-            'estimated_arrival_time': '09:00 AM',
-            'driver_name': 'Skeleton Driver Name',
-            'plate_number': 'SKL 123',
-            'client_company': 'Skeleton Company',
-            'passenger_count': 10,
-            'route_distance': 15.5
-          })
+        ? List.generate(
+            4,
+            (index) => {
+              'route_name': 'Skeleton Route Data',
+              'trip_status': 'Scheduled',
+              'schedule_date': '2026-08-28',
+              'departure_time': '08:00 AM',
+              'estimated_arrival_time': '09:00 AM',
+              'driver_name': 'Skeleton Driver Name',
+              'plate_number': 'SKL 123',
+              'client_company': 'Skeleton Company',
+              'passenger_count': 10,
+              'route_distance': 15.5,
+            },
+          )
         : _paginatedTrips;
 
     final headerBg = isDark ? const Color(0xFF1E293B) : Colors.white;
@@ -643,7 +855,9 @@ class _StaffTripsState extends State<StaffTrips> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
             child: Row(
@@ -652,12 +866,26 @@ class _StaffTripsState extends State<StaffTrips> {
                 Flexible(
                   child: Row(
                     children: [
-                      Icon(Icons.schedule, color: isDark ? Colors.grey.shade400 : const Color(0xFF475569), size: 20),
+                      Icon(
+                        Icons.schedule,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : const Color(0xFF475569),
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
-                          _filterDate == null ? 'All Trips' : 'Trips for ${_filterDate!.day}/${_filterDate!.month}/${_filterDate!.year}',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                          _filterDate == null
+                              ? 'All Trips'
+                              : 'Trips for ${_filterDate!.day}/${_filterDate!.month}/${_filterDate!.year}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -665,28 +893,55 @@ class _StaffTripsState extends State<StaffTrips> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.blue.withValues(alpha: 0.2)
+                        : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: Text(
                     '${_filteredAndSortedTrips.length} results',
-                    style: TextStyle(color: isDark ? Colors.blue.shade300 : const Color(0xFF3B82F6), fontSize: 12, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.blue.shade300
+                          : const Color(0xFF3B82F6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          
+
           !_isLoading && displayedTrips.isEmpty
               ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 40,
+                    horizontal: 16,
+                  ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.calendar_today_outlined, size: 48, color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 48,
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         'No trips found.',
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 15, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
@@ -702,7 +957,8 @@ class _StaffTripsState extends State<StaffTrips> {
                         return _buildTripCard(trip, isDark, borderColor);
                       },
                     ),
-                    if (_totalPages > 1 && !_isLoading) _buildPagination(isDark, borderColor),
+                    if (_totalPages > 1 && !_isLoading)
+                      _buildPagination(isDark, borderColor),
                   ],
                 ),
         ],
@@ -711,23 +967,30 @@ class _StaffTripsState extends State<StaffTrips> {
   }
 
   // ---- TRIP CARD ----
-  Widget _buildTripCard(Map<String, dynamic> trip, bool isDark, Color borderColor) {
+  Widget _buildTripCard(
+    Map<String, dynamic> trip,
+    bool isDark,
+    Color borderColor,
+  ) {
     final String driver = trip['driver_name'] ?? 'Unassigned';
     final String plate = trip['plate_number'] ?? 'N/A';
     final String routeName = trip['route_name'] ?? 'Unknown Route';
     final String company = trip['client_company'] ?? 'Unknown Client';
-    final String dateStr = trip['schedule_date'] ?? 'TBD';
-    final String departure = trip['departure_time']?.toString().substring(0, 5) ?? '--:--';
-    final String arrival = trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--';
+    final String departure =
+        trip['departure_time']?.toString().substring(0, 5) ?? '--:--';
+    final String arrival =
+        trip['estimated_arrival_time']?.toString().substring(0, 5) ?? '--:--';
     final String passengers = '${trip['passenger_count'] ?? 0} pax';
     final String distance = '${trip['route_distance'] ?? 0} km';
-    
+
     final String status = trip['trip_status'] ?? 'Scheduled';
     final statusColor = _getStatusColor(status);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: borderColor))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: borderColor)),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -738,7 +1001,11 @@ class _StaffTripsState extends State<StaffTrips> {
               children: [
                 Text(
                   routeName,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -749,7 +1016,11 @@ class _StaffTripsState extends State<StaffTrips> {
                   children: [
                     _cardIconText(Icons.person_outline, driver, isDark),
                     _cardIconText(Icons.directions_car_outlined, plate, isDark),
-                    _cardIconText(Icons.access_time, '$departure → $arrival', isDark),
+                    _cardIconText(
+                      Icons.access_time,
+                      '$departure → $arrival',
+                      isDark,
+                    ),
                     _cardIconText(Icons.business_outlined, company, isDark),
                     _cardIconText(Icons.people_outline, passengers, isDark),
                     _cardIconText(Icons.straighten, distance, isDark),
@@ -765,7 +1036,12 @@ class _StaffTripsState extends State<StaffTrips> {
             children: [
               Text(
                 status.toUpperCase(),
-                style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                style: TextStyle(
+                  color: statusColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
               ),
             ],
           ),
@@ -778,12 +1054,20 @@ class _StaffTripsState extends State<StaffTrips> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B)),
+        Icon(
+          icon,
+          size: 14,
+          color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B),
+        ),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
             text,
-            style: TextStyle(fontWeight: FontWeight.w500, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontSize: 12),
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+              fontSize: 12,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -794,33 +1078,68 @@ class _StaffTripsState extends State<StaffTrips> {
   Widget _buildPagination(bool isDark, Color borderColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: borderColor))),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: borderColor)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             '${(_currentPage * _itemsPerPage) + 1}–${min((_currentPage + 1) * _itemsPerPage, _filteredAndSortedTrips.length)} of ${_filteredAndSortedTrips.length}',
-            style: TextStyle(color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontSize: 12),
+            style: TextStyle(
+              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+              fontSize: 12,
+            ),
           ),
           Row(
             children: [
               IconButton(
-                icon: Icon(Icons.chevron_left, size: 20, color: _currentPage > 0 ? const Color(0xFF3B82F6) : Colors.grey.shade400),
-                onPressed: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
+                icon: Icon(
+                  Icons.chevron_left,
+                  size: 20,
+                  color: _currentPage > 0
+                      ? const Color(0xFF3B82F6)
+                      : Colors.grey.shade400,
+                ),
+                onPressed: _currentPage > 0
+                    ? () => _goToPage(_currentPage - 1)
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(6)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.blue.withValues(alpha: 0.2)
+                      : const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 child: Text(
                   '${_currentPage + 1} / $_totalPages',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.blue.shade300 : const Color(0xFF3B82F6), fontSize: 13),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark
+                        ? Colors.blue.shade300
+                        : const Color(0xFF3B82F6),
+                    fontSize: 13,
+                  ),
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.chevron_right, size: 20, color: _currentPage < _totalPages - 1 ? const Color(0xFF3B82F6) : Colors.grey.shade400),
-                onPressed: _currentPage < _totalPages - 1 ? () => _goToPage(_currentPage + 1) : null,
+                icon: Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: _currentPage < _totalPages - 1
+                      ? const Color(0xFF3B82F6)
+                      : Colors.grey.shade400,
+                ),
+                onPressed: _currentPage < _totalPages - 1
+                    ? () => _goToPage(_currentPage + 1)
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),

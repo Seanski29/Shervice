@@ -8,12 +8,17 @@ supabase = None
 def get_all_drivers():
     try:
         res = supabase.table('driver_profile')\
-            .select('user_id, full_name, license_number, license_expiry, status')\
+            .select('*, user_account(username)')\
             .execute()
+
+        drivers = res.data or []
+        for driver in drivers:
+            account = driver.pop('user_account', None) or {}
+            driver['username'] = account.get('username', '')
 
         return jsonify({
             "connection_status": "SUCCESS",
-            "sample_data_payload": res.data
+            "sample_data_payload": drivers
         }), 200
 
     except Exception as e:
@@ -69,11 +74,10 @@ def get_driver_active_trip(driver_name):
             'route_distance': trip.get('route_distance', 0.0),
             # Vehicle Mappings
             'plate_number': vehicle_info.get('plate_number', 'No Plate Assigned'),
-            'model': vehicle_info.get('model', 'Unknown Vehicle model')
         }
 
         return jsonify({"success": True, "active_trip": formatted_trip}), 200
         
     except Exception as e:
         print(f"❌ Driver Active Trip Sync Exception: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 

@@ -23,12 +23,11 @@ class _OicTripsState extends State<OicTrips> {
   // Calendar State
   DateTime _focusedMonth = DateTime.now();
   DateTime? _filterDate;
-  final bool _calendarExpanded = true; // Default expanded for historical viewing
 
   // Filtering & Searching
   String _searchTerm = '';
   String _statusFilter = 'All'; // Interactive pill filtering
-  
+
   String _sortOption = 'Date (Newest)';
   final List<String> _sortOptions = [
     'Date (Newest)',
@@ -103,20 +102,34 @@ class _OicTripsState extends State<OicTrips> {
     }
     return null;
   }
-  
+
   String _monthYearFormat(DateTime date) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${months[date.month - 1]} ${date.year}';
   }
 
   // --- Filtering & Sorting ---
   List<dynamic> get _filteredAndSortedTrips {
-    final placeholderStatus = _statusFilter == 'All' ? 'Scheduled' : _statusFilter;
+    final placeholderStatus = _statusFilter == 'All'
+        ? 'Scheduled'
+        : _statusFilter;
     final displayTrips = _isLoading
-        ? List.generate(5, (index) => {
+        ? List.generate(
+            5,
+            (index) => {
               'trip_id': index + 1,
               'route_name': 'Loading Route',
               'trip_status': placeholderStatus,
@@ -125,7 +138,8 @@ class _OicTripsState extends State<OicTrips> {
               'plate_number': 'Loading Vehicle',
               'departure_time': '08:00',
               'estimated_arrival_time': '09:00',
-            })
+            },
+          )
         : _trips;
     List<dynamic> filtered = displayTrips.where((trip) {
       final route = (trip['route_name'] ?? '').toString().toLowerCase();
@@ -135,18 +149,26 @@ class _OicTripsState extends State<OicTrips> {
       final dateStr = trip['schedule_date']?.toString() ?? '';
 
       // Text Search Filter
-      final matchesSearch = _searchTerm.isEmpty || route.contains(query) || driver.contains(query);
+      final matchesSearch =
+          _searchTerm.isEmpty ||
+          route.contains(query) ||
+          driver.contains(query);
 
       // Interactive Pill Status Filter
-      final matchesStatus = _statusFilter == 'All' ||
+      final matchesStatus =
+          _statusFilter == 'All' ||
           (_statusFilter == 'Completed' && status.contains('completed')) ||
           (_statusFilter == 'Ongoing' && status.contains('ongoing')) ||
           (_statusFilter == 'Scheduled' && status.contains('scheduled')) ||
-          (_statusFilter == 'Cancelled' && (status.contains('cancelled') || status.contains('rejected')));
+          (_statusFilter == 'Cancelled' &&
+              (status.contains('cancelled') || status.contains('rejected')));
 
       // Date Filter
-      final matchesDate = _filterDate == null || 
-          dateStr.startsWith('${_filterDate!.year}-${_filterDate!.month.toString().padLeft(2, '0')}-${_filterDate!.day.toString().padLeft(2, '0')}');
+      final matchesDate =
+          _filterDate == null ||
+          dateStr.startsWith(
+            '${_filterDate!.year}-${_filterDate!.month.toString().padLeft(2, '0')}-${_filterDate!.day.toString().padLeft(2, '0')}',
+          );
 
       return matchesSearch && matchesStatus && matchesDate;
     }).toList();
@@ -197,7 +219,8 @@ class _OicTripsState extends State<OicTrips> {
   }
 
   // --- Pagination ---
-  int get _totalPages => max(1, (_filteredAndSortedTrips.length / _itemsPerPage).ceil());
+  int get _totalPages =>
+      max(1, (_filteredAndSortedTrips.length / _itemsPerPage).ceil());
 
   List<dynamic> get _paginatedTrips {
     final start = _currentPage * _itemsPerPage;
@@ -214,9 +237,27 @@ class _OicTripsState extends State<OicTrips> {
 
   // --- Stats Calculation (Unfiltered base stats) ---
   int get _totalTrips => _trips.length;
-  int get _completedTrips => _trips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase().contains('completed')).length;
-  int get _ongoingTrips => _trips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase().contains('ongoing')).length;
-  int get _scheduledTrips => _trips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase().contains('scheduled')).length;
+  int get _completedTrips => _trips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase().contains(
+          'completed',
+        ),
+      )
+      .length;
+  int get _ongoingTrips => _trips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase().contains(
+          'ongoing',
+        ),
+      )
+      .length;
+  int get _scheduledTrips => _trips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase().contains(
+          'scheduled',
+        ),
+      )
+      .length;
   int get _cancelledTrips => _trips.where((t) {
     final s = (t['trip_status'] ?? '').toString().toLowerCase();
     return s.contains('cancelled') || s.contains('rejected');
@@ -225,13 +266,16 @@ class _OicTripsState extends State<OicTrips> {
   Color _getStatusColor(String statusStr) {
     String lower = statusStr.toLowerCase();
     if (lower.contains('completed')) return const Color(0xFF10B981); // Green
-    if (lower.contains('ongoing') || lower.contains('pending')) return const Color(0xFFF59E0B); // Amber
-    if (lower.contains('cancelled') || lower.contains('rejected')) return const Color(0xFFEF4444); // Red
+    if (lower.contains('ongoing') || lower.contains('pending'))
+      return const Color(0xFFF59E0B); // Amber
+    if (lower.contains('cancelled') || lower.contains('rejected'))
+      return const Color(0xFFEF4444); // Red
     return const Color(0xFF3B82F6); // Blue
   }
 
   List<dynamic> _schedulesForDate(DateTime day) {
-    final dateStr = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+    final dateStr =
+        '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
     return _trips.where((trip) {
       final tripDate = trip['schedule_date']?.toString() ?? '';
       return tripDate.startsWith(dateStr);
@@ -251,39 +295,42 @@ class _OicTripsState extends State<OicTrips> {
       body: Skeletonizer(
         enabled: _isLoading,
         child: RefreshIndicator(
-        onRefresh: _fetchDeploymentLogs,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ----- HEADER & ACTIONS -----
-              isMobile
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildTitleHeader(isDark),
-                        const SizedBox(height: 16),
-                        _buildSearchAndActionRow(isDark, isMobile),
-                      ],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        _buildTitleHeader(isDark),
-                        const Spacer(), // Magic anchor forcing actions right
-                        _buildSearchAndActionRow(isDark, isMobile),
-                      ],
-                    ),
-              const SizedBox(height: 24),
+          onRefresh: _fetchDeploymentLogs,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 24.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ----- HEADER & ACTIONS -----
+                isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTitleHeader(isDark),
+                          const SizedBox(height: 16),
+                          _buildSearchAndActionRow(isDark, isMobile),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _buildTitleHeader(isDark),
+                          const Spacer(), // Magic anchor forcing actions right
+                          _buildSearchAndActionRow(isDark, isMobile),
+                        ],
+                      ),
+                const SizedBox(height: 24),
 
-              // ----- SUMMARY PILL CARDS -----
-              _buildTopSummaryStats(isDark, isMobile),
-              const SizedBox(height: 24),
+                // ----- SUMMARY PILL CARDS -----
+                _buildTopSummaryStats(isDark, isMobile),
+                const SizedBox(height: 24),
 
-              // ----- MAIN CONTENT AREA -----
-              isMobile
+                // ----- MAIN CONTENT AREA -----
+                isMobile
                     ? Column(
                         children: [
                           _buildCompactCalendarGrid(isDark),
@@ -299,15 +346,12 @@ class _OicTripsState extends State<OicTrips> {
                             child: _buildCompactCalendarGrid(isDark),
                           ),
                           const SizedBox(width: 20),
-                          Expanded(
-                            flex: 2,
-                            child: _buildTripListView(isDark),
-                          ),
+                          Expanded(flex: 2, child: _buildTripListView(isDark)),
                         ],
                       ),
-            ],
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -354,21 +398,35 @@ class _OicTripsState extends State<OicTrips> {
                 _currentPage = 0;
               });
             },
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontSize: 13,
+            ),
             decoration: InputDecoration(
               hintText: 'Search history...',
               hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-              prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+              prefixIcon: const Icon(
+                Icons.search,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
               filled: true,
               fillColor: Theme.of(context).cardColor,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 0,
+                horizontal: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
               ),
             ),
           ),
@@ -380,14 +438,20 @@ class _OicTripsState extends State<OicTrips> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
-            border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _sortOption,
               icon: const Icon(Icons.sort, size: 16, color: Color(0xFF64748B)),
-              style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontWeight: FontWeight.bold,
+              ),
               dropdownColor: Theme.of(context).cardColor,
               items: _sortOptions.map((String value) {
                 return DropdownMenuItem<String>(
@@ -419,7 +483,14 @@ class _OicTripsState extends State<OicTrips> {
           child: IconButton(
             onPressed: _isRefreshing ? null : _fetchDeploymentLogs,
             icon: _isRefreshing
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.blue,
+                    ),
+                  )
                 : const Icon(Icons.refresh, color: Colors.blue, size: 20),
             padding: EdgeInsets.zero,
           ),
@@ -431,11 +502,41 @@ class _OicTripsState extends State<OicTrips> {
   // --- INTERACTIVE PILL CARDS ---
   Widget _buildTopSummaryStats(bool isDark, bool isMobile) {
     final List<Map<String, dynamic>> stats = [
-      {'label': 'Total Logged', 'value': _totalTrips.toString(), 'icon': Icons.inventory_2_outlined, 'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600, 'filter': 'All'},
-      {'label': 'Completed', 'value': _completedTrips.toString(), 'icon': Icons.check_circle_outline, 'color': const Color(0xFF10B981), 'filter': 'Completed'},
-      {'label': 'Ongoing', 'value': _ongoingTrips.toString(), 'icon': Icons.play_arrow_outlined, 'color': const Color(0xFFF59E0B), 'filter': 'Ongoing'},
-      {'label': 'Scheduled', 'value': _scheduledTrips.toString(), 'icon': Icons.event_available, 'color': const Color(0xFF3B82F6), 'filter': 'Scheduled'},
-      {'label': 'Cancelled', 'value': _cancelledTrips.toString(), 'icon': Icons.cancel_outlined, 'color': const Color(0xFFEF4444), 'filter': 'Cancelled'},
+      {
+        'label': 'Total Logged',
+        'value': _totalTrips.toString(),
+        'icon': Icons.inventory_2_outlined,
+        'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+        'filter': 'All',
+      },
+      {
+        'label': 'Completed',
+        'value': _completedTrips.toString(),
+        'icon': Icons.check_circle_outline,
+        'color': const Color(0xFF10B981),
+        'filter': 'Completed',
+      },
+      {
+        'label': 'Ongoing',
+        'value': _ongoingTrips.toString(),
+        'icon': Icons.play_arrow_outlined,
+        'color': const Color(0xFFF59E0B),
+        'filter': 'Ongoing',
+      },
+      {
+        'label': 'Scheduled',
+        'value': _scheduledTrips.toString(),
+        'icon': Icons.event_available,
+        'color': const Color(0xFF3B82F6),
+        'filter': 'Scheduled',
+      },
+      {
+        'label': 'Cancelled',
+        'value': _cancelledTrips.toString(),
+        'icon': Icons.cancel_outlined,
+        'color': const Color(0xFFEF4444),
+        'filter': 'Cancelled',
+      },
     ];
 
     Widget buildCard(Map<String, dynamic> stat) {
@@ -456,7 +557,9 @@ class _OicTripsState extends State<OicTrips> {
                 : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(40),
             border: Border.all(
-              color: isSelected ? stat['color'] : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+              color: isSelected
+                  ? stat['color']
+                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
               width: isSelected ? 2.0 : 1.0,
             ),
           ),
@@ -482,7 +585,9 @@ class _OicTripsState extends State<OicTrips> {
                     stat['label'],
                     style: TextStyle(
                       fontSize: 12,
-                      color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : const Color(0xFF64748B),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -519,7 +624,11 @@ class _OicTripsState extends State<OicTrips> {
   Widget _buildCompactCalendarGrid(bool isDark) {
     final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysBefore = firstDay.weekday % 7;
-    final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      _focusedMonth.year,
+      _focusedMonth.month + 1,
+      0,
+    ).day;
     final totalCells = ((daysBefore + daysInMonth) / 7).ceil() * 7;
     final now = DateTime.now();
 
@@ -541,7 +650,9 @@ class _OicTripsState extends State<OicTrips> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: headerBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
             child: Row(
@@ -558,17 +669,41 @@ class _OicTripsState extends State<OicTrips> {
                 Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.chevron_left, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                      icon: Icon(
+                        Icons.chevron_left,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      onPressed: () => setState(
+                        () => _focusedMonth = DateTime(
+                          _focusedMonth.year,
+                          _focusedMonth.month - 1,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 4),
                     IconButton(
-                      icon: Icon(Icons.chevron_right, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                      icon: Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      onPressed: () => setState(() => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      onPressed: () => setState(
+                        () => _focusedMonth = DateTime(
+                          _focusedMonth.year,
+                          _focusedMonth.month + 1,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -601,7 +736,9 @@ class _OicTripsState extends State<OicTrips> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.grey.shade400 : const Color(0xFF475569),
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : const Color(0xFF475569),
                           ),
                         ),
                       ),
@@ -621,18 +758,27 @@ class _OicTripsState extends State<OicTrips> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: totalCells,
                   itemBuilder: (context, index) {
-                    if (index < daysBefore || index >= daysBefore + daysInMonth) return Container();
+                    if (index < daysBefore || index >= daysBefore + daysInMonth)
+                      return Container();
 
                     final day = index - daysBefore + 1;
-                    final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+                    final date = DateTime(
+                      _focusedMonth.year,
+                      _focusedMonth.month,
+                      day,
+                    );
                     final trips = _schedulesForDate(date);
                     final hasTrips = trips.isNotEmpty;
 
-                    final isSelected = _filterDate?.year == date.year &&
+                    final isSelected =
+                        _filterDate?.year == date.year &&
                         _filterDate?.month == date.month &&
                         _filterDate?.day == date.day;
 
-                    final isToday = now.year == date.year && now.month == date.month && now.day == date.day;
+                    final isToday =
+                        now.year == date.year &&
+                        now.month == date.month &&
+                        now.day == date.day;
 
                     return GestureDetector(
                       onTap: () {
@@ -651,12 +797,16 @@ class _OicTripsState extends State<OicTrips> {
                           color: isSelected
                               ? const Color(0xFF3B82F6) // Active Selection Blue
                               : (hasTrips
-                                  ? (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF))
-                                  : Theme.of(context).cardColor),
+                                    ? (isDark
+                                          ? Colors.blue.withValues(alpha: 0.2)
+                                          : const Color(0xFFEFF6FF))
+                                    : Theme.of(context).cardColor),
                           border: Border.all(
                             color: isToday
                                 ? const Color(0xFFF59E0B) // Amber for Today
-                                : (isSelected ? const Color(0xFF3B82F6) : borderColor),
+                                : (isSelected
+                                      ? const Color(0xFF3B82F6)
+                                      : borderColor),
                             width: isToday ? 1.5 : (isSelected ? 1.5 : 1),
                           ),
                           borderRadius: BorderRadius.circular(6),
@@ -666,12 +816,16 @@ class _OicTripsState extends State<OicTrips> {
                             day.toString(),
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
+                              fontWeight: isSelected || isToday
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
                               color: isSelected
                                   ? Colors.white
                                   : (hasTrips
-                                      ? const Color(0xFF3B82F6)
-                                      : (isDark ? Colors.grey.shade300 : const Color(0xFF0F172A))),
+                                        ? const Color(0xFF3B82F6)
+                                        : (isDark
+                                              ? Colors.grey.shade300
+                                              : const Color(0xFF0F172A))),
                             ),
                           ),
                         ),
@@ -704,7 +858,9 @@ class _OicTripsState extends State<OicTrips> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
             child: Row(
@@ -713,7 +869,13 @@ class _OicTripsState extends State<OicTrips> {
                 Flexible(
                   child: Row(
                     children: [
-                      Icon(Icons.history, color: isDark ? Colors.grey.shade400 : const Color(0xFF475569), size: 20),
+                      Icon(
+                        Icons.history,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : const Color(0xFF475569),
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
@@ -723,7 +885,9 @@ class _OicTripsState extends State<OicTrips> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -732,15 +896,22 @@ class _OicTripsState extends State<OicTrips> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
+                    color: isDark
+                        ? Colors.blue.withValues(alpha: 0.2)
+                        : const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${_filteredAndSortedTrips.length} entries',
                     style: TextStyle(
-                      color: isDark ? Colors.blue.shade300 : const Color(0xFF3B82F6),
+                      color: isDark
+                          ? Colors.blue.shade300
+                          : const Color(0xFF3B82F6),
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
@@ -751,15 +922,30 @@ class _OicTripsState extends State<OicTrips> {
           ),
           _paginatedTrips.isEmpty
               ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 60,
+                    horizontal: 16,
+                  ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.layers_clear_outlined, size: 48, color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                      Icon(
+                        Icons.layers_clear_outlined,
+                        size: 48,
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         'No historical data found.',
-                        style: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade500, fontSize: 15, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.grey.shade500
+                              : Colors.grey.shade500,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
@@ -784,10 +970,16 @@ class _OicTripsState extends State<OicTrips> {
   }
 
   // --- TRIP CARD ---
-  Widget _buildTripCard(Map<String, dynamic> trip, bool isDark, Color borderColor) {
-    final status = (trip['trip_status'] ?? 'Scheduled').toString().toLowerCase();
+  Widget _buildTripCard(
+    Map<String, dynamic> trip,
+    bool isDark,
+    Color borderColor,
+  ) {
+    final status = (trip['trip_status'] ?? 'Scheduled')
+        .toString()
+        .toLowerCase();
     final statusColor = _getStatusColor(status);
-    
+
     final route = trip['route_name'] ?? 'Unknown Route';
     final tripId = trip['trip_id']?.toString() ?? 'N/A';
     final driver = trip['driver_name'] ?? 'Unassigned';
@@ -873,7 +1065,11 @@ class _OicTripsState extends State<OicTrips> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B)),
+        Icon(
+          icon,
+          size: 14,
+          color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B),
+        ),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
@@ -903,21 +1099,34 @@ class _OicTripsState extends State<OicTrips> {
         children: [
           Text(
             'Showing ${(_currentPage * _itemsPerPage) + 1} to ${min((_currentPage + 1) * _itemsPerPage, _filteredAndSortedTrips.length)} of ${_filteredAndSortedTrips.length} entries',
-            style: TextStyle(color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           Row(
             children: [
               IconButton(
                 icon: const Icon(Icons.chevron_left, size: 20),
-                onPressed: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
+                onPressed: _currentPage > 0
+                    ? () => _goToPage(_currentPage - 1)
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                color: _currentPage > 0 ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                color: _currentPage > 0
+                    ? const Color(0xFF3B82F6)
+                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
+                  color: isDark
+                      ? Colors.blue.withValues(alpha: 0.2)
+                      : const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -931,10 +1140,14 @@ class _OicTripsState extends State<OicTrips> {
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right, size: 20),
-                onPressed: _currentPage < _totalPages - 1 ? () => _goToPage(_currentPage + 1) : null,
+                onPressed: _currentPage < _totalPages - 1
+                    ? () => _goToPage(_currentPage + 1)
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                color: _currentPage < _totalPages - 1 ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                color: _currentPage < _totalPages - 1
+                    ? const Color(0xFF3B82F6)
+                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
               ),
             ],
           ),

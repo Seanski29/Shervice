@@ -20,7 +20,7 @@ class StaffDashboard extends StatelessWidget {
           Text(
             'Staff Dashboard',
             style: const TextStyle(
-              fontSize: 24,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
               color: Color(0xFF0F172A),
             ),

@@ -28,11 +28,19 @@ class DriverProfileModel {
       id: (json['driver_id'] ?? '').toString(),
       userId: (json['user_id'] ?? '').toString(),
       name: (json['full_name'] ?? 'Unnamed Driver').toString(),
-      email: (json['username'] ?? json['email'] ?? json['Username'] ?? json['Email'] ?? 'No Email Linked').toString(),
-      licenseNumber: (json['license_no'] ?? 'N/A').toString(),
+      email:
+          (json['username'] ??
+                  json['email'] ??
+                  json['Username'] ??
+                  json['Email'] ??
+                  'No Email Linked')
+              .toString(),
+      licenseNumber: (json['license_no'] ?? json['license_number'] ?? 'N/A')
+          .toString(),
       birthday: (json['birthday'] ?? '1995-05-15').toString(),
       rating: double.tryParse(json['rating']?.toString() ?? '5.0') ?? 5.0,
-      status: (json['employment_status'] ?? 'Active').toString(),
+      status: (json['employment_status'] ?? json['status'] ?? 'Active')
+          .toString(),
       dateHired: (json['date_hired'] ?? 'Not Recorded').toString(),
       licenseExpiry: (json['license_expiry'] ?? '2031-12-31').toString(),
     );

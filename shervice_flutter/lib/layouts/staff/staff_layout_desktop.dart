@@ -67,7 +67,6 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
     try {
       // Hits the new Python endpoint to calculate risks and auto-lock vehicles
       await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
-      debugPrint("🤖 Background Fleet ML Sweep Completed.");
     } catch (e) {
       debugPrint("ML Sweep skipped or failed: $e");
     }
