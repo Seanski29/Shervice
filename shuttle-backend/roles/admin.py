@@ -1,8 +1,11 @@
 import os
+from io import BytesIO
 from datetime import datetime
 from typing import Any, Dict, List, cast
 from flask import Blueprint, jsonify, request
 from supabase import create_client
+import xlrd
+from openpyxl import Workbook
 
 # Blueprint must be defined first so decorators can use it down the line
 admin_bp = Blueprint('admin', __name__)
@@ -109,6 +112,73 @@ def get_admin_schedules():
 
 
 # ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
+@admin_bp.route('/api/admin/attendance/upload-legacy-xls', methods=['POST'])
+def upload_legacy_xls_attendance():
+    """Accepts a legacy .xls file, converts it in memory to workbook data, and returns rows for immediate processing."""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"success": False, "error": "No file uploaded."}), 400
+
+        uploaded = request.files['file']
+        if uploaded.filename == '':
+            return jsonify({"success": False, "error": "No selected file."}), 400
+
+        file_bytes = uploaded.read()
+        if not file_bytes:
+            return jsonify({"success": False, "error": "Uploaded file is empty."}), 400
+
+        workbook = xlrd.open_workbook(file_contents=file_bytes)
+        sheet = workbook.sheet_by_index(0)
+
+        rows = []
+        for row_idx in range(sheet.nrows):
+            row = []
+            for col_idx in range(sheet.ncols):
+                value = sheet.cell_value(row_idx, col_idx)
+                if isinstance(value, float) and value.is_integer():
+                    row.append(str(int(value)))
+                else:
+                    row.append('' if value is None else str(value))
+            rows.append(row)
+
+        if not rows:
+            return jsonify({"success": False, "error": "Uploaded file has no rows."}), 400
+
+        headers = rows[0]
+        data_rows = []
+        for row in rows[1:]:
+            record = {}
+            for index, header in enumerate(headers):
+                key = (header or f'Column {index + 1}').strip()
+                value = row[index] if index < len(row) else ''
+                record[key] = value
+            if any(str(value).strip() for value in record.values()):
+                data_rows.append(record)
+
+        workbook_out = Workbook()
+        ws = workbook_out.active
+        ws.title = 'Attendance'
+        if headers:
+            ws.append(headers)
+        for row in rows[1:]:
+            ws.append(row)
+
+        buffer = BytesIO()
+        workbook_out.save(buffer)
+        xlsx_bytes = buffer.getvalue()
+
+        return jsonify({
+            "success": True,
+            "sheet_name": sheet.name,
+            "headers": headers,
+            "rows": data_rows,
+            "xlsx_size": len(xlsx_bytes),
+            "row_count": len(data_rows),
+        }), 200
+    except Exception as exc:
+        return jsonify({"success": False, "error": f"Unable to convert legacy .xls file: {exc}"}), 500
+
+
 @admin_bp.route('/api/dashboard/metrics', methods=['GET'])
 def get_dashboard_metrics():
     """Calculates unified fleet parameters, active counts, and monthly completed trip metrics live"""

@@ -5,6 +5,7 @@ import '../../screens/admin/admin_schedules.dart';
 import '../../screens/admin/admin_drivers.dart';
 import '../../screens/admin/admin_vehicles.dart';
 import '../../screens/admin/admin_users.dart';
+import '../../screens/admin/admin_import_export.dart';
 import '../../screens/admin/admin_settings.dart';
 import '../../login/login.dart';
 import '../../widgets/shared/notification_bell.dart';
@@ -45,6 +46,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
       const AdminFleet(),
       const AdminUsers(),
       const SharedAnalyticsHub(),
+      const AdminImportExport(),
       AdminSettings(adminId: widget.adminId),
       // Note: You can add AdminFeedbacks() here if you want it mapped to a sidebar index!
     ];
@@ -184,7 +186,12 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                   Icons.admin_panel_settings_outlined,
                 ),
                 _buildNavItem(5, 'Analytics', Icons.analytics),
-                _buildNavItem(6, 'Settings', Icons.settings_outlined),
+                _buildNavItem(
+                  6,
+                  'Import & Export',
+                  Icons.import_export_outlined,
+                ),
+                _buildNavItem(7, 'Settings', Icons.settings_outlined),
               ],
             ),
           ),
