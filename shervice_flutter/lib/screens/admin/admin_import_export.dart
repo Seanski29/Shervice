@@ -92,7 +92,12 @@ class AdminImportExport extends StatefulWidget {
 }
 
 class _AdminImportExportState extends State<AdminImportExport> {
-  final List<String> _reportTypes = ['Trips', 'Maintenance', 'Attendance'];
+  final List<String> _reportTypes = [
+    'Trips',
+    'Maintenance',
+    'Attendance',
+    'Timecard',
+  ];
   String _selectedReportType = 'Trips';
   bool _isImporting = false;
   bool _isLoadingSystemData = false;
@@ -107,7 +112,8 @@ class _AdminImportExportState extends State<AdminImportExport> {
     _loadCurrentReportData();
   }
 
-  bool get _canImportCurrentReport => _selectedReportType == 'Attendance';
+  bool get _canImportCurrentReport =>
+      _selectedReportType == 'Attendance' || _selectedReportType == 'Timecard';
 
   Future<void> _loadCurrentReportData() async {
     if (_selectedReportType == 'Attendance') {
@@ -119,7 +125,9 @@ class _AdminImportExportState extends State<AdminImportExport> {
     try {
       final endpoint = _selectedReportType == 'Trips'
           ? '$backendUrl/trips'
-          : '$backendUrl/vehicles/maintenance';
+          : _selectedReportType == 'Maintenance'
+          ? '$backendUrl/vehicles/maintenance'
+          : '$backendUrl/admin/timecards';
 
       final response = await http.get(Uri.parse(endpoint));
 
@@ -142,7 +150,12 @@ class _AdminImportExportState extends State<AdminImportExport> {
       final decoded = jsonDecode(response.body);
       final rawList = _selectedReportType == 'Trips'
           ? ((decoded is Map ? decoded['trips'] : decoded) ?? [])
-          : ((decoded is Map ? decoded['data'] : decoded) ?? []);
+          : _selectedReportType == 'Maintenance'
+          ? ((decoded is Map ? decoded['data'] : decoded) ?? [])
+          : ((decoded is Map
+                    ? decoded['data'] ?? decoded['timecards']
+                    : decoded) ??
+                []);
 
       final normalized = _normalizeSystemRows(rawList);
       final columns = normalized.isNotEmpty
@@ -154,7 +167,9 @@ class _AdminImportExportState extends State<AdminImportExport> {
       setState(() {
         _sourceFileName = _selectedReportType == 'Trips'
             ? 'System trip records'
-            : 'System maintenance records';
+            : _selectedReportType == 'Maintenance'
+            ? 'System maintenance records'
+            : 'System timecard records';
         _columns = columns;
         _rows = normalized.isNotEmpty
             ? normalized
@@ -720,7 +735,7 @@ class _AdminImportExportState extends State<AdminImportExport> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Import attendance from biometrics Excel files and export system-generated reports for trips and maintenance.',
+                          'Import attendance and timecard data from biometric Excel files. Export system-generated reports for trips, maintenance, and timecards.',
                           style: TextStyle(
                             fontSize: 14,
                             color: isDark
@@ -832,6 +847,8 @@ class _AdminImportExportState extends State<AdminImportExport> {
                           ? Icons.route_outlined
                           : type == 'Maintenance'
                           ? Icons.build_outlined
+                          : type == 'Timecard'
+                          ? Icons.schedule_outlined
                           : Icons.how_to_reg_outlined,
                       size: 18,
                     ),
@@ -918,8 +935,8 @@ class _AdminImportExportState extends State<AdminImportExport> {
                       const SizedBox(height: 8),
                       Text(
                         _canImportCurrentReport
-                            ? 'Select a biometric .xlsx or .csv file to preview attendance records here. Legacy .xls files are auto-converted to .xlsx for compatibility.'
-                            : 'Trips and maintenance reports are generated from the system and exported here.',
+                            ? 'Select a biometric .xlsx or .csv file to preview records here. Legacy .xls files are auto-converted to .xlsx for compatibility.'
+                            : 'Trips, maintenance, and timecard reports are generated from the system and exported here.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: isDark
