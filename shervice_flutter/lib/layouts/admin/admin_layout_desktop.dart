@@ -5,15 +5,15 @@ import '../../screens/admin/admin_schedules.dart';
 import '../../screens/admin/admin_drivers.dart';
 import '../../screens/admin/admin_vehicles.dart';
 import '../../screens/admin/admin_users.dart';
+import '../../screens/admin/admin_import_export.dart';
 import '../../screens/admin/admin_settings.dart';
-import '../../widgets/shared_analytics_hub.dart';
-import '../../screens/admin/admin_feedbacks.dart';
 import '../../login/login.dart';
-import '../../widgets/notification_bell.dart';
-import '../../widgets/shervice_floating_stack.dart';
+import '../../widgets/shared/notification_bell.dart';
+import '../../widgets/shared/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
-import '../../widgets/admin_profile_button.dart';
+import '../../widgets/admin/admin_profile_button.dart';
+import '../../widgets/shared/shared_analytics_hub.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
   final String adminId;
@@ -45,7 +45,8 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
       const AdminDriver(),
       const AdminFleet(),
       const AdminUsers(),
-      SharedAnalyticsHub(),
+      const SharedAnalyticsHub(),
+      const AdminImportExport(),
       AdminSettings(adminId: widget.adminId),
       // Note: You can add AdminFeedbacks() here if you want it mapped to a sidebar index!
     ];
@@ -57,7 +58,6 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
     try {
       // Hits the new Python endpoint to calculate risks and auto-lock vehicles
       await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
-      debugPrint("🤖 Background Fleet ML Sweep Completed.");
     } catch (e) {
       debugPrint("ML Sweep skipped or failed: $e");
     }
@@ -186,7 +186,12 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                   Icons.admin_panel_settings_outlined,
                 ),
                 _buildNavItem(5, 'Analytics', Icons.analytics),
-                _buildNavItem(6, 'Settings', Icons.settings_outlined),
+                _buildNavItem(
+                  6,
+                  'Import & Export',
+                  Icons.import_export_outlined,
+                ),
+                _buildNavItem(7, 'Settings', Icons.settings_outlined),
               ],
             ),
           ),

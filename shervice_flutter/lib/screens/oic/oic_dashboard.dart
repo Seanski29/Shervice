@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
 
 class OicDashboard extends StatefulWidget {
@@ -93,14 +94,30 @@ class _OicDashboardState extends State<OicDashboard> {
 
   // --- FILTERING & SORTING ---
   List<dynamic> get _filteredAndSortedTrips {
-    final filtered = _allTrips.where((t) {
+    final placeholderStatus = _statusFilter == 'Total' ? 'Scheduled' : _statusFilter;
+    final displayTrips = _isLoading
+        ? List.generate(5, (index) => {
+              'trip_id': index + 1,
+              'route_name': 'Loading Route',
+              'trip_status': placeholderStatus,
+              'schedule_date': DateTime.now().toIso8601String(),
+              'driver_name': 'Loading Driver',
+              'plate_number': 'Loading Vehicle',
+              'departure_time': '08:00',
+              'estimated_arrival_time': '09:00',
+              'passenger_count': 0,
+              'route_distance': 0,
+            })
+        : _allTrips;
+    final filtered = displayTrips.where((t) {
       final s = (t['trip_status'] ?? '').toString().toLowerCase().trim();
       final dateStr = t['schedule_date']?.toString() ?? '';
 
       // Map Status Filter
       bool matchesStatus = false;
-      if (_statusFilter == 'Pending') matchesStatus = s == 'pending staff assignment' || s.contains('pending');
-      else if (_statusFilter == 'Scheduled') matchesStatus = s == 'scheduled';
+      if (_statusFilter == 'Pending') {
+        matchesStatus = s == 'pending staff assignment' || s.contains('pending');
+      } else if (_statusFilter == 'Scheduled') matchesStatus = s == 'scheduled';
       else if (_statusFilter == 'Ongoing') matchesStatus = s == 'ongoing';
       else if (_statusFilter == 'Completed') matchesStatus = s == 'completed';
       else if (_statusFilter == 'Total') matchesStatus = true;
@@ -161,7 +178,9 @@ class _OicDashboardState extends State<OicDashboard> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: RefreshIndicator(
+      body: Skeletonizer(
+        enabled: _isLoading,
+        child: RefreshIndicator(
         onRefresh: _fetchLiveSchedules,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -190,19 +209,14 @@ class _OicDashboardState extends State<OicDashboard> {
               const SizedBox(height: 24),
 
               // --- INTERACTIVE PILLS ---
-              if (!_isLoading) _buildTopSummaryStats(isDark, isMobile),
-              if (!_isLoading) const SizedBox(height: 24),
+              _buildTopSummaryStats(isDark, isMobile),
+              const SizedBox(height: 24),
 
               // --- MAIN CONTENT ---
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
-                )
-              else
-                _buildPaginatedGrid(isMobile, isDark),
+              _buildPaginatedGrid(isMobile, isDark),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -228,9 +242,9 @@ class _OicDashboardState extends State<OicDashboard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.2)),
+                border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.2)),
               ),
               child: Text(
                 widget.companyName,
@@ -264,7 +278,7 @@ class _OicDashboardState extends State<OicDashboard> {
         Container(
           height: 44,
           decoration: BoxDecoration(
-            color: _filterDate != null ? (isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF)) : Theme.of(context).cardColor,
+            color: _filterDate != null ? (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF)) : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: _filterDate != null ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
           ),
@@ -321,7 +335,7 @@ class _OicDashboardState extends State<OicDashboard> {
                 ),
               ),
               if (_filterDate != null) ...[
-                Container(width: 1, height: 24, color: const Color(0xFF3B82F6).withOpacity(0.3)),
+                Container(width: 1, height: 24, color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
                 IconButton(
                   icon: const Icon(Icons.close, size: 16, color: Color(0xFF3B82F6)),
                   onPressed: () {
@@ -494,7 +508,7 @@ class _OicDashboardState extends State<OicDashboard> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: pageItems.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (_, i) => _buildUltraCompactCard(pageItems[i], isDark),
           )
         : GridView.builder(
@@ -595,7 +609,7 @@ class _OicDashboardState extends State<OicDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -681,7 +695,7 @@ class _OicDashboardState extends State<OicDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                  color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(

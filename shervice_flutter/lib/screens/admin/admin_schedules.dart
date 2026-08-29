@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:skeletonizer/skeletonizer.dart'; // 1. Import skeletonizer
 import '../../constant.dart';
 
 class AdminSchedules extends StatefulWidget {
@@ -47,7 +48,6 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     });
 
     final String url = '$backendUrl/trips';
-    debugPrint("🔍 Fetching from: $url");
 
     try {
       final response = await http
@@ -66,9 +66,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
           _allSchedules = [];
         }
       } else {
-        debugPrint(
-          "⚠️ Server returned non-200 status code: ${response.statusCode}",
-        );
+        debugPrint("Schedule request failed: ${response.statusCode}");
         _allSchedules = [];
       }
     } catch (e) {
@@ -191,11 +189,15 @@ class _AdminSchedulesState extends State<AdminSchedules> {
 
   Color _getStatusColor(String status) {
     final s = status.toLowerCase();
-    if (s.contains('ongoing') || s.contains('progress') || s.contains('active'))
-      return const Color(0xFFF59E0B); // Amber
+    if (s.contains('ongoing') ||
+        s.contains('progress') ||
+        s.contains('active')) {
+      return const Color(0xFFF59E0B);
+    } // Amber
     if (s.contains('completed')) return const Color(0xFF10B981); // Green
-    if (s.contains('reject') || s.contains('cancel'))
-      return const Color(0xFFEF4444); // Red
+    if (s.contains('reject') || s.contains('cancel')) {
+      return const Color(0xFFEF4444);
+    } // Red
     return const Color(0xFF3B82F6); // Blue (Scheduled/Default)
   }
 
@@ -356,108 +358,99 @@ class _AdminSchedulesState extends State<AdminSchedules> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _fetchSchedulesFromDatabase,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding,
-            vertical: 24.0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ----- HEADER & FILTERS -----
-              isMobile
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Title & Subtitle
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Schedule Management',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800,
-                                color: isDark
-                                    ? Colors.white
-                                    : const Color(0xFF0F172A),
-                                letterSpacing: -0.5,
+        // 2. Wrap your entire main content inside Skeletonizer
+        child: Skeletonizer(
+          enabled: _isLoading,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 24.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ----- HEADER & FILTERS -----
+                isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title & Subtitle
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Schedule Management',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
+                                  letterSpacing: -0.5,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Monitor and manage all scheduled trips for your fleet operations.',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : const Color(0xFF64748B),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Monitor and manage all scheduled trips for your fleet operations.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : const Color(0xFF64748B),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Search, Dropdown & Refresh
-                        _buildSearchAndFilterRow(isDark, isMobile),
-                      ],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Title & Subtitle
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Schedule Management',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800,
-                                color: isDark
-                                    ? Colors.white
-                                    : const Color(0xFF0F172A),
-                                letterSpacing: -0.5,
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Search, Dropdown & Refresh
+                          _buildSearchAndFilterRow(isDark, isMobile),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Title & Subtitle
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Schedule Management',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
+                                  letterSpacing: -0.5,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Monitor and manage all scheduled trips for your fleet operations.',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : const Color(0xFF64748B),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Monitor and manage all scheduled trips for your fleet operations.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : const Color(0xFF64748B),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                          const Spacer(),
+                          // Search, Dropdown & Refresh
+                          _buildSearchAndFilterRow(isDark, isMobile),
+                        ],
+                      ),
+                const SizedBox(height: 24),
 
-                        // 👇 THE MAGIC ANCHOR: This pushes everything below it to the far right!
-                        const Spacer(),
-
-                        // Search, Dropdown & Refresh
-                        _buildSearchAndFilterRow(isDark, isMobile),
-                      ],
-                    ),
-              const SizedBox(height: 24),
-
-              // ----- TOP SUMMARY STATS (Expanded Pill Cards) -----
-              if (!_isLoading && _allSchedules.isNotEmpty)
+                // 3. Render Top Stats Unconditionally (Skeletonizer will mask them)
                 _buildTopSummaryStats(isDark, isMobile),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // ----- MAIN CONTENT (Desktop: Row, Mobile: Column) -----
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Center(
-                    child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
-                  ),
-                )
-              else
+                // 4. Render Layout Unconditionally (Removed the CircularProgressIndicator check)
                 isMobile
                     ? Column(
                         children: [
@@ -477,7 +470,8 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                           Expanded(flex: 2, child: _buildTripListView(isDark)),
                         ],
                       ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -586,16 +580,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
           ),
           child: IconButton(
             onPressed: _isRefreshing ? null : _fetchSchedulesFromDatabase,
-            icon: _isRefreshing
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.blue,
-                    ),
-                  )
-                : const Icon(Icons.refresh, color: Colors.blue, size: 20),
+            icon: const Icon(Icons.refresh, color: Colors.blue, size: 20),
             padding: EdgeInsets.zero,
           ),
         ),
@@ -603,7 +588,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     );
   }
 
-  // ---- TOP SUMMARY STATS (Expanded Horizontal Width on Desktop) ----
+  // ---- TOP SUMMARY STATS ----
   Widget _buildTopSummaryStats(bool isDark, bool isMobile) {
     final List<Map<String, dynamic>> stats = [
       {
@@ -674,8 +659,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               const SizedBox(width: 12),
               Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment:
-                    CrossAxisAlignment.center, // Centered text alignment
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
                     stat['value'],
@@ -712,7 +696,6 @@ class _AdminSchedulesState extends State<AdminSchedules> {
         children: stats.map((stat) => buildCard(stat)).toList(),
       );
     } else {
-      // Desktop: Row with Expanded forces them to fill the horizontal space equally
       return Row(
         children: stats.map((stat) {
           return Expanded(
@@ -880,7 +863,6 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                     return GestureDetector(
                       onTap: () {
                         setState(() {
-                          // Calendar Toggle Logic: Unselect if already selected
                           if (isSelected) {
                             _selectedDate = null;
                           } else {
@@ -941,7 +923,25 @@ class _AdminSchedulesState extends State<AdminSchedules> {
 
   // ---- TRIP LIST ----
   Widget _buildTripListView(bool isDark) {
-    final displayedTrips = _getDisplayedTrips();
+    // 5. Inject dummy list data during `_isLoading` so Skeletonizer can render the structure
+    final List<dynamic> displayedTrips = _isLoading
+        ? List.generate(
+            4,
+            (index) => {
+              'route_name': 'Skeleton Route Data Masked',
+              'trip_status': 'Scheduled',
+              'schedule_date': '2026-08-28',
+              'departure_time': '08:00 AM',
+              'user_account': {'full_name': 'Skeleton Driver Name'},
+              'vehicle': {
+                'plate_number': 'SKL 123',
+                'bus_type': 'Skeleton Type',
+              },
+              'oic_profile': {'company_name': 'Skeleton Company Name'},
+            },
+          )
+        : _getDisplayedTrips();
+
     final headerBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final borderColor = isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0);
 
@@ -1020,7 +1020,9 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               ],
             ),
           ),
-          displayedTrips.isEmpty
+
+          // Show Empty State only if we are NOT loading and the list is genuinely empty
+          !_isLoading && displayedTrips.isEmpty
               ? Padding(
                   padding: const EdgeInsets.symmetric(
                     vertical: 40,

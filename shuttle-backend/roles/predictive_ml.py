@@ -44,57 +44,47 @@ def train_baseline_model():
 
 @predictive_bp.route('/api/vehicles/predict/<int:vehicle_id>', methods=['GET'])
 def predict_maintenance_risk(vehicle_id):
-    """
-    Extracts dynamic live telemetry parameters from your Supabase schema
-    to calculate a real-time structural breakdown probability score.
-    """
     global is_trained, model, scaler
     
-    # Lazy train model on the first incoming request if it isn't running yet
     if not is_trained:
         train_baseline_model()
         
     try:
-        # 1. Fetch Target Vehicle Data
         vehicle_res = supabase.table('vehicle').select('*').eq('vehicle_id', vehicle_id).execute()
         if not vehicle_res.data:
-            return jsonify({"success": False, "message": "Vehicle asset not found in database."}), 404
+            return jsonify({"success": False, "message": "Vehicle asset not found."}), 404
         vehicle = vehicle_res.data[0]
 
-        # 2. Extract Feature 1: Vehicle Age
         current_year = 2026
         try:
             age = float(current_year - int(vehicle.get('model_year', current_year)))
         except ValueError:
             age = 2.0
 
-        # 3. Calculate Feature 2 & 3: Total Mileage & Total Trip Count from completed dispatches
-        trips_res = supabase.table('trip_schedule').select('route_distance')\
-            .eq('vehicle_id', vehicle_id).eq('trip_status', 'Completed').execute()
-        
+        trips_res = supabase.table('trip_schedule').select('route_distance').eq('vehicle_id', vehicle_id).eq('trip_status', 'Completed').execute()
         trip_count = len(trips_res.data) if trips_res.data else 0
         total_mileage = sum(float(t.get('route_distance', 0.0)) for t in trips_res.data) if trips_res.data else 0.0
 
-        # 4. Calculate Feature 4: Past Repair Counts from historical logs
         logs_res = supabase.table('maintenance_log').select('source: maintenance_id').eq('vehicle_id', vehicle_id).execute()
         past_repairs = len(logs_res.data) if logs_res.data else 0
 
-        # 5. Execute Machine Learning Inference Pipeline
         live_features = np.array([[total_mileage, age, trip_count, past_repairs]])
         scaled_features = scaler.transform(live_features)
         
         prediction = int(model.predict(scaled_features)[0])
         probabilities = model.predict_proba(scaled_features)[0]
-        failure_probability = float(probabilities[1])  # Class 1 Probability index
+        failure_probability = float(probabilities[1])  
 
-        # 6. Safety Trigger Strategy: Automated Hazard Lockout
-        # If failure index is > 85%, automatically restrict scheduling dispatch configurations
-        if failure_probability > 0.85 and vehicle.get('is_available') == True:
-            supabase.table('vehicle').update({
-                "health_status": "Needs Maintenance",
-                "is_available": False,
-                "last_maintenance_description": f"⚠️ ML CRITICAL LOCKOUT: Automated structural break probability high ({round(failure_probability * 100, 1)}%)."
-            }).eq('vehicle_id', vehicle_id).execute()
+        # Always save the risk_score when the modal is clicked
+        update_payload = {"risk_score": failure_probability}
+        
+        if failure_probability >= 0.80 and vehicle.get('is_available') == True:
+            update_payload["health_status"] = "Needs Maintenance"
+            update_payload["is_available"] = False
+            update_payload["last_maintenance_description"] = f"⚠️ ML CRITICAL LOCKOUT: Automated structural break probability high ({round(failure_probability * 100, 1)}%)."
+
+        # Push the update to Supabase instantly
+        supabase.table('vehicle').update(update_payload).eq('vehicle_id', vehicle_id).execute()
 
         return jsonify({
             "success": True,
@@ -114,65 +104,58 @@ def predict_maintenance_risk(vehicle_id):
         print(f"❌ ML Diagnostic Inference Engine Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
+
 @predictive_bp.route('/api/vehicles/predict/fleet-sweep', methods=['POST', 'GET'])
 def evaluate_entire_fleet():
-    """
-    Sweeps the entire fleet database, runs the ML model on every vehicle, 
-    and autonomously locks out any asset that crosses the 80% hazard threshold.
-    """
     global is_trained, model, scaler
     
-    # Lazy train model if it isn't running yet
     if not is_trained:
         train_baseline_model()
         
     try:
-        # 1. Fetch all vehicles in the registry
         vehicles_res = supabase.table('vehicle').select('*').execute()
         if not vehicles_res.data:
-            return jsonify({"success": True, "message": "No vehicles found to evaluate."}), 200
+            return jsonify({"success": True, "message": "No vehicles found."}), 200
             
         flagged_assets = []
         
-        # 2. Loop through every vehicle and run the ML diagnostics
         for vehicle in vehicles_res.data:
             vehicle_id = vehicle['vehicle_id']
             
-            # Extract Feature 1: Age
             current_year = 2026
             try:
                 age = float(current_year - int(vehicle.get('model_year', current_year)))
             except ValueError:
                 age = 2.0
                 
-            # Calculate Feature 2 & 3: Mileage & Trips
             trips_res = supabase.table('trip_schedule').select('route_distance').eq('vehicle_id', vehicle_id).eq('trip_status', 'Completed').execute()
             trip_count = len(trips_res.data) if trips_res.data else 0
             total_mileage = sum(float(t.get('route_distance', 0.0)) for t in trips_res.data) if trips_res.data else 0.0
             
-            # Calculate Feature 4: Past Repairs
             logs_res = supabase.table('maintenance_log').select('source: maintenance_id').eq('vehicle_id', vehicle_id).execute()
             past_repairs = len(logs_res.data) if logs_res.data else 0
             
-            # 3. Execute Machine Learning Inference
             live_features = np.array([[total_mileage, age, trip_count, past_repairs]])
             scaled_features = scaler.transform(live_features)
             
             probabilities = model.predict_proba(scaled_features)[0]
-            failure_probability = float(probabilities[1])  # Class 1 Probability
+            failure_probability = float(probabilities[1])
+
+            # Formulate the payload for the background sweep
+            update_payload = {"risk_score": failure_probability}
             
-            # 4. Automated Safety Lockout (Triggered at 80% instead of 85%)
             if failure_probability >= 0.80 and vehicle.get('is_available') == True:
-                supabase.table('vehicle').update({
-                    "health_status": "Needs Maintenance",
-                    "is_available": False,
-                    "last_maintenance_description": f"⚠️ ML CRITICAL LOCKOUT: Automated background sweep detected imminent breakdown probability ({round(failure_probability * 100, 1)}%)."
-                }).eq('vehicle_id', vehicle_id).execute()
+                update_payload["health_status"] = "Needs Maintenance"
+                update_payload["is_available"] = False
+                update_payload["last_maintenance_description"] = f"⚠️ ML CRITICAL LOCKOUT: Automated background sweep detected imminent breakdown probability ({round(failure_probability * 100, 1)}%)."
                 
                 flagged_assets.append({
                     "plate": vehicle.get('plate_number'),
                     "risk": round(failure_probability * 100, 1)
                 })
+
+            # Update the database silently in the background
+            supabase.table('vehicle').update(update_payload).eq('vehicle_id', vehicle_id).execute()
                 
         return jsonify({
             "success": True,

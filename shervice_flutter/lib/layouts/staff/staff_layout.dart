@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'staff_layout_desktop.dart';
-import 'staff_layout_mobile.dart'; // 👈 1. Import your mobile layout
 
 class StaffLayout extends StatelessWidget {
   final String staffId;
@@ -18,7 +17,6 @@ class StaffLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 2. Add the mobile path
         if (constraints.maxWidth > 800) {
           return StaffLayoutDesktop(
             staffId: staffId,
@@ -27,12 +25,7 @@ class StaffLayout extends StatelessWidget {
           );
         }
 
-        // 3. Return the mobile layout instead of SizedBox.shrink()
-        return StaffLayoutMobile(
-          staffId: staffId,
-          staffName: staffName,
-          companyName: companyName,
-        );
+        return const SizedBox.shrink();
       },
     );
   }

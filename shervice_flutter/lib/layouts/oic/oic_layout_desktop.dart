@@ -5,11 +5,11 @@ import '../../../screens/oic/oic_schedules.dart';
 import '../../../screens/oic/oic_trips.dart';
 import '../../../screens/oic/oic_settings.dart';
 import '../../../login/login.dart';
-import '../../../widgets/notification_bell.dart';
-import '../../../widgets/shervice_floating_stack.dart';
+import '../../widgets/shared/notification_bell.dart';
+import '../../widgets/shared/shervice_floating_stack.dart';
 import '../../../constant.dart';
 import '../../session_manager.dart';
-import '../../../widgets/user_profile_button.dart';
+import '../../widgets/shared/user_profile_button.dart';
 
 class OicLayoutDesktop extends StatefulWidget {
   final String oicId;
