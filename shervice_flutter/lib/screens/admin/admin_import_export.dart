@@ -92,12 +92,7 @@ class AdminImportExport extends StatefulWidget {
 }
 
 class _AdminImportExportState extends State<AdminImportExport> {
-  final List<String> _reportTypes = [
-    'Trips',
-    'Maintenance',
-    'Attendance',
-    'Timecard',
-  ];
+  final List<String> _reportTypes = ['Trips', 'Maintenance', 'Timecard'];
   String _selectedReportType = 'Trips';
   bool _isImporting = false;
   bool _isLoadingSystemData = false;
@@ -112,8 +107,7 @@ class _AdminImportExportState extends State<AdminImportExport> {
     _loadCurrentReportData();
   }
 
-  bool get _canImportCurrentReport =>
-      _selectedReportType == 'Attendance' || _selectedReportType == 'Timecard';
+  bool get _canImportCurrentReport => _selectedReportType == 'Attendance' || _selectedReportType == 'Timecard';
 
   Future<void> _loadCurrentReportData() async {
     if (_selectedReportType == 'Attendance') {
@@ -152,10 +146,7 @@ class _AdminImportExportState extends State<AdminImportExport> {
           ? ((decoded is Map ? decoded['trips'] : decoded) ?? [])
           : _selectedReportType == 'Maintenance'
           ? ((decoded is Map ? decoded['data'] : decoded) ?? [])
-          : ((decoded is Map
-                    ? decoded['data'] ?? decoded['timecards']
-                    : decoded) ??
-                []);
+          : ((decoded is Map ? decoded['data'] ?? decoded['timecards'] : decoded) ?? []);
 
       final normalized = _normalizeSystemRows(rawList);
       final columns = normalized.isNotEmpty
@@ -854,7 +845,7 @@ class _AdminImportExportState extends State<AdminImportExport> {
                     ),
                     onSelected: (_) async {
                       setState(() => _selectedReportType = type);
-                      if (type != 'Attendance') {
+                      if (type != 'Attendance' && type != 'Timecard') {
                         await _loadCurrentReportData();
                       }
                     },

@@ -9,7 +9,25 @@ import 'package:excel/excel.dart' as excel;
 import '../../constant.dart';
 import '../../utils/file_download.dart';
 
+String _getDayOfWeek(DateTime date) {
+  const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  return days[date.weekday - 1];
+}
+
 String formatTableHeader(String value) {
+  final lowerVal = value.trim().toLowerCase();
+  if (lowerVal == 'employee') return 'Employee';
+  if (lowerVal == 'pay_period') return 'Pay Period';
+  if (lowerVal == 'day') return 'Day';
+  if (lowerVal == 'date') return 'Date';
+  if (lowerVal == 'in_time' || lowerVal == 'in') return 'IN';
+  if (lowerVal == 'out_time' || lowerVal == 'out') return 'OUT';
+  if (lowerVal == 'work_time' || lowerVal == 'work_hours') return 'Work Time';
+  if (lowerVal == 'daily_total' || lowerVal == 'total_hours')
+    return 'Daily Total';
+  if (lowerVal == 'note' || lowerVal == 'notes' || lowerVal == 'remarks')
+    return 'Note';
+
   final cleaned = value
       .replaceAll(RegExp(r'[_-]+'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
@@ -26,20 +44,246 @@ String formatTableHeader(String value) {
           return '';
         }
 
-        final lower = word.toLowerCase();
-        if (lower == 'id' || lower == 'ids') {
+        final lowerWord = word.toLowerCase();
+        if (lowerWord == 'id' || lowerWord == 'ids') {
           return 'ID';
         }
 
         if (word.length <= 2) {
-          return lower.toUpperCase();
+          return lowerWord.toUpperCase();
         }
 
-        return lower[0].toUpperCase() + lower.substring(1);
+        return lowerWord[0].toUpperCase() + lowerWord.substring(1);
       })
       .join(' ');
 
   return formatted;
+}
+
+String _formatTimeValue(String val) {
+  if (val.isEmpty || val == 'null' || val == 'NaN') return '-';
+
+  // 1. Check if it is already in a clean AM/PM format, e.g., "08:30 AM" or "8:30 PM"
+  final amPmRegex = RegExp(r'^\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)$');
+  if (amPmRegex.hasMatch(val.trim())) {
+    return val.trim().toUpperCase();
+  }
+
+  // 2. Try parsing as standard DateTime
+  try {
+    final parsed = DateTime.parse(val);
+    return _formatDateTimeToTime(parsed);
+  } catch (_) {}
+
+  // 3. Try parsing if it is "YYYY-MM-DD HH:mm:ss"
+  try {
+    final parts = val.trim().split(' ');
+    if (parts.length == 2) {
+      final timePart = parts[1];
+      final timeParts = timePart.split(':');
+      if (timeParts.length >= 2) {
+        final hour = int.parse(timeParts[0]);
+        final minute = int.parse(timeParts[1]);
+        return _formatHoursMinutes(hour, minute);
+      }
+    }
+  } catch (_) {}
+
+  // 4. Try parsing "HH:mm:ss" or "HH:mm"
+  try {
+    final parts = val.trim().split(':');
+    if (parts.length >= 2) {
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      return _formatHoursMinutes(hour, minute);
+    }
+  } catch (_) {}
+
+  return val;
+}
+
+String _formatDateTimeToTime(DateTime dt) {
+  return _formatHoursMinutes(dt.hour, dt.minute);
+}
+
+String _formatHoursMinutes(int hour, int minute) {
+  final ampm = hour >= 12 ? 'PM' : 'AM';
+  final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+  final displayMin = minute.toString().padLeft(2, '0');
+  return '${displayHour.toString().padLeft(2, '0')}:$displayMin $ampm';
+}
+
+String _formatDurationValue(String val) {
+  if (val.isEmpty || val == 'null' || val == 'NaN') return '-';
+
+  final trimmed = val.trim();
+
+  // 1. Try to parse as double (decimal hours, e.g. 8.5)
+  final doubleValue = double.tryParse(trimmed);
+  if (doubleValue != null) {
+    final hours = doubleValue.floor();
+    final minutes = ((doubleValue - hours) * 60).round();
+    if (hours == 0 && minutes == 0) return '0h 0m';
+    if (hours == 0) return '${minutes}m';
+    if (minutes == 0) return '${hours}h';
+    return '${hours}h ${minutes}m';
+  }
+
+  // 2. Try to parse as HH:mm or HH:mm:ss
+  try {
+    final parts = trimmed.split(':');
+    if (parts.length >= 2) {
+      final hours = int.tryParse(parts[0]);
+      final minutes = int.tryParse(parts[1]);
+      if (hours != null && minutes != null) {
+        if (hours == 0 && minutes == 0) return '0h 0m';
+        if (hours == 0) return '${minutes}m';
+        if (minutes == 0) return '${hours}h';
+        return '${hours}h ${minutes}m';
+      }
+    }
+  } catch (_) {}
+
+  // 3. If already contains 'h' or 'm' (like 8h 30m), return it
+  if (trimmed.contains('h') || trimmed.contains('m')) {
+    return trimmed;
+  }
+
+  return val;
+}
+
+String _formatDateValue(String val) {
+  if (val.isEmpty || val == 'null' || val == 'NaN') return '-';
+  try {
+    final cleanDate = val.trim().split('T').first;
+    final parsed = DateTime.tryParse(cleanDate);
+    if (parsed != null) {
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
+    }
+    return cleanDate;
+  } catch (_) {
+    return val;
+  }
+}
+
+List<Map<String, String>> _normalizeImportedRows(
+  List<Map<String, String>> parsedRows,
+) {
+  final List<Map<String, String>> normalized = [];
+
+  for (final row in parsedRows) {
+    final flat = <String, String>{};
+
+    String getVal(List<String> synonyms) {
+      for (final entry in row.entries) {
+        final key = entry.key.toLowerCase().replaceAll(
+          RegExp(r'[^a-z0-9]'),
+          '',
+        );
+        for (final syn in synonyms) {
+          final cleanSyn = syn.toLowerCase().replaceAll(
+            RegExp(r'[^a-z0-9]'),
+            '',
+          );
+          if (key == cleanSyn || key.contains(cleanSyn)) {
+            return entry.value;
+          }
+        }
+      }
+      return '';
+    }
+
+    String employeeVal = getVal([
+      'employee name',
+      'employee id',
+      'employee',
+      'name',
+      'driver_name',
+      'driver',
+    ]);
+    String payPeriodVal = getVal(['pay period', 'pay_period', 'period']);
+    String dateVal = getVal(['date', 'work date', 'work_date']);
+    String inVal = getVal([
+      'in time',
+      'in_time',
+      'time in',
+      'time_in',
+      'clock in',
+      'clock_in',
+      'in',
+    ]);
+    String outVal = getVal([
+      'out time',
+      'out_time',
+      'time out',
+      'time_out',
+      'clock out',
+      'clock_out',
+      'out',
+    ]);
+    String workVal = getVal([
+      'work time',
+      'work_time',
+      'work hours',
+      'work_hours',
+      'hours worked',
+      'hours_worked',
+      'duration',
+    ]);
+    String totalVal = getVal([
+      'daily total',
+      'daily_total',
+      'total hours',
+      'total_hours',
+      'total',
+    ]);
+    String noteVal = getVal([
+      'notes',
+      'note',
+      'remarks',
+      'remark',
+      'comments',
+      'comment',
+    ]);
+
+    String dayVal = getVal(['day', 'day of week', 'day_of_week']);
+    if ((dayVal.isEmpty || dayVal == 'NaN') && dateVal.isNotEmpty) {
+      try {
+        final date = DateTime.parse(dateVal);
+        dayVal = _getDayOfWeek(date);
+      } catch (_) {
+        dayVal = 'NaN';
+      }
+    }
+
+    flat['employee'] = employeeVal.isNotEmpty ? employeeVal : 'Unknown';
+    flat['pay_period'] = payPeriodVal.isNotEmpty ? payPeriodVal : 'NaN';
+    flat['day'] = dayVal.isNotEmpty ? dayVal : 'NaN';
+    flat['date'] = dateVal.isNotEmpty ? dateVal : 'NaN';
+    flat['in_time'] = inVal.isNotEmpty ? inVal : 'NaN';
+    flat['out_time'] = outVal.isNotEmpty ? outVal : 'NaN';
+    flat['work_time'] = workVal.isNotEmpty ? workVal : 'NaN';
+    flat['daily_total'] = totalVal.isNotEmpty ? totalVal : 'NaN';
+    flat['note'] = noteVal.isNotEmpty ? noteVal : 'NaN';
+
+    normalized.add(flat);
+  }
+
+  return normalized;
 }
 
 class _TimecardDataSource extends DataTableSource {
@@ -657,7 +901,7 @@ class _AdminTimecardReportState extends State<AdminTimecardReport> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Accepted formats: .xlsx and .csv. Legacy .xls files are auto-converted to .xlsx.',
+                        'Accepte formats: .xlsx and .csv. Legacy .xls files are auto-converted to .xlsx.',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.blue.shade600,
