@@ -23,88 +23,57 @@ String formatTableHeader(String value) {
   if (lowerVal == 'in_time' || lowerVal == 'in') return 'IN';
   if (lowerVal == 'out_time' || lowerVal == 'out') return 'OUT';
   if (lowerVal == 'work_time' || lowerVal == 'work_hours') return 'Work Time';
-  if (lowerVal == 'daily_total' || lowerVal == 'total_hours')
-    return 'Daily Total';
-  if (lowerVal == 'note' || lowerVal == 'notes' || lowerVal == 'remarks')
-    return 'Note';
+  if (lowerVal == 'daily_total' || lowerVal == 'total_hours') return 'Daily Total';
+  if (lowerVal == 'note' || lowerVal == 'notes' || lowerVal == 'remarks') return 'Note';
 
   final cleaned = value
       .replaceAll(RegExp(r'[_-]+'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
 
-  if (cleaned.isEmpty) {
-    return 'Column';
-  }
+  if (cleaned.isEmpty) return 'Column';
 
   final words = cleaned.split(' ');
-  final formatted = words
-      .map((word) {
-        if (word.isEmpty) {
-          return '';
-        }
-
-        final lowerWord = word.toLowerCase();
-        if (lowerWord == 'id' || lowerWord == 'ids') {
-          return 'ID';
-        }
-
-        if (word.length <= 2) {
-          return lowerWord.toUpperCase();
-        }
-
-        return lowerWord[0].toUpperCase() + lowerWord.substring(1);
-      })
-      .join(' ');
-
-  return formatted;
+  return words.map((word) {
+    if (word.isEmpty) return '';
+    final lowerWord = word.toLowerCase();
+    if (lowerWord == 'id' || lowerWord == 'ids') return 'ID';
+    if (word.length <= 2) return lowerWord.toUpperCase();
+    return lowerWord[0].toUpperCase() + lowerWord.substring(1);
+  }).join(' ');
 }
 
 String _formatTimeValue(String val) {
   if (val.isEmpty || val == 'null' || val == 'NaN') return '-';
-
-  // 1. Check if it is already in a clean AM/PM format, e.g., "08:30 AM" or "8:30 PM"
   final amPmRegex = RegExp(r'^\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)$');
-  if (amPmRegex.hasMatch(val.trim())) {
-    return val.trim().toUpperCase();
-  }
-
-  // 2. Try parsing as standard DateTime
+  if (amPmRegex.hasMatch(val.trim())) return val.trim().toUpperCase();
+  
   try {
     final parsed = DateTime.parse(val);
     return _formatDateTimeToTime(parsed);
   } catch (_) {}
-
-  // 3. Try parsing if it is "YYYY-MM-DD HH:mm:ss"
+  
   try {
     final parts = val.trim().split(' ');
     if (parts.length == 2) {
-      final timePart = parts[1];
-      final timeParts = timePart.split(':');
+      final timeParts = parts[1].split(':');
       if (timeParts.length >= 2) {
-        final hour = int.parse(timeParts[0]);
-        final minute = int.parse(timeParts[1]);
-        return _formatHoursMinutes(hour, minute);
+        return _formatHoursMinutes(int.parse(timeParts[0]), int.parse(timeParts[1]));
       }
     }
   } catch (_) {}
-
-  // 4. Try parsing "HH:mm:ss" or "HH:mm"
+  
   try {
     final parts = val.trim().split(':');
     if (parts.length >= 2) {
-      final hour = int.parse(parts[0]);
-      final minute = int.parse(parts[1]);
-      return _formatHoursMinutes(hour, minute);
+      return _formatHoursMinutes(int.parse(parts[0]), int.parse(parts[1]));
     }
   } catch (_) {}
-
+  
   return val;
 }
 
-String _formatDateTimeToTime(DateTime dt) {
-  return _formatHoursMinutes(dt.hour, dt.minute);
-}
+String _formatDateTimeToTime(DateTime dt) => _formatHoursMinutes(dt.hour, dt.minute);
 
 String _formatHoursMinutes(int hour, int minute) {
   final ampm = hour >= 12 ? 'PM' : 'AM';
@@ -115,11 +84,9 @@ String _formatHoursMinutes(int hour, int minute) {
 
 String _formatDurationValue(String val) {
   if (val.isEmpty || val == 'null' || val == 'NaN') return '-';
-
   final trimmed = val.trim();
-
-  // 1. Try to parse as double (decimal hours, e.g. 8.5)
   final doubleValue = double.tryParse(trimmed);
+  
   if (doubleValue != null) {
     final hours = doubleValue.floor();
     final minutes = ((doubleValue - hours) * 60).round();
@@ -128,8 +95,7 @@ String _formatDurationValue(String val) {
     if (minutes == 0) return '${hours}h';
     return '${hours}h ${minutes}m';
   }
-
-  // 2. Try to parse as HH:mm or HH:mm:ss
+  
   try {
     final parts = trimmed.split(':');
     if (parts.length >= 2) {
@@ -143,12 +109,8 @@ String _formatDurationValue(String val) {
       }
     }
   } catch (_) {}
-
-  // 3. If already contains 'h' or 'm' (like 8h 30m), return it
-  if (trimmed.contains('h') || trimmed.contains('m')) {
-    return trimmed;
-  }
-
+  
+  if (trimmed.contains('h') || trimmed.contains('m')) return trimmed;
   return val;
 }
 
@@ -158,132 +120,13 @@ String _formatDateValue(String val) {
     final cleanDate = val.trim().split('T').first;
     final parsed = DateTime.tryParse(cleanDate);
     if (parsed != null) {
-      const months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
     }
     return cleanDate;
   } catch (_) {
     return val;
   }
-}
-
-List<Map<String, String>> _normalizeImportedRows(
-  List<Map<String, String>> parsedRows,
-) {
-  final List<Map<String, String>> normalized = [];
-
-  for (final row in parsedRows) {
-    final flat = <String, String>{};
-
-    String getVal(List<String> synonyms) {
-      for (final entry in row.entries) {
-        final key = entry.key.toLowerCase().replaceAll(
-          RegExp(r'[^a-z0-9]'),
-          '',
-        );
-        for (final syn in synonyms) {
-          final cleanSyn = syn.toLowerCase().replaceAll(
-            RegExp(r'[^a-z0-9]'),
-            '',
-          );
-          if (key == cleanSyn || key.contains(cleanSyn)) {
-            return entry.value;
-          }
-        }
-      }
-      return '';
-    }
-
-    String employeeVal = getVal([
-      'employee name',
-      'employee id',
-      'employee',
-      'name',
-      'driver_name',
-      'driver',
-    ]);
-    String payPeriodVal = getVal(['pay period', 'pay_period', 'period']);
-    String dateVal = getVal(['date', 'work date', 'work_date']);
-    String inVal = getVal([
-      'in time',
-      'in_time',
-      'time in',
-      'time_in',
-      'clock in',
-      'clock_in',
-      'in',
-    ]);
-    String outVal = getVal([
-      'out time',
-      'out_time',
-      'time out',
-      'time_out',
-      'clock out',
-      'clock_out',
-      'out',
-    ]);
-    String workVal = getVal([
-      'work time',
-      'work_time',
-      'work hours',
-      'work_hours',
-      'hours worked',
-      'hours_worked',
-      'duration',
-    ]);
-    String totalVal = getVal([
-      'daily total',
-      'daily_total',
-      'total hours',
-      'total_hours',
-      'total',
-    ]);
-    String noteVal = getVal([
-      'notes',
-      'note',
-      'remarks',
-      'remark',
-      'comments',
-      'comment',
-    ]);
-
-    String dayVal = getVal(['day', 'day of week', 'day_of_week']);
-    if ((dayVal.isEmpty || dayVal == 'NaN') && dateVal.isNotEmpty) {
-      try {
-        final date = DateTime.parse(dateVal);
-        dayVal = _getDayOfWeek(date);
-      } catch (_) {
-        dayVal = 'NaN';
-      }
-    }
-
-    flat['employee'] = employeeVal.isNotEmpty ? employeeVal : 'Unknown';
-    flat['pay_period'] = payPeriodVal.isNotEmpty ? payPeriodVal : 'NaN';
-    flat['day'] = dayVal.isNotEmpty ? dayVal : 'NaN';
-    flat['date'] = dateVal.isNotEmpty ? dateVal : 'NaN';
-    flat['in_time'] = inVal.isNotEmpty ? inVal : 'NaN';
-    flat['out_time'] = outVal.isNotEmpty ? outVal : 'NaN';
-    flat['work_time'] = workVal.isNotEmpty ? workVal : 'NaN';
-    flat['daily_total'] = totalVal.isNotEmpty ? totalVal : 'NaN';
-    flat['note'] = noteVal.isNotEmpty ? noteVal : 'NaN';
-
-    normalized.add(flat);
-  }
-
-  return normalized;
 }
 
 class _TimecardDataSource extends DataTableSource {
@@ -294,35 +137,33 @@ class _TimecardDataSource extends DataTableSource {
 
   @override
   DataRow? getRow(int index) {
-    if (index >= rows.length) {
-      return null;
-    }
+    if (index >= rows.length) return null;
 
     final row = rows[index];
     return DataRow(
-      cells: columns
-          .map(
-            (column) => DataCell(
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 100, maxWidth: 180),
-                child: Text(
-                  row[column] ?? '',
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
-                ),
-              ),
-            ),
-          )
-          .toList(),
+      cells: columns.map((column) {
+        String rawValue = row[column] ?? '';
+        String displayValue = rawValue;
+
+        if (column == 'in_time' || column == 'out_time') displayValue = _formatTimeValue(rawValue);
+        else if (column == 'work_time' || column == 'daily_total') displayValue = _formatDurationValue(rawValue);
+        else if (column == 'date') displayValue = _formatDateValue(rawValue);
+        else if (column == 'day') displayValue = displayValue.toUpperCase();
+
+        return DataCell(
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 80, maxWidth: 180),
+            child: Text(displayValue, overflow: TextOverflow.ellipsis, maxLines: 2),
+          ),
+        );
+      }).toList(),
     );
   }
 
   @override
   bool get isRowCountApproximate => false;
-
   @override
   int get rowCount => rows.length;
-
   @override
   int get selectedRowCount => 0;
 }
@@ -339,176 +180,99 @@ class _AdminTimecardReportState extends State<AdminTimecardReport> {
   bool _isLoadingSystemData = false;
   final int _rowsPerPage = 10;
   String _sourceFileName = 'No file selected';
+
+  final List<String> _masterColumns = [
+    'employee', 'pay_period', 'day', 'date', 'in_time', 'out_time', 'work_time', 'daily_total', 'note',
+  ];
+  
   List<String> _columns = [];
   List<Map<String, String>> _rows = [];
 
   @override
   void initState() {
     super.initState();
+    _columns = _masterColumns;
     _loadTimecardData();
   }
 
   Future<void> _loadTimecardData() async {
     setState(() => _isLoadingSystemData = true);
-
     try {
       final response = await http.get(Uri.parse('$backendUrl/admin/timecards'));
-
-      if (response.statusCode != 200) {
-        if (!mounted) return;
-        setState(() {
-          _sourceFileName = 'No timecard data available';
-          _columns = [
-            'employee',
-            'pay_period',
-            'day',
-            'date',
-            'in_time',
-            'out_time',
-            'work_time',
-            'daily_total',
-            'note',
-          ];
-          _rows = [];
-        });
-        return;
-      }
-
+      if (response.statusCode != 200) throw Exception();
+      
       final decoded = jsonDecode(response.body);
-      final rawList = decoded is Map
-          ? decoded['data'] ?? decoded['timecards'] ?? []
-          : decoded ?? [];
-
+      final rawList = decoded is Map ? decoded['data'] ?? decoded['timecards'] ?? [] : decoded ?? [];
       final normalized = _normalizeTimecardRows(rawList);
-      final columns = [
-        'employee',
-        'pay_period',
-        'day',
-        'date',
-        'in_time',
-        'out_time',
-        'work_time',
-        'daily_total',
-        'note',
-      ];
 
       if (!mounted) return;
-
       setState(() {
         _sourceFileName = 'System timecard records';
-        _columns = columns;
+        _columns = _masterColumns;
         _rows = normalized;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _sourceFileName = 'System data unavailable';
-        _columns = [
-          'employee',
-          'pay_period',
-          'day',
-          'date',
-          'in_time',
-          'out_time',
-          'work_time',
-          'daily_total',
-          'note',
-        ];
+        _columns = _masterColumns;
         _rows = [];
       });
     } finally {
-      if (mounted) {
-        setState(() => _isLoadingSystemData = false);
-      }
+      if (mounted) setState(() => _isLoadingSystemData = false);
     }
   }
 
   List<Map<String, String>> _normalizeTimecardRows(List<dynamic> rawList) {
     final normalized = <Map<String, String>>[];
-
     for (final item in rawList) {
-      if (item is! Map) {
-        continue;
-      }
-
-      final flat = <String, String>{};
+      if (item is! Map) continue;
       final map = item as Map<String, dynamic>;
 
-      // Extract employee info
       String employeeId = '';
       String employeeName = '';
       if (map['user_account'] is Map) {
         final userAccount = map['user_account'] as Map<String, dynamic>;
-        employeeId = (userAccount['id'] ?? userAccount['user_id'] ?? '')
-            .toString();
-        employeeName =
-            (userAccount['full_name'] ?? userAccount['username'] ?? '')
-                .toString();
+        employeeId = (userAccount['id'] ?? userAccount['user_id'] ?? '').toString();
+        employeeName = (userAccount['full_name'] ?? userAccount['username'] ?? '').toString();
       } else {
         employeeId = (map['employee_id'] ?? '').toString();
         employeeName = (map['employee_name'] ?? '').toString();
       }
 
-      // Extract dates and times
       String dateStr = (map['date'] ?? map['work_date'] ?? '').toString();
       String inTime = (map['in_time'] ?? map['time_in'] ?? '').toString();
       String outTime = (map['out_time'] ?? map['time_out'] ?? '').toString();
-      String workTime = (map['work_time'] ?? map['work_hours'] ?? '')
-          .toString();
-      String dailyTotal = (map['daily_total'] ?? map['total_hours'] ?? '')
-          .toString();
+      String workTime = (map['work_time'] ?? map['work_hours'] ?? '').toString();
+      String dailyTotal = (map['daily_total'] ?? map['total_hours'] ?? '').toString();
       String payPeriod = (map['pay_period'] ?? '').toString();
       String note = (map['note'] ?? map['notes'] ?? '').toString();
-
-      // Extract day of week from date
       String dayOfWeek = 'NaN';
+
       if (dateStr.isNotEmpty && dateStr != 'null') {
         try {
           final date = DateTime.parse(dateStr);
           dayOfWeek = _getDayOfWeek(date);
-        } catch (_) {
-          dayOfWeek = 'NaN';
-        }
+        } catch (_) { dayOfWeek = 'NaN'; }
       }
 
-      flat['employee'] = employeeName.isNotEmpty && employeeId.isNotEmpty
-          ? '$employeeName ($employeeId)'
-          : employeeName.isNotEmpty
-          ? employeeName
-          : 'Unknown';
-      flat['pay_period'] = payPeriod.isNotEmpty && payPeriod != 'null'
-          ? payPeriod
-          : 'NaN';
-      flat['day'] = dayOfWeek;
-      flat['date'] = dateStr.isNotEmpty && dateStr != 'null' ? dateStr : 'NaN';
-      flat['in_time'] = inTime.isNotEmpty && inTime != 'null' ? inTime : 'NaN';
-      flat['out_time'] = outTime.isNotEmpty && outTime != 'null'
-          ? outTime
-          : 'NaN';
-      flat['work_time'] = workTime.isNotEmpty && workTime != 'null'
-          ? workTime
-          : 'NaN';
-      flat['daily_total'] = dailyTotal.isNotEmpty && dailyTotal != 'null'
-          ? dailyTotal
-          : 'NaN';
-      flat['note'] = note.isNotEmpty && note != 'null' ? note : 'NaN';
-
-      if (flat.isNotEmpty) {
-        normalized.add(flat);
-      }
+      normalized.add({
+        'employee': employeeName.isNotEmpty && employeeId.isNotEmpty ? '$employeeName ($employeeId)' : (employeeName.isNotEmpty ? employeeName : 'Unknown'),
+        'pay_period': payPeriod.isNotEmpty && payPeriod != 'null' ? payPeriod : 'NaN',
+        'day': dayOfWeek,
+        'date': dateStr.isNotEmpty && dateStr != 'null' ? dateStr : 'NaN',
+        'in_time': inTime.isNotEmpty && inTime != 'null' ? inTime : 'NaN',
+        'out_time': outTime.isNotEmpty && outTime != 'null' ? outTime : 'NaN',
+        'work_time': workTime.isNotEmpty && workTime != 'null' ? workTime : 'NaN',
+        'daily_total': dailyTotal.isNotEmpty && dailyTotal != 'null' ? dailyTotal : 'NaN',
+        'note': note.isNotEmpty && note != 'null' ? note : 'NaN',
+      });
     }
-
     return normalized;
-  }
-
-  String _getDayOfWeek(DateTime date) {
-    const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-    return days[date.weekday - 1];
   }
 
   Future<void> _pickExcelFile() async {
     setState(() => _isImporting = true);
-
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -518,348 +282,243 @@ class _AdminTimecardReportState extends State<AdminTimecardReport> {
 
       if (result.isEmpty) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No spreadsheet file was selected.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No file was selected.')));
         return;
       }
 
       final file = result.first;
       final lowerName = file.name.toLowerCase();
       final fileBytes = await file.readAsBytes();
-
+      List<List<dynamic>> rawRows = [];
+      
       if (lowerName.endsWith('.xls')) {
-        final convertedRows = await _convertLegacyXlsDirectly(
-          fileBytes,
-          file.name,
-        );
-
+        rawRows = await _convertLegacyXlsDirectly(fileBytes, file.name);
         if (!mounted) return;
-
-        if (convertedRows.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'The legacy .xls file could not be read or converted. Please save it as .xlsx or .csv and try again.',
-              ),
-            ),
-          );
+        if (rawRows.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not read .xls file. Please save as .xlsx.')));
           return;
         }
-
-        setState(() {
-          _sourceFileName = '${file.name} (converted in-app)';
-          _columns = [
-            'employee',
-            'pay_period',
-            'day',
-            'date',
-            'in_time',
-            'out_time',
-            'work_time',
-            'daily_total',
-            'note',
-          ];
-          _rows = convertedRows;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Legacy .xls was converted and processed directly. ${convertedRows.length} rows loaded.',
-            ),
-          ),
-        );
-        return;
+      } else {
+        rawRows = _extractRawRows(fileBytes, lowerName.endsWith('.csv'));
       }
 
-      final parsedRows = _parseSpreadsheet(file.name, fileBytes);
+      final parsedRows = _applySmartHeuristics(rawRows);
 
       if (!mounted) return;
-
       if (parsedRows.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('The selected file does not contain readable rows.'),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No valid timecard records found in this file.')));
         return;
       }
 
       setState(() {
         _sourceFileName = file.name;
-        _columns = [
-          'employee',
-          'pay_period',
-          'day',
-          'date',
-          'in_time',
-          'out_time',
-          'work_time',
-          'daily_total',
-          'note',
-        ];
+        _columns = _masterColumns;
         _rows = parsedRows;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Imported ${parsedRows.length} rows from ${file.name}'),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully mapped ${parsedRows.length} biometric rows.')));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to read the spreadsheet: $error')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $error')));
     } finally {
-      if (mounted) {
-        setState(() => _isImporting = false);
-      }
+      if (mounted) setState(() => _isImporting = false);
     }
   }
 
-  Future<List<Map<String, String>>> _convertLegacyXlsDirectly(
-    Uint8List fileBytes,
-    String fileName,
-  ) async {
-    try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$backendUrl/admin/timecards/upload-legacy-xls'),
-      );
-      request.files.add(
-        http.MultipartFile.fromBytes('file', fileBytes, filename: fileName),
-      );
+  List<List<dynamic>> _extractRawRows(Uint8List bytes, bool isCsv) {
+    List<List<dynamic>> rawRows = [];
+    if (isCsv) {
+      final content = utf8.decode(bytes);
+      final lines = const LineSplitter().convert(content);
+      for (var line in lines) {
+        List<String> values = [];
+        StringBuffer buffer = StringBuffer();
+        bool inQuotes = false;
+        for (int i = 0; i < line.length; i++) {
+          if (line[i] == '"') {
+            if (inQuotes && i + 1 < line.length && line[i + 1] == '"') { buffer.write('"'); i++; } 
+            else { inQuotes = !inQuotes; }
+          } else if (line[i] == ',' && !inQuotes) {
+            values.add(buffer.toString()); buffer.clear();
+          } else { buffer.write(line[i]); }
+        }
+        values.add(buffer.toString());
+        rawRows.add(values);
+      }
+    } else {
+      final workbook = excel.Excel.decodeBytes(bytes);
+      if (workbook.tables.isNotEmpty) {
+        final sheet = workbook.tables[workbook.tables.keys.first]!;
+        rawRows = sheet.rows;
+      }
+    }
+    return rawRows;
+  }
 
+  Future<List<List<dynamic>>> _convertLegacyXlsDirectly(Uint8List fileBytes, String fileName) async {
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse('$backendUrl/admin/timecards/upload-legacy-xls'));
+      request.files.add(http.MultipartFile.fromBytes('file', fileBytes, filename: fileName));
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
-
-      if (response.statusCode != 200) {
-        throw Exception('Backend conversion failed (${response.statusCode})');
-      }
-
+      if (response.statusCode != 200) return [];
+      
       final decoded = jsonDecode(response.body);
       final rows = decoded['rows'] as List<dynamic>? ?? const [];
-
-      return rows.map<Map<String, String>>((row) {
+      return rows.map<List<dynamic>>((row) {
         final map = row as Map<String, dynamic>;
-        return map.map(
-          (key, value) => MapEntry(key.toString(), _normalizeCellValue(value)),
-        );
+        return map.values.toList();
       }).toList();
-    } catch (_) {
-      return [];
-    }
+    } catch (_) { return []; }
   }
 
-  List<Map<String, String>> _parseSpreadsheet(
-    String fileName,
-    Uint8List bytes,
-  ) {
-    final lowerName = fileName.toLowerCase();
+  List<Map<String, String>> _applySmartHeuristics(List<List<dynamic>> rawRows) {
+    String globalEmployee = 'Unknown';
+    String globalPayPeriod = 'NaN';
 
-    if (lowerName.endsWith('.csv')) {
-      return _parseCsv(bytes);
-    }
+    for (var row in rawRows) {
+      for (int c = 0; c < row.length; c++) {
+        String val = _normalizeCellValue(row[c]).trim();
+        String lowerVal = val.toLowerCase();
 
-    if (lowerName.endsWith('.xlsx')) {
-      return _parseExcel(bytes);
-    }
-
-    if (lowerName.endsWith('.xls')) {
-      return [];
-    }
-
-    return [];
-  }
-
-  List<Map<String, String>> _parseExcel(Uint8List bytes) {
-    final workbook = excel.Excel.decodeBytes(bytes);
-    if (workbook.tables.isEmpty) {
-      return [];
-    }
-
-    final firstSheetName = workbook.tables.keys.first;
-    final sheet = workbook.tables[firstSheetName];
-    if (sheet == null || sheet.rows.isEmpty) {
-      return [];
-    }
-
-    final List<String> headers = [];
-    for (int i = 0; i < sheet.rows.first.length; i++) {
-      final value = _normalizeCellValue(sheet.rows.first[i]);
-      headers.add(value.isEmpty ? 'Column ${i + 1}' : value);
-    }
-
-    final parsedRows = <Map<String, String>>[];
-    for (final row in sheet.rows.skip(1)) {
-      final record = <String, String>{};
-      for (int i = 0; i < headers.length; i++) {
-        final value = i < row.length ? _normalizeCellValue(row[i]) : '';
-        record[headers[i]] = value;
-      }
-
-      if (record.values.any((value) => value.trim().isNotEmpty)) {
-        parsedRows.add(record);
-      }
-    }
-
-    return parsedRows;
-  }
-
-  List<Map<String, String>> _parseCsv(Uint8List bytes) {
-    final content = utf8.decode(bytes);
-    final lines = const LineSplitter().convert(content);
-    if (lines.isEmpty) return [];
-
-    final headers = _splitCsvLine(
-      lines.first,
-    ).map((value) => value.trim()).toList();
-    final parsedRows = <Map<String, String>>[];
-
-    for (int i = 1; i < lines.length; i++) {
-      final values = _splitCsvLine(lines[i]);
-      final record = <String, String>{};
-
-      for (int index = 0; index < headers.length; index++) {
-        final header = headers[index].isNotEmpty
-            ? headers[index]
-            : 'Column ${index + 1}';
-        final value = index < values.length ? values[index].trim() : '';
-        record[header] = value;
-      }
-
-      if (record.values.any((value) => value.trim().isNotEmpty)) {
-        parsedRows.add(record);
-      }
-    }
-
-    return parsedRows;
-  }
-
-  List<String> _splitCsvLine(String line) {
-    final values = <String>[];
-    final buffer = StringBuffer();
-    bool inQuotes = false;
-
-    for (int i = 0; i < line.length; i++) {
-      final character = line[i];
-
-      if (character == '"') {
-        if (inQuotes && i + 1 < line.length && line[i + 1] == '"') {
-          buffer.write('"');
-          i++;
-        } else {
-          inQuotes = !inQuotes;
+        if (lowerVal == 'employee' || lowerVal == 'name') {
+          if (c + 1 < row.length && _normalizeCellValue(row[c+1]).isNotEmpty) globalEmployee = _normalizeCellValue(row[c+1]);
         }
-      } else if (character == ',' && !inQuotes) {
-        values.add(buffer.toString());
-        buffer.clear();
-      } else {
-        buffer.write(character);
+        if (lowerVal.contains('pay period')) {
+          if (c + 1 < row.length && _normalizeCellValue(row[c+1]).isNotEmpty) globalPayPeriod = _normalizeCellValue(row[c+1]);
+        }
+        if (RegExp(r'\d{2,4}[-/]\d{1,2}[-/]\d{1,4}.*?\d{2,4}[-/]\d{1,2}[-/]\d{1,4}').hasMatch(val)) {
+          globalPayPeriod = val;
+        }
       }
     }
 
-    values.add(buffer.toString());
-    return values;
+    final parsedRows = <Map<String, String>>[];
+
+    for (var row in rawRows) {
+      String date = '';
+      String day = '';
+      List<String> times = [];
+      List<String> texts = [];
+
+      for (var cell in row) {
+        String val = _normalizeCellValue(cell).trim();
+        if (val.isEmpty) continue;
+
+        bool isIsoDate = val.contains('T') && RegExp(r'^\d{4}-\d{2}-\d{2}T').hasMatch(val);
+        if (isIsoDate) {
+          final datePart = val.split('T')[0];
+          final timePart = val.split('T').length > 1 ? val.split('T')[1].substring(0, 5) : '';
+          
+          if (datePart == '1899-12-30' || datePart == '1899-12-31') {
+            times.add(timePart); continue;
+          } else if (timePart.isNotEmpty && timePart != '00:00') {
+            date = datePart; times.add(timePart); continue;
+          } else {
+            date = datePart; continue;
+          }
+        }
+
+        if (RegExp(r'^\d{1,4}[-/]\d{1,2}[-/]\d{1,4}$').hasMatch(val)) {
+          date = val; continue;
+        }
+
+        final upperVal = val.toUpperCase();
+        if (['SUN','MON','TUE','WED','THU','FRI','SAT'].contains(upperVal)) {
+          day = upperVal; continue;
+        }
+
+        if (RegExp(r'^\d{1,2}:\d{2}(:\d{2})?$').hasMatch(val)) {
+          times.add(val.substring(0, 5)); continue; 
+        }
+
+        texts.add(val);
+      }
+
+      if (date.isNotEmpty || times.length >= 2) {
+        String inTime = times.isNotEmpty ? times[0] : 'NaN';
+        String outTime = times.length > 1 ? times[1] : 'NaN';
+        String workTime = times.length > 2 ? times[2] : 'NaN';
+        String dailyTotal = times.length > 3 ? times[3] : 'NaN';
+
+        texts.removeWhere((t) => ['IN', 'OUT', 'Work Time', 'Daily Total', 'Note', 'Date', 'Day', 'Employee', 'Pay Period', 'File', 'Timecard Report', 'Column'].contains(t) || t == globalPayPeriod || t == globalEmployee);
+
+        parsedRows.add({
+          'employee': globalEmployee,
+          'pay_period': globalPayPeriod,
+          'day': day.isNotEmpty ? day : 'NaN',
+          'date': date.isNotEmpty ? date : 'NaN',
+          'in_time': inTime,
+          'out_time': outTime,
+          'work_time': workTime,
+          'daily_total': dailyTotal,
+          'note': texts.isNotEmpty ? texts.join(' | ') : 'NaN',
+        });
+      }
+    }
+    return parsedRows;
   }
 
   String _normalizeCellValue(dynamic value) {
     if (value == null) return '';
-    if (value is DateTime) {
-      return value.toIso8601String();
-    }
-    if (value is num) {
-      return value.toString();
-    }
-    if (value is Map) {
-      return value.entries
-          .map((entry) => '${entry.key}: ${_normalizeCellValue(entry.value)}')
-          .join(', ');
-    }
-    if (value is Iterable) {
-      return value.map((item) => _normalizeCellValue(item)).join(', ');
-    }
+    if (value is DateTime) return value.toIso8601String();
+    if (value is num) return value.toString();
     return value.toString().trim();
   }
 
   Future<void> _exportCurrentReport() async {
-    if (_columns.isEmpty || _rows.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No timecard data to export.')),
-      );
+    if (_rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No data to export.')));
       return;
     }
 
     try {
       final xlsx = _convertRowsToXlsx(_rows);
-      final fileName =
-          'Timecard_Report_${DateTime.now().toIso8601String().split('T').first}.xlsx';
+      final fileName = 'Timecard_Report_${DateTime.now().toIso8601String().split('T').first}.xlsx';
       await downloadFileBytes(fileName: fileName, bytes: xlsx);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Exported $fileName with ${_rows.length} records'),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exported $fileName')));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Export failed: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export failed: $error')));
     }
   }
 
   Uint8List _convertRowsToXlsx(List<Map<String, String>> rows) {
     final workbook = excel.Excel.createExcel();
     final sheet = workbook['Sheet1'];
-    if (sheet == null) {
-      return Uint8List(0);
-    }
+    if (sheet == null) return Uint8List(0);
 
-    final columns = _columns.isNotEmpty
-        ? _columns
-        : [
-            'employee_id',
-            'employee_name',
-            'date',
-            'in_time',
-            'out_time',
-            'work_hours',
-            'daily_total',
-            'notes',
-          ];
-    final headerCells = columns
-        .map((column) => excel.TextCellValue(formatTableHeader(column)))
-        .toList();
+    final headerCells = _masterColumns.map((column) => excel.TextCellValue(formatTableHeader(column))).toList();
     sheet.insertRowIterables(headerCells, 0);
 
     for (int rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       final row = rows[rowIndex];
-      final values = columns
-          .map((column) => excel.TextCellValue(row[column] ?? ''))
-          .toList();
+      final values = _masterColumns.map((column) {
+        String rawValue = row[column] ?? '';
+        String displayValue = rawValue;
+
+        if (column == 'in_time' || column == 'out_time') displayValue = _formatTimeValue(rawValue);
+        else if (column == 'work_time' || column == 'daily_total') displayValue = _formatDurationValue(rawValue);
+        else if (column == 'date') displayValue = _formatDateValue(rawValue);
+        else if (column == 'day') displayValue = displayValue.toUpperCase();
+
+        return excel.TextCellValue(displayValue);
+      }).toList();
+      
       sheet.insertRowIterables(values, rowIndex + 1);
     }
-
+    
     final bytes = workbook.save();
-    if (bytes == null) {
-      return Uint8List(0);
-    }
-
-    return Uint8List.fromList(bytes);
+    return bytes != null ? Uint8List.fromList(bytes) : Uint8List(0);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    final List<DataColumn> tableColumns = _columns
-        .map((column) => DataColumn(label: Text(formatTableHeader(column))))
-        .toList();
+    final List<DataColumn> tableColumns = _columns.map((col) => DataColumn(label: Text(formatTableHeader(col)))).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -879,55 +538,23 @@ class _AdminTimecardReportState extends State<AdminTimecardReport> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Timecard Report',
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          color: isDark
-                              ? Colors.white
-                              : const Color(0xFF0F172A),
-                        ),
-                      ),
+                      Text('Timecard Report', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                       const SizedBox(height: 6),
-                      Text(
-                        'View, import, and export employee timecard records for payroll and analytics.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : const Color(0xFF64748B),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Accepte formats: .xlsx and .csv. Legacy .xls files are auto-converted to .xlsx.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue.shade600,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      Text('View, import, and export employee timecard records for payroll and analytics.', style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B))),
                     ],
                   ),
                 ),
                 const SizedBox(width: 16),
                 FilledButton.icon(
                   onPressed: _isImporting ? null : _pickExcelFile,
-                  icon: _isImporting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.upload_file),
+                  icon: _isImporting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload_file),
                   label: const Text('Import Timecard'),
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton.icon(
                   onPressed: _rows.isEmpty ? null : _exportCurrentReport,
                   icon: const Icon(Icons.download),
-                  label: const Text('Export CSV'),
+                  label: const Text('Export Analytics XLS'),
                 ),
               ],
             ),
@@ -937,39 +564,17 @@ class _AdminTimecardReportState extends State<AdminTimecardReport> {
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF111827) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                ),
+                border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
               ),
               child: Row(
                 children: [
                   Icon(Icons.description_outlined, color: Colors.blue.shade500),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _sourceFileName,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                  Expanded(child: Text(_sourceFileName, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.w600))),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      '${_rows.length} rows',
-                      style: const TextStyle(
-                        color: Color(0xFF2563EB),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.blue.withOpacity(0.12), borderRadius: BorderRadius.circular(999)),
+                    child: Text('${_rows.length} rows', style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -977,79 +582,20 @@ class _AdminTimecardReportState extends State<AdminTimecardReport> {
             const SizedBox(height: 20),
             if (_isLoadingSystemData)
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(30),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF111827) : Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                  ),
-                ),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    SizedBox(width: 12),
-                    Text('Loading system timecard data...'),
-                  ],
-                ),
+                width: double.infinity, padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(color: isDark ? const Color(0xFF111827) : Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 12), Text('Loading system timecard data...')]),
               )
             else if (_rows.isEmpty)
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(30),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF111827) : Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.table_chart_outlined,
-                      size: 58,
-                      color: Colors.grey.shade500,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No timecard data loaded yet',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Import timecard data from Excel or CSV files, or system timecard records will appear here.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : const Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
+                width: double.infinity, padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(color: isDark ? const Color(0xFF111827) : Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.table_chart_outlined, size: 58, color: Colors.grey.shade500), const SizedBox(height: 16), Text('No timecard data loaded yet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))), const SizedBox(height: 8), Text('Import timecard data from Excel or CSV files, or system timecard records will appear here.', textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B)))]),
               )
             else
               Container(
                 width: double.infinity,
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF111827) : Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                  ),
-                ),
+                decoration: BoxDecoration(color: isDark ? const Color(0xFF111827) : Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200)),
                 child: SizedBox(
                   width: double.infinity,
                   child: PaginatedDataTable(
@@ -1060,11 +606,7 @@ class _AdminTimecardReportState extends State<AdminTimecardReport> {
                     onPageChanged: (_) {},
                     columnSpacing: 24,
                     horizontalMargin: 16,
-                    headingRowColor: WidgetStatePropertyAll(
-                      isDark
-                          ? const Color(0xFF1E293B)
-                          : const Color(0xFFF8FAFC),
-                    ),
+                    headingRowColor: WidgetStatePropertyAll(isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
                     dataRowMinHeight: 52,
                     dataRowMaxHeight: 90,
                   ),
