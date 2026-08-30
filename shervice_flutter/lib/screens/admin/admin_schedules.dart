@@ -48,7 +48,6 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     });
 
     final String url = '$backendUrl/trips';
-    debugPrint("🔍 Fetching from: $url");
 
     try {
       final response = await http
@@ -67,9 +66,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
           _allSchedules = [];
         }
       } else {
-        debugPrint(
-          "⚠️ Server returned non-200 status code: ${response.statusCode}",
-        );
+        debugPrint("Schedule request failed: ${response.statusCode}");
         _allSchedules = [];
       }
     } catch (e) {
@@ -192,7 +189,9 @@ class _AdminSchedulesState extends State<AdminSchedules> {
 
   Color _getStatusColor(String status) {
     final s = status.toLowerCase();
-    if (s.contains('ongoing') || s.contains('progress') || s.contains('active')) {
+    if (s.contains('ongoing') ||
+        s.contains('progress') ||
+        s.contains('active')) {
       return const Color(0xFFF59E0B);
     } // Amber
     if (s.contains('completed')) return const Color(0xFF10B981); // Green
@@ -876,14 +875,18 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                           color: isSelected
                               ? const Color(0xFF3B82F6)
                               : (hasTrips
-                                  ? (isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF))
-                                  : (isDark ? const Color(0xFF1E293B) : Colors.white)),
+                                    ? (isDark
+                                          ? Colors.blue.withOpacity(0.2)
+                                          : const Color(0xFFEFF6FF))
+                                    : (isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white)),
                           border: Border.all(
                             color: isToday
                                 ? const Color(0xFFF59E0B)
                                 : (isSelected
-                                    ? const Color(0xFF3B82F6)
-                                    : borderColor),
+                                      ? const Color(0xFF3B82F6)
+                                      : borderColor),
                             width: isToday ? 1.5 : (isSelected ? 1.5 : 1),
                           ),
                           borderRadius: BorderRadius.circular(6),
@@ -899,10 +902,10 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                               color: isSelected
                                   ? Colors.white
                                   : (hasTrips
-                                      ? const Color(0xFF3B82F6)
-                                      : (isDark
-                                          ? Colors.grey.shade300
-                                          : const Color(0xFF0F172A))),
+                                        ? const Color(0xFF3B82F6)
+                                        : (isDark
+                                              ? Colors.grey.shade300
+                                              : const Color(0xFF0F172A))),
                             ),
                           ),
                         ),
@@ -922,15 +925,21 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   Widget _buildTripListView(bool isDark) {
     // 5. Inject dummy list data during `_isLoading` so Skeletonizer can render the structure
     final List<dynamic> displayedTrips = _isLoading
-        ? List.generate(4, (index) => {
-            'route_name': 'Skeleton Route Data Masked',
-            'trip_status': 'Scheduled',
-            'schedule_date': '2026-08-28',
-            'departure_time': '08:00 AM',
-            'user_account': {'full_name': 'Skeleton Driver Name'},
-            'vehicle': {'plate_number': 'SKL 123', 'bus_type': 'Skeleton Type'},
-            'oic_profile': {'company_name': 'Skeleton Company Name'}
-          })
+        ? List.generate(
+            4,
+            (index) => {
+              'route_name': 'Skeleton Route Data Masked',
+              'trip_status': 'Scheduled',
+              'schedule_date': '2026-08-28',
+              'departure_time': '08:00 AM',
+              'user_account': {'full_name': 'Skeleton Driver Name'},
+              'vehicle': {
+                'plate_number': 'SKL 123',
+                'bus_type': 'Skeleton Type',
+              },
+              'oic_profile': {'company_name': 'Skeleton Company Name'},
+            },
+          )
         : _getDisplayedTrips();
 
     final headerBg = isDark ? const Color(0xFF1E293B) : Colors.white;
@@ -992,7 +1001,9 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.blue.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                    color: isDark
+                        ? Colors.blue.withOpacity(0.2)
+                        : const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -1009,7 +1020,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               ],
             ),
           ),
-          
+
           // Show Empty State only if we are NOT loading and the list is genuinely empty
           !_isLoading && displayedTrips.isEmpty
               ? Padding(

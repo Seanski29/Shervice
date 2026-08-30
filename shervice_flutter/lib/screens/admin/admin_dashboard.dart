@@ -14,7 +14,7 @@ class AdminDashboard extends StatelessWidget {
       headerWidget: Text(
         'Admin Dashboard',
         style: TextStyle(
-          fontSize: 24,
+          fontSize: 28,
           fontWeight: FontWeight.bold,
           // Dynamic text color
           color: isDark ? Colors.white : const Color(0xFF0F172A),

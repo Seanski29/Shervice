@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'driver_profile_model.dart';
-import 'driver_evaluation_view.dart';
 
 class DriverFormDialog extends StatefulWidget {
   final DriverProfileModel? driver;
@@ -328,6 +327,31 @@ class _DriverFormDialogState extends State<DriverFormDialog> {
                             v == null || v.isEmpty ? 'Required' : null,
                       ),
                       const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        value: _currentStatus,
+                        decoration: _fieldStyle(
+                          context: context,
+                          label: 'Employment Status',
+                          icon: Icons.work_outline,
+                        ),
+                        dropdownColor: Theme.of(context).cardColor,
+                        style: TextStyle(color: inputTextColor, fontSize: 13),
+                        items: ['Active', 'On Leave'].map((String status) {
+                          return DropdownMenuItem<String>(
+                            value: status,
+                            child: Text(status),
+                          );
+                        }).toList(),
+                        onChanged: !_isWritingUnlocked
+                            ? null
+                            : (val) {
+                                if (val != null) {
+                                  setState(() => _currentStatus = val);
+                                }
+                              },
+                      ),
+                      const SizedBox(height: 14),
+
                       TextFormField(
                         controller: _birthdayController,
                         readOnly: true,

@@ -7,7 +7,6 @@ import '../../screens/admin/admin_vehicles.dart';
 import '../../screens/admin/admin_users.dart';
 import '../../screens/admin/admin_settings.dart';
 import '../../widgets/shared/shared_analytics_hub.dart';
-import '../../screens/admin/admin_feedbacks.dart';
 import '../../login/login.dart';
 import '../../widgets/shared/notification_bell.dart';
 import '../../widgets/shared/shervice_floating_stack.dart';
@@ -55,7 +54,6 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   Future<void> _runSilentFleetMlSweep() async {
     try {
       await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
-      debugPrint("🤖 Background Fleet ML Sweep Completed.");
     } catch (e) {
       debugPrint("ML Sweep skipped or failed: $e");
     }
@@ -167,10 +165,22 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
               padding: EdgeInsets.zero,
               children: [
                 _buildNavItem(0, 'Dashboard', Icons.dashboard_outlined),
-                _buildNavItem(1, 'Schedule Management', Icons.calendar_month_outlined),
+                _buildNavItem(
+                  1,
+                  'Schedule Management',
+                  Icons.calendar_month_outlined,
+                ),
                 _buildNavItem(2, 'Driver Management', Icons.people_outline),
-                _buildNavItem(3, 'Vehicle Management', Icons.directions_car_outlined),
-                _buildNavItem(4, 'User Management', Icons.admin_panel_settings_outlined),
+                _buildNavItem(
+                  3,
+                  'Vehicle Management',
+                  Icons.directions_car_outlined,
+                ),
+                _buildNavItem(
+                  4,
+                  'User Management',
+                  Icons.admin_panel_settings_outlined,
+                ),
                 _buildNavItem(5, 'Intelligence Hub', Icons.analytics),
                 _buildNavItem(6, 'Settings', Icons.settings_outlined),
               ],
@@ -236,7 +246,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     bool isActive = _selectedIndex == index && !isLogout;
-    
+
     return InkWell(
       onTap: () {
         if (isLogout) {
@@ -265,7 +275,11 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                   onPressed: () => Navigator.pop(ctx),
                   child: Text(
                     'Cancel',
-                    style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
                   ),
                 ),
                 ElevatedButton(

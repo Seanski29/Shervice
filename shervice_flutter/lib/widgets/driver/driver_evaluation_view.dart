@@ -19,8 +19,18 @@ class DriverEvaluationView extends StatefulWidget {
 
 class _DriverEvaluationViewState extends State<DriverEvaluationView> {
   bool _isLoading = true;
-  List<dynamic> _evaluations = [];
   String? _errorMessage;
+  int? _expandedIndex; // Tracks which trip is currently clicked/expanded
+
+  // Cumulative Lifetime Averages
+  double _overallRating = 0.0;
+  double _punctualityAvg = 0.0;
+  double _safetyAvg = 0.0;
+  double _professionalismAvg = 0.0;
+  int _totalRawEvaluations = 0;
+
+  // Grouped Trip Data
+  List<Map<String, dynamic>> _groupedTrips = [];
 
   // --- Pagination & Sorting State ---
   int _currentPage = 0;
@@ -30,7 +40,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
     'Date (Newest)',
     'Date (Oldest)',
     'Highest Rating',
-    'Lowest Rating'
+    'Lowest Rating',
   ];
 
   @override
@@ -45,17 +55,23 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
         Uri.parse('${widget.backendUrl}/evaluate/driver/${widget.driverUuid}'),
       );
 
-      if (res.statusCode == 200 && mounted) {
-        final data = jsonDecode(res.body);
-        setState(() {
-          _evaluations = data['data'] ?? [];
-          _applySort(); // Apply default sorting upon fetch
-          _isLoading = false;
-        });
-      } else {
-        if (mounted) {
+      if (mounted) {
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          final List<dynamic> rawEvals =
+              data['data'] ?? data['evaluations'] ?? [];
+
+          _processAndGroupEvaluations(rawEvals);
+        } else if (res.statusCode == 404) {
+          // A 404 means "no reviews yet" for this driver.
           setState(() {
-            _errorMessage = 'Failed to load evaluations.';
+            _groupedTrips = [];
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _errorMessage =
+                'Failed to load evaluations. Server returned ${res.statusCode}.';
             _isLoading = false;
           });
         }
@@ -63,31 +79,107 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Network error occurred.';
+          _errorMessage = 'Network error occurred while fetching evaluations.';
           _isLoading = false;
         });
       }
     }
   }
 
-  // --- Sorting Logic ---
+  // --- Data Grouping Engine ---
+  void _processAndGroupEvaluations(List<dynamic> rawEvals) {
+    double cumTotalScore = 0.0, cumPunct = 0.0, cumSafe = 0.0, cumProf = 0.0;
+    _totalRawEvaluations = rawEvals.length;
+
+    // 1. Calculate Lifetime Cumulative Averages across all raw passenger reviews
+    for (var e in rawEvals) {
+      final p = (e['punctuality_score'] as num?)?.toDouble() ?? 5.0;
+      final s = (e['safety_score'] as num?)?.toDouble() ?? 5.0;
+      final pr = (e['professionalism_score'] as num?)?.toDouble() ?? 5.0;
+
+      cumPunct += p;
+      cumSafe += s;
+      cumProf += pr;
+      cumTotalScore += (p + s + pr) / 3.0;
+    }
+
+    // 2. Group the raw evaluations by their Trip ID
+    Map<String, List<dynamic>> tripGroups = {};
+    for (var e in rawEvals) {
+      String tripId = e['trip_id']?.toString() ?? 'Unassigned';
+      if (!tripGroups.containsKey(tripId)) {
+        tripGroups[tripId] = [];
+      }
+      tripGroups[tripId]!.add(e);
+    }
+
+    // 3. Compile the Grouped Maps
+    List<Map<String, dynamic>> compiledTrips = [];
+    for (var entry in tripGroups.entries) {
+      final tId = entry.key;
+      final tripEvals = entry.value;
+
+      double tPunct = 0.0, tSafe = 0.0, tProf = 0.0;
+      for (var te in tripEvals) {
+        tPunct += (te['punctuality_score'] as num?)?.toDouble() ?? 5.0;
+        tSafe += (te['safety_score'] as num?)?.toDouble() ?? 5.0;
+        tProf += (te['professionalism_score'] as num?)?.toDouble() ?? 5.0;
+      }
+
+      int tCount = tripEvals.length;
+      double avgPunct = tPunct / tCount;
+      double avgSafe = tSafe / tCount;
+      double avgProf = tProf / tCount;
+      double tripOverallAvg = (avgPunct + avgSafe + avgProf) / 3.0;
+      String tripDate = tripEvals.first['submit_date'] ?? 'Unknown Date';
+
+      compiledTrips.add({
+        'trip_id': tId,
+        'date': tripDate,
+        'eval_count': tCount,
+        'avg_punctuality': avgPunct,
+        'avg_safety': avgSafe,
+        'avg_professionalism': avgProf,
+        'overall_avg': tripOverallAvg,
+        'passenger_reviews':
+            tripEvals, // Store raw reviews inside the trip for expansion
+      });
+    }
+
+    setState(() {
+      _overallRating = _totalRawEvaluations == 0
+          ? 0.0
+          : (cumTotalScore / _totalRawEvaluations);
+      _punctualityAvg = _totalRawEvaluations == 0
+          ? 0.0
+          : (cumPunct / _totalRawEvaluations);
+      _safetyAvg = _totalRawEvaluations == 0
+          ? 0.0
+          : (cumSafe / _totalRawEvaluations);
+      _professionalismAvg = _totalRawEvaluations == 0
+          ? 0.0
+          : (cumProf / _totalRawEvaluations);
+
+      _groupedTrips = compiledTrips;
+      _applySort();
+      _isLoading = false;
+    });
+  }
+
+  // --- Sorting Logic (Now operates on grouped trips) ---
   void _applySort() {
-    _evaluations.sort((a, b) {
+    _groupedTrips.sort((a, b) {
       if (_currentSort.contains('Date')) {
-        DateTime dateA = DateTime.tryParse(a['submit_date']?.toString() ?? '') ?? DateTime(2000);
-        DateTime dateB = DateTime.tryParse(b['submit_date']?.toString() ?? '') ?? DateTime(2000);
+        DateTime dateA =
+            DateTime.tryParse(a['date']?.toString() ?? '') ?? DateTime(2000);
+        DateTime dateB =
+            DateTime.tryParse(b['date']?.toString() ?? '') ?? DateTime(2000);
         return _currentSort == 'Date (Newest)'
             ? dateB.compareTo(dateA)
             : dateA.compareTo(dateB);
       } else {
-        double scoreA = ((a['safety_score'] ?? 0) +
-                (a['punctuality_score'] ?? 0) +
-                (a['professionalism_score'] ?? 0)) /
-            3;
-        double scoreB = ((b['safety_score'] ?? 0) +
-                (b['punctuality_score'] ?? 0) +
-                (b['professionalism_score'] ?? 0)) /
-            3;
+        double scoreA = a['overall_avg'] ?? 0.0;
+        double scoreB = b['overall_avg'] ?? 0.0;
         return _currentSort == 'Highest Rating'
             ? scoreB.compareTo(scoreA)
             : scoreA.compareTo(scoreB);
@@ -99,50 +191,39 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
     if (newValue != null && newValue != _currentSort) {
       setState(() {
         _currentSort = newValue;
-        _currentPage = 0; // Reset to page 1 on resort
+        _currentPage = 0;
+        _expandedIndex = null;
         _applySort();
       });
     }
   }
 
-  // --- Pagination Logic ---
-  int get _totalPages => (_evaluations.length / _itemsPerPage).ceil();
+  // --- Pagination Logic (Now paginates the grouped trips) ---
+  int get _totalPages => max(1, (_groupedTrips.length / _itemsPerPage).ceil());
 
-  List<dynamic> get _paginatedEvaluations {
-    if (_evaluations.isEmpty) return [];
+  List<Map<String, dynamic>> get _paginatedTrips {
+    if (_groupedTrips.isEmpty) return [];
     int start = _currentPage * _itemsPerPage;
-    int end = min(start + _itemsPerPage, _evaluations.length);
-    return _evaluations.sublist(start, end);
+    int end = min(start + _itemsPerPage, _groupedTrips.length);
+    return _groupedTrips.sublist(start, end);
   }
 
   void _nextPage() {
     if (_currentPage < _totalPages - 1) {
-      setState(() => _currentPage++);
+      setState(() {
+        _currentPage++;
+        _expandedIndex = null;
+      });
     }
   }
 
   void _prevPage() {
     if (_currentPage > 0) {
-      setState(() => _currentPage--);
+      setState(() {
+        _currentPage--;
+        _expandedIndex = null;
+      });
     }
-  }
-
-  // --- Aggregate Math Helpers ---
-  double _getAverage(String key) {
-    if (_evaluations.isEmpty) return 0.0;
-    int total = 0;
-    for (var eval in _evaluations) {
-      total += (eval[key] as num?)?.toInt() ?? 0;
-    }
-    return total / _evaluations.length;
-  }
-
-  double get _overallAverage {
-    if (_evaluations.isEmpty) return 0.0;
-    return (_getAverage('safety_score') +
-            _getAverage('punctuality_score') +
-            _getAverage('professionalism_score')) /
-        3;
   }
 
   @override
@@ -156,16 +237,23 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
 
     if (_errorMessage != null) {
       return Center(
-        child: Text(_errorMessage!, style: TextStyle(color: theme.colorScheme.error)),
+        child: Text(
+          _errorMessage!,
+          style: TextStyle(color: theme.colorScheme.error),
+        ),
       );
     }
 
-    if (_evaluations.isEmpty) {
+    if (_groupedTrips.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.star_border, size: 64, color: theme.colorScheme.outlineVariant),
+            Icon(
+              Icons.star_border,
+              size: 64,
+              color: theme.colorScheme.outlineVariant,
+            ),
             const SizedBox(height: 16),
             Text(
               'No evaluations yet.',
@@ -178,7 +266,10 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
             const SizedBox(height: 8),
             Text(
               'Passengers have not rated this driver.',
-              style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 13,
+              ),
             ),
           ],
         ),
@@ -188,13 +279,19 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- TOP SECTION: Aggregate Averages ---
+        // --- TOP SECTION: Cumulative Lifetime Averages ---
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: isDark ? Colors.blue.withOpacity(0.05) : theme.colorScheme.primaryContainer.withOpacity(0.4),
+            color: isDark
+                ? Colors.blue.withOpacity(0.05)
+                : theme.colorScheme.primaryContainer.withOpacity(0.4),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isDark ? Colors.blue.withOpacity(0.2) : theme.colorScheme.primary.withOpacity(0.3)),
+            border: Border.all(
+              color: isDark
+                  ? Colors.blue.withOpacity(0.2)
+                  : theme.colorScheme.primary.withOpacity(0.3),
+            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -203,11 +300,13 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
               Column(
                 children: [
                   Text(
-                    _overallAverage.toStringAsFixed(1),
+                    _overallRating.toStringAsFixed(1),
                     style: TextStyle(
                       fontSize: 42,
                       fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.blue.shade300 : Colors.blue.shade900,
+                      color: isDark
+                          ? Colors.blue.shade300
+                          : Colors.blue.shade900,
                       height: 1,
                     ),
                   ),
@@ -215,7 +314,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
                     mainAxisSize: MainAxisSize.min,
                     children: List.generate(5, (index) {
                       return Icon(
-                        index < _overallAverage.round()
+                        index < _overallRating.round()
                             ? Icons.star
                             : Icons.star_border,
                         color: Colors.amber,
@@ -225,11 +324,13 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${_evaluations.length} Reviews',
+                    '$_totalRawEvaluations Total Passenger Reviews',
                     style: TextStyle(
-                      color: isDark ? Colors.blue.shade400 : Colors.blue.shade700,
+                      color: isDark
+                          ? Colors.blue.shade400
+                          : Colors.blue.shade700,
                       fontWeight: FontWeight.w600,
-                      fontSize: 12,
+                      fontSize: 11,
                     ),
                   ),
                 ],
@@ -239,17 +340,13 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
               Expanded(
                 child: Column(
                   children: [
-                    _buildMetricBar('Safety', _getAverage('safety_score'), isDark),
+                    _buildMetricBar('Safety Avg', _safetyAvg, isDark),
+                    const SizedBox(height: 8),
+                    _buildMetricBar('Punctuality Avg', _punctualityAvg, isDark),
                     const SizedBox(height: 8),
                     _buildMetricBar(
-                      'Punctuality',
-                      _getAverage('punctuality_score'),
-                      isDark,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildMetricBar(
-                      'Professionalism',
-                      _getAverage('professionalism_score'),
+                      'Professionalism Avg',
+                      _professionalismAvg,
                       isDark,
                     ),
                   ],
@@ -266,7 +363,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'PASSENGER FEEDBACK',
+              'TRIP PERFORMANCE LOGS (${_groupedTrips.length} Trips Evaluated)',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -279,25 +376,33 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
                 color: theme.cardColor,
-                border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                border: Border.all(
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _currentSort,
                   dropdownColor: theme.cardColor,
-                  icon: Icon(Icons.sort, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                  icon: Icon(
+                    Icons.sort,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: theme.colorScheme.onSurface,
                   ),
-                  items: _sortOptions.map((String option) {
-                    return DropdownMenuItem<String>(
-                      value: option,
-                      child: Text(option),
-                    );
-                  }).toList(),
+                  items: _sortOptions
+                      .map(
+                        (String option) => DropdownMenuItem<String>(
+                          value: option,
+                          child: Text(option),
+                        ),
+                      )
+                      .toList(),
                   onChanged: _onSortChanged,
                 ),
               ),
@@ -306,115 +411,281 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
         ),
         const SizedBox(height: 12),
 
-        // --- BOTTOM SECTION: Individual Reviews (Paginated) ---
+        // --- BOTTOM SECTION: Expandable Trip Analytics ---
         Expanded(
-          child: ListView.separated(
-            itemCount: _paginatedEvaluations.length,
-            separatorBuilder: (context, index) => Divider(height: 24, color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          child: ListView.builder(
+            itemCount: _paginatedTrips.length,
             itemBuilder: (context, index) {
-              final eval = _paginatedEvaluations[index];
-              final date = eval['submit_date'] ?? 'Unknown Date';
-              final safety = eval['safety_score'] ?? 0;
-              final punctuality = eval['punctuality_score'] ?? 0;
-              final pro = eval['professionalism_score'] ?? 0;
-              final comments = eval['comments']?.toString().trim() ?? '';
+              final trip = _paginatedTrips[index];
+              final bool isExpanded = _expandedIndex == index;
 
-              final double avgScore = (safety + punctuality + pro) / 3;
+              final String tripId = trip['trip_id'] == 'Unassigned'
+                  ? 'Unassigned Trip'
+                  : '#TRP-${trip['trip_id']}';
+              final String date = trip['date'];
+              final int evalCount = trip['eval_count'];
+              final double avgScore = trip['overall_avg'];
+              final List<dynamic> passengerReviews = trip['passenger_reviews'];
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.green.withOpacity(0.15) : Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isExpanded
+                        ? const Color(0xFF3B82F6)
+                        : (isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade300),
+                    width: isExpanded ? 1.5 : 1.0,
+                  ),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    setState(() {
+                      _expandedIndex = isExpanded ? null : index;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Collapsed Header View (Trip Summary)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
                               children: [
-                                Icon(
-                                  Icons.star,
-                                  color: isDark ? Colors.green.shade400 : Colors.green,
-                                  size: 14,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  avgScore.toStringAsFixed(1),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.green.shade400 : Colors.green,
-                                    fontSize: 12,
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF3B82F6,
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
+                                  child: const Icon(
+                                    Icons.directions_bus,
+                                    size: 18,
+                                    color: Color(0xFF3B82F6),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      tripId,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '$date • $evalCount passenger evaluation${evalCount > 1 ? 's' : ''}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.green.withOpacity(0.15)
+                                        : Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        avgScore.toStringAsFixed(1),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark
+                                              ? Colors.green.shade400
+                                              : Colors.green,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.star,
+                                        color: isDark
+                                            ? Colors.green.shade400
+                                            : Colors.green,
+                                        size: 14,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Icon(
+                                  isExpanded
+                                      ? Icons.keyboard_arrow_up
+                                      : Icons.keyboard_arrow_down,
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+
+                        // Expanded Analytics View (Specific Trip Breakdown)
+                        if (isExpanded) ...[
+                          const SizedBox(height: 16),
+                          Divider(
+                            height: 1,
+                            color: isDark
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade200,
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(height: 16),
+
+                          // The specific averages for this trip alone
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildMiniTripScore(
+                                'Trip Safety',
+                                trip['avg_safety'],
+                                isDark,
+                              ),
+                              _buildMiniTripScore(
+                                'Trip Punctuality',
+                                trip['avg_punctuality'],
+                                isDark,
+                              ),
+                              _buildMiniTripScore(
+                                'Trip Professionalism',
+                                trip['avg_professionalism'],
+                                isDark,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          // List out individual passenger comments for this trip
                           Text(
-                            'Trip #${eval['trip_id']}',
+                            'PASSENGER REVIEWS ($evalCount)',
                             style: TextStyle(
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                              color: isDark
+                                  ? Colors.grey.shade500
+                                  : Colors.grey.shade400,
+                              letterSpacing: 1,
                             ),
                           ),
+                          const SizedBox(height: 8),
+                          ...passengerReviews.map((review) {
+                            final String comments =
+                                review['comments']?.toString().trim() ??
+                                'No passenger commentary provided.';
+                            final double indAvg =
+                                (((review['safety_score'] as num?)
+                                            ?.toDouble() ??
+                                        5.0) +
+                                    ((review['punctuality_score'] as num?)
+                                            ?.toDouble() ??
+                                        5.0) +
+                                    ((review['professionalism_score'] as num?)
+                                            ?.toDouble() ??
+                                        5.0)) /
+                                3;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isDark
+                                      ? Colors.grey.shade800
+                                      : Colors.grey.shade200,
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '${indAvg.toStringAsFixed(1)} ★',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.amber,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      comments,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontStyle: FontStyle.italic,
+                                        color: isDark
+                                            ? Colors.grey.shade300
+                                            : const Color(0xFF334155),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
                         ],
-                      ),
-                      Text(
-                        date,
-                        style: TextStyle(
-                          color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // INDIVIDUAL SCORE BREAKDOWN
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 4,
-                    children: [
-                      _buildMiniScore('Safety', safety, isDark),
-                      _buildMiniScore('Punctuality', punctuality, isDark),
-                      _buildMiniScore('Professionalism', pro, isDark),
-                    ],
-                  ),
-
-                  if (comments.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      '"$comments"',
-                      style: TextStyle(
-                        fontStyle: FontStyle.italic,
-                        color: isDark ? Colors.grey.shade400 : const Color(0xFF334155),
-                        fontSize: 14,
-                      ),
+                      ],
                     ),
-                  ],
-                ],
+                  ),
+                ),
               );
             },
           ),
         ),
 
         // --- PAGINATION CONTROLS ---
-        if (_totalPages > 1)
+        if (_totalPages > 0)
           Padding(
             padding: const EdgeInsets.only(top: 16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _evaluations.length)} of ${_evaluations.length}',
+                  'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _groupedTrips.length)} of ${_groupedTrips.length} trips',
                   style: TextStyle(
                     fontSize: 12,
                     color: theme.colorScheme.onSurfaceVariant,
@@ -426,7 +697,9 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
                       icon: const Icon(Icons.chevron_left),
                       onPressed: _currentPage > 0 ? _prevPage : null,
                       splashRadius: 20,
-                      color: _currentPage > 0 ? theme.colorScheme.primary : theme.disabledColor,
+                      color: _currentPage > 0
+                          ? theme.colorScheme.primary
+                          : theme.disabledColor,
                     ),
                     Text(
                       'Page ${_currentPage + 1} of $_totalPages',
@@ -438,9 +711,13 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.chevron_right),
-                      onPressed: _currentPage < _totalPages - 1 ? _nextPage : null,
+                      onPressed: _currentPage < _totalPages - 1
+                          ? _nextPage
+                          : null,
                       splashRadius: 20,
-                      color: _currentPage < _totalPages - 1 ? theme.colorScheme.primary : theme.disabledColor,
+                      color: _currentPage < _totalPages - 1
+                          ? theme.colorScheme.primary
+                          : theme.disabledColor,
                     ),
                   ],
                 ),
@@ -451,24 +728,45 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
     );
   }
 
-  // --- HELPER FOR THE BREAKDOWN ROW ---
-  Widget _buildMiniScore(String label, int score, bool isDark) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+  // --- HELPER FOR THE TRIP SPECIFIC BREAKDOWN ROW ---
+  Widget _buildMiniTripScore(String label, double score, bool isDark) {
+    return Column(
       children: [
         Text(
-          '$label: ',
-          style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade500 : Colors.grey.shade600),
-        ),
-        Text(
-          '$score',
+          label,
           style: TextStyle(
             fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
+            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
           ),
         ),
-        const Icon(Icons.star, size: 10, color: Colors.amber),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              score.toStringAsFixed(1),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(
+                5,
+                (i) => Icon(
+                  i < score.round() ? Icons.star : Icons.star_border,
+                  size: 14,
+                  color: i < score.round()
+                      ? Colors.amber.shade600
+                      : Colors.grey.shade400,
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -477,7 +775,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
     return Row(
       children: [
         SizedBox(
-          width: 100,
+          width: 130,
           child: Text(
             label,
             style: TextStyle(
