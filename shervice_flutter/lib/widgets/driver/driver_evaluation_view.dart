@@ -20,7 +20,7 @@ class DriverEvaluationView extends StatefulWidget {
 class _DriverEvaluationViewState extends State<DriverEvaluationView> {
   bool _isLoading = true;
   String? _errorMessage;
-  int? _expandedIndex; // Tracks which trip is currently clicked/expanded
+  int? _expandedIndex;
 
   // Cumulative Lifetime Averages
   double _overallRating = 0.0;
@@ -28,6 +28,11 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
   double _safetyAvg = 0.0;
   double _professionalismAvg = 0.0;
   int _totalRawEvaluations = 0;
+
+  // ML Behavioral Classification State
+  String _mlClassification = 'Analyzing...';
+  Color _mlBadgeColor = const Color(0xFF64748B);
+  IconData _mlIcon = Icons.analytics_outlined;
 
   // Grouped Trip Data
   List<Map<String, dynamic>> _groupedTrips = [];
@@ -60,10 +65,8 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
           final data = jsonDecode(res.body);
           final List<dynamic> rawEvals =
               data['data'] ?? data['evaluations'] ?? [];
-
           _processAndGroupEvaluations(rawEvals);
         } else if (res.statusCode == 404) {
-          // A 404 means "no reviews yet" for this driver.
           setState(() {
             _groupedTrips = [];
             _isLoading = false;
@@ -73,6 +76,60 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
             _errorMessage =
                 'Failed to load evaluations. Server returned ${res.statusCode}.';
             _isLoading = false;
+          });
+        }
+      }
+
+      // Concurrently fetch the KNN Behavioral Classification
+      try {
+        final String cacheBuster = DateTime.now().millisecondsSinceEpoch
+            .toString();
+        final mlRes = await http.get(
+          Uri.parse(
+            '${widget.backendUrl}/drivers/classify/${widget.driverUuid}?cb=$cacheBuster',
+          ),
+        );
+
+        if (mlRes.statusCode == 200 && mounted) {
+          final mlData = jsonDecode(mlRes.body);
+          final String classification =
+              mlData['classification'] ?? 'Insufficient Data';
+
+          Color badgeColor = const Color(0xFF64748B);
+          IconData badgeIcon = Icons.info_outline;
+
+          if (classification == 'Consistent Performer') {
+            badgeColor = const Color(0xFF10B981);
+            badgeIcon = Icons.verified;
+          } else if (classification == 'Aggressive Driving Risk' ||
+              classification == 'Needs Review') {
+            badgeColor = const Color(0xFFEF4444);
+            badgeIcon = Icons.warning_amber_rounded;
+          } else if (classification == 'Tardiness Risk' ||
+              classification == 'Unprofessional Conduct') {
+            badgeColor = const Color(0xFFF97316);
+            badgeIcon = Icons.access_time_filled;
+          }
+
+          setState(() {
+            _mlClassification = classification;
+            _mlBadgeColor = badgeColor;
+            _mlIcon = badgeIcon;
+          });
+        } else if (mounted) {
+          // Prevent getting stuck on "Analyzing" if server throws 500
+          setState(() {
+            _mlClassification = 'Server Error';
+            _mlBadgeColor = Colors.red;
+            _mlIcon = Icons.error_outline;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _mlClassification = 'Network Error';
+            _mlBadgeColor = Colors.grey;
+            _mlIcon = Icons.cloud_off;
           });
         }
       }
@@ -91,7 +148,6 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
     double cumTotalScore = 0.0, cumPunct = 0.0, cumSafe = 0.0, cumProf = 0.0;
     _totalRawEvaluations = rawEvals.length;
 
-    // 1. Calculate Lifetime Cumulative Averages across all raw passenger reviews
     for (var e in rawEvals) {
       final p = (e['punctuality_score'] as num?)?.toDouble() ?? 5.0;
       final s = (e['safety_score'] as num?)?.toDouble() ?? 5.0;
@@ -103,7 +159,6 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
       cumTotalScore += (p + s + pr) / 3.0;
     }
 
-    // 2. Group the raw evaluations by their Trip ID
     Map<String, List<dynamic>> tripGroups = {};
     for (var e in rawEvals) {
       String tripId = e['trip_id']?.toString() ?? 'Unassigned';
@@ -113,7 +168,6 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
       tripGroups[tripId]!.add(e);
     }
 
-    // 3. Compile the Grouped Maps
     List<Map<String, dynamic>> compiledTrips = [];
     for (var entry in tripGroups.entries) {
       final tId = entry.key;
@@ -141,8 +195,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
         'avg_safety': avgSafe,
         'avg_professionalism': avgProf,
         'overall_avg': tripOverallAvg,
-        'passenger_reviews':
-            tripEvals, // Store raw reviews inside the trip for expansion
+        'passenger_reviews': tripEvals,
       });
     }
 
@@ -166,7 +219,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
     });
   }
 
-  // --- Sorting Logic (Now operates on grouped trips) ---
+  // --- Sorting Logic ---
   void _applySort() {
     _groupedTrips.sort((a, b) {
       if (_currentSort.contains('Date')) {
@@ -198,7 +251,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
     }
   }
 
-  // --- Pagination Logic (Now paginates the grouped trips) ---
+  // --- Pagination Logic ---
   int get _totalPages => max(1, (_groupedTrips.length / _itemsPerPage).ceil());
 
   List<Map<String, dynamic>> get _paginatedTrips {
@@ -279,7 +332,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- TOP SECTION: Cumulative Lifetime Averages ---
+        // --- TOP SECTION: Cumulative Lifetime Averages & ML Badge ---
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -296,7 +349,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Big Overall Score
+              // Big Overall Score & Classification Tag
               Column(
                 children: [
                   Text(
@@ -331,6 +384,36 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
                           : Colors.blue.shade700,
                       fontWeight: FontWeight.w600,
                       fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // ML Behavioral Classification Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _mlBadgeColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: _mlBadgeColor.withOpacity(0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_mlIcon, color: _mlBadgeColor, size: 12),
+                        const SizedBox(width: 4),
+                        Text(
+                          _mlClassification.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w900,
+                            color: _mlBadgeColor,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -453,7 +536,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Collapsed Header View (Trip Summary)
+                        // Collapsed Header View
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -551,7 +634,7 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
                           ],
                         ),
 
-                        // Expanded Analytics View (Specific Trip Breakdown)
+                        // Expanded Analytics View
                         if (isExpanded) ...[
                           const SizedBox(height: 16),
                           Divider(
@@ -562,7 +645,6 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
                           ),
                           const SizedBox(height: 16),
 
-                          // The specific averages for this trip alone
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
@@ -585,7 +667,6 @@ class _DriverEvaluationViewState extends State<DriverEvaluationView> {
                           ),
                           const SizedBox(height: 16),
 
-                          // List out individual passenger comments for this trip
                           Text(
                             'PASSENGER REVIEWS ($evalCount)',
                             style: TextStyle(

@@ -6,11 +6,14 @@ import '../../../../widgets/driver/driver_evaluation_view.dart';
 class DriverPerformanceTab extends StatefulWidget {
   final List<dynamic> drivers;
   final String backendUrl;
+  final VoidCallback
+  onSyncAction; // 👈 ADDED: Required callback for the sync button
 
   const DriverPerformanceTab({
     super.key,
     required this.drivers,
     required this.backendUrl,
+    required this.onSyncAction, // 👈 ADDED
   });
 
   @override
@@ -163,15 +166,36 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
                               )
                               .toList(),
                       onChanged: (val) {
-                        if (val != null)
+                        if (val != null) {
                           setState(() {
                             _currentSort = val;
                             _currentPage = 0;
                           });
+                        }
                       },
                     ),
                   ),
                 ),
+              ),
+            ),
+            // 👇 ADDED: The Sync AI Button
+            Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                color: cardBg,
+                border: Border.all(color: const Color(0xFF3B82F6), width: 1.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: IconButton(
+                tooltip: 'Sync Driver Classifications',
+                onPressed: widget.onSyncAction,
+                icon: const Icon(
+                  Icons.sync,
+                  color: Color(0xFF3B82F6),
+                  size: 20,
+                ),
+                padding: EdgeInsets.zero,
               ),
             ),
           ],
@@ -348,6 +372,47 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
                                     ),
                                   ],
                                 ),
+                              ),
+                              // 👇 NEW: Display the Synced AI Classification Badge directly on the card
+                              Builder(
+                                builder: (context) {
+                                  final String mlClass =
+                                      driver['ml_classification'] ??
+                                      'Analyzing...';
+                                  Color mlColor = const Color(0xFF64748B);
+                                  if (mlClass == 'Consistent Performer')
+                                    mlColor = const Color(0xFF10B981);
+                                  else if (mlClass ==
+                                          'Aggressive Driving Risk' ||
+                                      mlClass == 'Needs Review')
+                                    mlColor = const Color(0xFFEF4444);
+                                  else if (mlClass == 'Tardiness Risk' ||
+                                      mlClass == 'Unprofessional Conduct')
+                                    mlColor = const Color(0xFFF97316);
+
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    margin: const EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      color: mlColor.withOpacity(0.1),
+                                      border: Border.all(
+                                        color: mlColor.withOpacity(0.4),
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      mlClass.toUpperCase(),
+                                      style: TextStyle(
+                                        color: mlColor,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
