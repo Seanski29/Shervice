@@ -1,6 +1,3 @@
 .vercel
 .env*
 .codegraphy/*
-
-__pycache__/
-*.pyc
