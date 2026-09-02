@@ -439,22 +439,20 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
   }
 
   Widget _buildRiskDistributionBar(List<dynamic> vehicles, bool isDark) {
-    int exc = 0, good = 0, fair = 0, risk = 0, maint = 0;
+    int optimal = 0, fair = 0, risk = 0, maint = 0;
     for (var v in vehicles) {
-      double p = ((v['live_risk_score'] as num?)?.toDouble() ?? 0.0) * 100;
+      double daysRemaining = (v['live_risk_score'] as num?)?.toDouble() ?? 0.0;
       String dbStatus = (v['health_status'] ?? '').toString().toLowerCase();
       if (dbStatus.contains('maintenance') ||
           dbStatus.contains('repair') ||
-          p >= 80.0) {
+          daysRemaining <= 7.0) {
         maint++;
-      } else if (p >= 60.0) {
+      } else if (daysRemaining <= 30.0) {
         risk++;
-      } else if (p >= 40.0) {
+      } else if (daysRemaining <= 90.0) {
         fair++;
-      } else if (p >= 20.0) {
-        good++;
       } else {
-        exc++;
+        optimal++;
       }
     }
 
@@ -472,7 +470,7 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Live Fleet ML Risk Distribution",
+            "Forecasted Maintenance Cycle Distribution",
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 13,
@@ -486,14 +484,9 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
               height: 32,
               child: Row(
                 children: [
-                  if (exc > 0)
+                  if (optimal > 0)
                     Expanded(
-                      flex: exc,
-                      child: Container(color: const Color(0xFF059669)),
-                    ),
-                  if (good > 0)
-                    Expanded(
-                      flex: good,
+                      flex: optimal,
                       child: Container(color: const Color(0xFF10B981)),
                     ),
                   if (fair > 0)
@@ -520,11 +513,25 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
             spacing: 16,
             runSpacing: 12,
             children: [
-              _legendItem('Excellent', exc, const Color(0xFF059669), isDark),
-              _legendItem('Good', good, const Color(0xFF10B981), isDark),
-              _legendItem('Fair', fair, const Color(0xFFF59E0B), isDark),
-              _legendItem('High Risk', risk, const Color(0xFFF97316), isDark),
-              _legendItem('Maint.', maint, const Color(0xFFEF4444), isDark),
+              _legendItem(
+                'Optimal (>90d)',
+                optimal,
+                const Color(0xFF10B981),
+                isDark,
+              ),
+              _legendItem('Fair (<90d)', fair, const Color(0xFFF59E0B), isDark),
+              _legendItem(
+                'High Risk (<30d)',
+                risk,
+                const Color(0xFFF97316),
+                isDark,
+              ),
+              _legendItem(
+                'Critical (<7d)',
+                maint,
+                const Color(0xFFEF4444),
+                isDark,
+              ),
             ],
           ),
         ],
