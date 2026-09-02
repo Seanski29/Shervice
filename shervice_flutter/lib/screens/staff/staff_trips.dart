@@ -15,12 +15,10 @@ class StaffTrips extends StatefulWidget {
 }
 
 class _StaffTripsState extends State<StaffTrips> {
-  // --- State Variables ---
   bool _isLoading = true;
   bool _isRefreshing = false;
   List<dynamic> _trips = [];
 
-  // Filtering, Searching & Sorting
   String _searchTerm = '';
   String _statusFilter = 'All';
   final List<String> _statusOptions = [
@@ -37,11 +35,9 @@ class _StaffTripsState extends State<StaffTrips> {
     'Route Name',
   ];
 
-  // Calendar State
   DateTime _focusedMonth = DateTime.now();
   DateTime? _filterDate;
 
-  // Pagination
   int _currentPage = 0;
   final int _itemsPerPage = 10;
 
@@ -51,7 +47,6 @@ class _StaffTripsState extends State<StaffTrips> {
     _fetchStaffLogs();
   }
 
-  // --- Data Fetching ---
   Future<void> _fetchStaffLogs() async {
     if (_isRefreshing) return;
     setState(() {
@@ -85,10 +80,21 @@ class _StaffTripsState extends State<StaffTrips> {
     }
   }
 
-  // --- Filter, Sort, Pagination ---
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null || timestamp.toString().trim().isEmpty)
+      return '--:--';
+    try {
+      final dt = DateTime.parse(timestamp.toString()).toLocal();
+      final hour = dt.hour.toString().padLeft(2, '0');
+      final minute = dt.minute.toString().padLeft(2, '0');
+      return '$hour:$minute';
+    } catch (_) {
+      return '--:--';
+    }
+  }
+
   List<dynamic> get _filteredAndSortedTrips {
     List<dynamic> filtered = _trips.where((trip) {
-      // 1. Date Filter
       if (_filterDate != null) {
         final dateStr = trip['schedule_date']?.toString() ?? '';
         final todayStr =
@@ -96,7 +102,6 @@ class _StaffTripsState extends State<StaffTrips> {
         if (!dateStr.startsWith(todayStr)) return false;
       }
 
-      // 2. Search Filter
       if (_searchTerm.isNotEmpty) {
         final route = (trip['route_name'] ?? '').toString().toLowerCase();
         final driver = (trip['driver_name'] ?? '').toString().toLowerCase();
@@ -109,7 +114,6 @@ class _StaffTripsState extends State<StaffTrips> {
         }
       }
 
-      // 3. Status Filter
       if (_statusFilter != 'All') {
         final status = (trip['trip_status'] ?? '').toString().toLowerCase();
         if (status != _statusFilter.toLowerCase()) return false;
@@ -118,7 +122,6 @@ class _StaffTripsState extends State<StaffTrips> {
       return true;
     }).toList();
 
-    // 4. Sort
     switch (_sortOption) {
       case 'Date (Newest)':
         filtered.sort((a, b) {
@@ -187,7 +190,6 @@ class _StaffTripsState extends State<StaffTrips> {
     }
   }
 
-  // --- Base Stats ---
   int get _totalTrips => _trips.length;
   int get _todayTrips => _trips.where((t) {
     final dateStr = t['schedule_date']?.toString() ?? '';
@@ -238,7 +240,6 @@ class _StaffTripsState extends State<StaffTrips> {
     return '${months[date.month - 1]} ${date.year}';
   }
 
-  // --- MAIN BUILD ---
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -261,7 +262,6 @@ class _StaffTripsState extends State<StaffTrips> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ----- HEADER & FILTERS -----
                 isMobile
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,12 +280,8 @@ class _StaffTripsState extends State<StaffTrips> {
                         ],
                       ),
                 const SizedBox(height: 24),
-
-                // ----- TOP STATS -----
                 _buildTopSummaryStats(isDark, isMobile),
                 const SizedBox(height: 24),
-
-                // ----- MAIN LAYOUT -----
                 isMobile
                     ? Column(
                         children: [
@@ -339,14 +335,12 @@ class _StaffTripsState extends State<StaffTrips> {
     );
   }
 
-  // ---- SEARCH, FILTERS, & SORT ROW ----
   Widget _buildSearchAndFilterRow(bool isDark, bool isMobile) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // Search Box
         SizedBox(
           width: isMobile ? double.infinity : 220,
           height: 44,
@@ -390,7 +384,6 @@ class _StaffTripsState extends State<StaffTrips> {
             ),
           ),
         ),
-        // Sort Dropdown
         Container(
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -424,7 +417,6 @@ class _StaffTripsState extends State<StaffTrips> {
             ),
           ),
         ),
-        // Status Dropdown
         Container(
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -462,7 +454,6 @@ class _StaffTripsState extends State<StaffTrips> {
             ),
           ),
         ),
-        // Refresh Button
         Container(
           height: 44,
           width: 44,
@@ -481,7 +472,6 @@ class _StaffTripsState extends State<StaffTrips> {
     );
   }
 
-  // ---- TOP SUMMARY STATS ----
   Widget _buildTopSummaryStats(bool isDark, bool isMobile) {
     final List<Map<String, dynamic>> stats = [
       {
@@ -610,7 +600,6 @@ class _StaffTripsState extends State<StaffTrips> {
     }
   }
 
-  // ---- CALENDAR ----
   Widget _buildCompactCalendarGrid(bool isDark) {
     final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final lastDay = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
@@ -818,9 +807,7 @@ class _StaffTripsState extends State<StaffTrips> {
     );
   }
 
-  // ---- TRIP LIST ----
   Widget _buildTripListView(bool isDark) {
-    // Dummy list data during `_isLoading` so Skeletonizer can render the structure
     final List<dynamic> displayedTrips = _isLoading
         ? List.generate(
             4,
@@ -830,6 +817,8 @@ class _StaffTripsState extends State<StaffTrips> {
               'schedule_date': '2026-08-28',
               'departure_time': '08:00 AM',
               'estimated_arrival_time': '09:00 AM',
+              'actual_start_time': null,
+              'actual_end_time': null,
               'driver_name': 'Skeleton Driver Name',
               'plate_number': 'SKL 123',
               'client_company': 'Skeleton Company',
@@ -917,7 +906,6 @@ class _StaffTripsState extends State<StaffTrips> {
               ],
             ),
           ),
-
           !_isLoading && displayedTrips.isEmpty
               ? Padding(
                   padding: const EdgeInsets.symmetric(
@@ -966,7 +954,6 @@ class _StaffTripsState extends State<StaffTrips> {
     );
   }
 
-  // ---- TRIP CARD ----
   Widget _buildTripCard(
     Map<String, dynamic> trip,
     bool isDark,
@@ -986,6 +973,14 @@ class _StaffTripsState extends State<StaffTrips> {
     final String status = trip['trip_status'] ?? 'Scheduled';
     final statusColor = _getStatusColor(status);
 
+    final rawActStart = trip['actual_start_time'];
+    final rawActEnd = trip['actual_end_time'];
+    final bool hasActual = rawActStart != null || rawActEnd != null;
+    final String actStartStr = _formatTimestamp(rawActStart);
+    final String actEndStr = rawActEnd != null
+        ? _formatTimestamp(rawActEnd)
+        : (status.toLowerCase().contains('ongoing') ? 'En Route' : '--:--');
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
@@ -994,7 +989,6 @@ class _StaffTripsState extends State<StaffTrips> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Left Content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1018,9 +1012,18 @@ class _StaffTripsState extends State<StaffTrips> {
                     _cardIconText(Icons.directions_car_outlined, plate, isDark),
                     _cardIconText(
                       Icons.access_time,
-                      '$departure → $arrival',
+                      'Sched: $departure → $arrival',
                       isDark,
                     ),
+                    if (hasActual)
+                      _cardIconText(
+                        Icons.timer_outlined,
+                        'Actual: $actStartStr → $actEndStr',
+                        isDark,
+                        customColor: rawActEnd != null
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFF59E0B),
+                      ),
                     _cardIconText(Icons.business_outlined, company, isDark),
                     _cardIconText(Icons.people_outline, passengers, isDark),
                     _cardIconText(Icons.straighten, distance, isDark),
@@ -1030,7 +1033,6 @@ class _StaffTripsState extends State<StaffTrips> {
             ),
           ),
           const SizedBox(width: 12),
-          // Right Content (Status Badge matching admin style)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1050,22 +1052,32 @@ class _StaffTripsState extends State<StaffTrips> {
     );
   }
 
-  Widget _cardIconText(IconData icon, String text, bool isDark) {
+  Widget _cardIconText(
+    IconData icon,
+    String text,
+    bool isDark, {
+    Color? customColor,
+  }) {
+    final Color textColor =
+        customColor ??
+        (isDark ? Colors.grey.shade400 : const Color(0xFF64748B));
+    final Color iconColor =
+        customColor ??
+        (isDark ? Colors.grey.shade500 : const Color(0xFF64748B));
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 14,
-          color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B),
-        ),
+        Icon(icon, size: 14, color: iconColor),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
             text,
             style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+              fontWeight: customColor != null
+                  ? FontWeight.bold
+                  : FontWeight.w500,
+              color: textColor,
               fontSize: 12,
             ),
             overflow: TextOverflow.ellipsis,

@@ -15,18 +15,15 @@ class OicTrips extends StatefulWidget {
 }
 
 class _OicTripsState extends State<OicTrips> {
-  // --- State Variables ---
   bool _isLoading = true;
   bool _isRefreshing = false;
   List<dynamic> _trips = [];
 
-  // Calendar State
   DateTime _focusedMonth = DateTime.now();
   DateTime? _filterDate;
 
-  // Filtering & Searching
   String _searchTerm = '';
-  String _statusFilter = 'All'; // Interactive pill filtering
+  String _statusFilter = 'All';
 
   String _sortOption = 'Date (Newest)';
   final List<String> _sortOptions = [
@@ -36,7 +33,6 @@ class _OicTripsState extends State<OicTrips> {
     'Status (Priority)',
   ];
 
-  // Pagination
   int _currentPage = 0;
   final int _itemsPerPage = 10;
 
@@ -46,7 +42,6 @@ class _OicTripsState extends State<OicTrips> {
     _fetchDeploymentLogs();
   }
 
-  // --- Data Fetching ---
   Future<void> _fetchDeploymentLogs() async {
     if (_isRefreshing) return;
     setState(() {
@@ -80,12 +75,24 @@ class _OicTripsState extends State<OicTrips> {
     }
   }
 
-  // --- Formatting Helpers ---
   String _formatTimeString(dynamic timeVal) {
     if (timeVal == null || timeVal.toString().trim().isEmpty) return '--:--';
     String t = timeVal.toString();
     if (t.length >= 5) return t.substring(0, 5);
     return t;
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null || timestamp.toString().trim().isEmpty)
+      return '--:--';
+    try {
+      final dt = DateTime.parse(timestamp.toString()).toLocal();
+      final hour = dt.hour.toString().padLeft(2, '0');
+      final minute = dt.minute.toString().padLeft(2, '0');
+      return '$hour:$minute';
+    } catch (_) {
+      return '--:--';
+    }
   }
 
   DateTime? _parseDate(dynamic value) {
@@ -121,7 +128,6 @@ class _OicTripsState extends State<OicTrips> {
     return '${months[date.month - 1]} ${date.year}';
   }
 
-  // --- Filtering & Sorting ---
   List<dynamic> get _filteredAndSortedTrips {
     final placeholderStatus = _statusFilter == 'All'
         ? 'Scheduled'
@@ -138,6 +144,8 @@ class _OicTripsState extends State<OicTrips> {
               'plate_number': 'Loading Vehicle',
               'departure_time': '08:00',
               'estimated_arrival_time': '09:00',
+              'actual_start_time': null,
+              'actual_end_time': null,
             },
           )
         : _trips;
@@ -148,13 +156,11 @@ class _OicTripsState extends State<OicTrips> {
       final query = _searchTerm.toLowerCase();
       final dateStr = trip['schedule_date']?.toString() ?? '';
 
-      // Text Search Filter
       final matchesSearch =
           _searchTerm.isEmpty ||
           route.contains(query) ||
           driver.contains(query);
 
-      // Interactive Pill Status Filter
       final matchesStatus =
           _statusFilter == 'All' ||
           (_statusFilter == 'Completed' && status.contains('completed')) ||
@@ -163,7 +169,6 @@ class _OicTripsState extends State<OicTrips> {
           (_statusFilter == 'Cancelled' &&
               (status.contains('cancelled') || status.contains('rejected')));
 
-      // Date Filter
       final matchesDate =
           _filterDate == null ||
           dateStr.startsWith(
@@ -173,7 +178,6 @@ class _OicTripsState extends State<OicTrips> {
       return matchesSearch && matchesStatus && matchesDate;
     }).toList();
 
-    // Sort
     switch (_sortOption) {
       case 'Date (Newest)':
         filtered.sort((a, b) {
@@ -218,7 +222,6 @@ class _OicTripsState extends State<OicTrips> {
     return filtered;
   }
 
-  // --- Pagination ---
   int get _totalPages =>
       max(1, (_filteredAndSortedTrips.length / _itemsPerPage).ceil());
 
@@ -235,7 +238,6 @@ class _OicTripsState extends State<OicTrips> {
     }
   }
 
-  // --- Stats Calculation (Unfiltered base stats) ---
   int get _totalTrips => _trips.length;
   int get _completedTrips => _trips
       .where(
@@ -265,12 +267,12 @@ class _OicTripsState extends State<OicTrips> {
 
   Color _getStatusColor(String statusStr) {
     String lower = statusStr.toLowerCase();
-    if (lower.contains('completed')) return const Color(0xFF10B981); // Green
+    if (lower.contains('completed')) return const Color(0xFF10B981);
     if (lower.contains('ongoing') || lower.contains('pending'))
-      return const Color(0xFFF59E0B); // Amber
+      return const Color(0xFFF59E0B);
     if (lower.contains('cancelled') || lower.contains('rejected'))
-      return const Color(0xFFEF4444); // Red
-    return const Color(0xFF3B82F6); // Blue
+      return const Color(0xFFEF4444);
+    return const Color(0xFF3B82F6);
   }
 
   List<dynamic> _schedulesForDate(DateTime day) {
@@ -282,7 +284,6 @@ class _OicTripsState extends State<OicTrips> {
     }).toList();
   }
 
-  // --- MAIN BUILD ---
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -305,7 +306,6 @@ class _OicTripsState extends State<OicTrips> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ----- HEADER & ACTIONS -----
                 isMobile
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -319,17 +319,13 @@ class _OicTripsState extends State<OicTrips> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           _buildTitleHeader(isDark),
-                          const Spacer(), // Magic anchor forcing actions right
+                          const Spacer(),
                           _buildSearchAndActionRow(isDark, isMobile),
                         ],
                       ),
                 const SizedBox(height: 24),
-
-                // ----- SUMMARY PILL CARDS -----
                 _buildTopSummaryStats(isDark, isMobile),
                 const SizedBox(height: 24),
-
-                // ----- MAIN CONTENT AREA -----
                 isMobile
                     ? Column(
                         children: [
@@ -387,10 +383,9 @@ class _OicTripsState extends State<OicTrips> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Search Box
         SizedBox(
           width: isMobile ? 160 : 220,
-          height: 44, // Strict anchoring height
+          height: 44,
           child: TextField(
             onChanged: (value) {
               setState(() {
@@ -432,7 +427,6 @@ class _OicTripsState extends State<OicTrips> {
           ),
         ),
         const SizedBox(width: 8),
-        // Sort Dropdown
         Container(
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -471,7 +465,6 @@ class _OicTripsState extends State<OicTrips> {
           ),
         ),
         const SizedBox(width: 8),
-        // Refresh Button
         Container(
           height: 44,
           width: 44,
@@ -499,7 +492,6 @@ class _OicTripsState extends State<OicTrips> {
     );
   }
 
-  // --- INTERACTIVE PILL CARDS ---
   Widget _buildTopSummaryStats(bool isDark, bool isMobile) {
     final List<Map<String, dynamic>> stats = [
       {
@@ -620,7 +612,6 @@ class _OicTripsState extends State<OicTrips> {
     }
   }
 
-  // --- CALENDAR GRID ---
   Widget _buildCompactCalendarGrid(bool isDark) {
     final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysBefore = firstDay.weekday % 7;
@@ -645,7 +636,6 @@ class _OicTripsState extends State<OicTrips> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
@@ -710,12 +700,10 @@ class _OicTripsState extends State<OicTrips> {
               ],
             ),
           ),
-          // Body
           Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               children: [
-                // Weekdays
                 GridView.count(
                   crossAxisCount: 7,
                   shrinkWrap: true,
@@ -746,7 +734,6 @@ class _OicTripsState extends State<OicTrips> {
                   }).toList(),
                 ),
                 const SizedBox(height: 8),
-                // Days
                 GridView.builder(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 7,
@@ -783,7 +770,6 @@ class _OicTripsState extends State<OicTrips> {
                     return GestureDetector(
                       onTap: () {
                         setState(() {
-                          // Toggle logic
                           if (isSelected) {
                             _filterDate = null;
                           } else {
@@ -795,7 +781,7 @@ class _OicTripsState extends State<OicTrips> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFF3B82F6) // Active Selection Blue
+                              ? const Color(0xFF3B82F6)
                               : (hasTrips
                                     ? (isDark
                                           ? Colors.blue.withValues(alpha: 0.2)
@@ -803,7 +789,7 @@ class _OicTripsState extends State<OicTrips> {
                                     : Theme.of(context).cardColor),
                           border: Border.all(
                             color: isToday
-                                ? const Color(0xFFF59E0B) // Amber for Today
+                                ? const Color(0xFFF59E0B)
                                 : (isSelected
                                       ? const Color(0xFF3B82F6)
                                       : borderColor),
@@ -841,7 +827,6 @@ class _OicTripsState extends State<OicTrips> {
     );
   }
 
-  // --- TRIP LIST VIEW ---
   Widget _buildTripListView(bool isDark) {
     final borderColor = isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0);
 
@@ -969,7 +954,6 @@ class _OicTripsState extends State<OicTrips> {
     );
   }
 
-  // --- TRIP CARD ---
   Widget _buildTripCard(
     Map<String, dynamic> trip,
     bool isDark,
@@ -990,6 +974,14 @@ class _OicTripsState extends State<OicTrips> {
     final arr = _formatTimeString(trip['estimated_arrival_time']);
     final date = trip['schedule_date'] ?? 'TBD';
 
+    final rawActStart = trip['actual_start_time'];
+    final rawActEnd = trip['actual_end_time'];
+    final bool hasActual = rawActStart != null || rawActEnd != null;
+    final String actStartStr = _formatTimestamp(rawActStart);
+    final String actEndStr = rawActEnd != null
+        ? _formatTimestamp(rawActEnd)
+        : (status.contains('ongoing') ? 'En Route' : '--:--');
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
@@ -998,7 +990,6 @@ class _OicTripsState extends State<OicTrips> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Indicator bar for visual scanning of logs
           Container(
             width: 4,
             height: 36,
@@ -1028,7 +1019,20 @@ class _OicTripsState extends State<OicTrips> {
                   runSpacing: 6,
                   children: [
                     _cardIconText(Icons.calendar_month, date, isDark),
-                    _cardIconText(Icons.access_time, '$dep - $arr', isDark),
+                    _cardIconText(
+                      Icons.access_time,
+                      'Sched: $dep - $arr',
+                      isDark,
+                    ),
+                    if (hasActual)
+                      _cardIconText(
+                        Icons.timer_outlined,
+                        'Actual: $actStartStr - $actEndStr',
+                        isDark,
+                        customColor: rawActEnd != null
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFF59E0B),
+                      ),
                     _cardIconText(Icons.person_outline, driver, isDark),
                     _cardIconText(Icons.directions_car_outlined, plate, isDark),
                     _cardIconText(Icons.groups, '$pax Pax', isDark),
@@ -1039,7 +1043,6 @@ class _OicTripsState extends State<OicTrips> {
             ),
           ),
           const SizedBox(width: 12),
-          // Status Badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -1061,22 +1064,32 @@ class _OicTripsState extends State<OicTrips> {
     );
   }
 
-  Widget _cardIconText(IconData icon, String text, bool isDark) {
+  Widget _cardIconText(
+    IconData icon,
+    String text,
+    bool isDark, {
+    Color? customColor,
+  }) {
+    final Color textColor =
+        customColor ??
+        (isDark ? Colors.grey.shade400 : const Color(0xFF64748B));
+    final Color iconColor =
+        customColor ??
+        (isDark ? Colors.grey.shade500 : const Color(0xFF64748B));
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 14,
-          color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B),
-        ),
+        Icon(icon, size: 14, color: iconColor),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
             text,
             style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+              fontWeight: customColor != null
+                  ? FontWeight.bold
+                  : FontWeight.w500,
+              color: textColor,
               fontSize: 12,
             ),
             overflow: TextOverflow.ellipsis,
@@ -1086,7 +1099,6 @@ class _OicTripsState extends State<OicTrips> {
     );
   }
 
-  // --- PAGINATION FOOTER ---
   Widget _buildPagination(bool isDark, Color borderColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

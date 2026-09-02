@@ -156,7 +156,8 @@ def get_admin_schedules():
         # 1. Fetch trip schedules along with valid relational foreign keys (vehicle & user_account)
         trips_res = supabase.table('trip_schedule').select(
             'trip_id, schedule_date, departure_time, route_name, route_distance, '
-            'trip_status, passenger_count, estimated_arrival_time, oic_id, '
+            'trip_status, passenger_count, estimated_arrival_time, '
+            'actual_start_time, actual_end_time, oic_id, '
             'vehicle_id, vehicle(plate_number, bus_type), '
             'user_id, user_account(full_name)'
         ).order('schedule_date', desc=False).execute()
