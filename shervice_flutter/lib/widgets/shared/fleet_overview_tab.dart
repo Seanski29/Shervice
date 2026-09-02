@@ -6,6 +6,7 @@ class FleetOverviewTab extends StatefulWidget {
   final List<dynamic> drivers;
   final List<dynamic> trips;
   final List<dynamic> maintenanceLogs;
+  final VoidCallback onSyncAction;
 
   const FleetOverviewTab({
     super.key,
@@ -13,6 +14,7 @@ class FleetOverviewTab extends StatefulWidget {
     required this.drivers,
     required this.trips,
     required this.maintenanceLogs,
+    required this.onSyncAction,
   });
 
   @override
@@ -41,7 +43,6 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
 
-    // --- TIMEFRAME FILTERING ---
     DateTime now = DateTime.now();
     DateTime start = DateTime(2000);
     if (_timeFrame == 'Last 7 Days') {
@@ -76,17 +77,39 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     );
 
     int readyV = widget.vehicles.where((v) {
-      double r = (v['live_risk_score'] as num?)?.toDouble() ?? 0.0;
+      double daysRemaining = (v['live_risk_score'] as num?)?.toDouble() ?? 0.0;
       String st = (v['health_status'] ?? '').toString().toLowerCase();
       return !st.contains('maintenance') &&
           !st.contains('repair') &&
-          (r * 100) < 80.0;
+          daysRemaining > 7.0;
     }).length;
 
-    double csat = widget.drivers.isEmpty
-        ? 0.0
-        : widget.drivers.fold(0.0, (s, d) => s + _parseDouble(d['rating'])) /
-              widget.drivers.length;
+    // Safety Fallback: Because backend /trips lacks rating info, we use the global driver average
+    List<dynamic> evaluatedTrips = fTrips
+        .where(
+          (t) =>
+              t['rating'] != null ||
+              t['csat'] != null ||
+              t['evaluation_score'] != null,
+        )
+        .toList();
+
+    double csat = 0.0;
+    if (evaluatedTrips.isNotEmpty) {
+      csat =
+          evaluatedTrips.fold(
+            0.0,
+            (s, t) =>
+                s +
+                _parseDouble(t['rating'] ?? t['csat'] ?? t['evaluation_score']),
+          ) /
+          evaluatedTrips.length;
+    } else {
+      csat = widget.drivers.isEmpty
+          ? 0.0
+          : widget.drivers.fold(0.0, (s, d) => s + _parseDouble(d['rating'])) /
+                widget.drivers.length;
+    }
 
     // --- CHART DATA GROUPING ---
     Map<String, int> dateCounts = {};

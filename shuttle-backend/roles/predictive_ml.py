@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from flask import Blueprint, request, jsonify
-from sklearn.linear_model import LinearRegression # 👈 Changed to Linear Regression
+from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 
 predictive_bp = Blueprint('predictive_ml', __name__)
@@ -15,24 +15,27 @@ def train_baseline_model():
     """
     Trains a Multiple Linear Regression model to forecast maintenance cycles.
     Features: [Total Mileage (km), Vehicle Age (Years), Trip Count, Past Repair Count]
-    Target (y): Estimated Days Until Next Maintenance Required
     """
     global is_trained, model, scaler
     try:
-        # X: Independent Variables (Telemetry)
         X_train = np.array([
-            [85000, 8, 120, 14],  # Heavily used, old
-            [12000, 1, 15,  1],   # New vehicle
-            [62000, 5, 95,  8],   # Moderate/Heavy wear
-            [22000, 2, 40,  2],   # Lightly used
-            [110000, 9, 180, 22], # Critical structural wear
-            [5000,  1, 8,   0],   # Pristine baseline
-            [71000, 6, 110, 11],  # High repair history
-            [35000, 3, 55,  3]    # Standard nominal tier
+            [85000, 8, 120, 14],  
+            [12000, 1, 15,  1],   
+            [62000, 5, 95,  8],   
+            [22000, 2, 40,  2],   
+            [110000, 9, 180, 22], 
+            [5000,  1, 8,   0],   
+            [71000, 6, 110, 11],  
+            [35000, 3, 55,  3],   
+            [0, 10, 0, 0],        
+            [40000, 8, 60, 4]     
         ])
         
-        # y: Dependent Variable (Days Remaining)
-        y_train = np.array([12.0, 310.0, 45.0, 240.0, 2.0, 350.0, 25.0, 180.0])
+        y_train = np.array([
+            12.0, 310.0, 45.0, 240.0, 2.0, 350.0, 25.0, 180.0,
+            280.0, 
+            140.0  
+        ])
         
         X_scaled = scaler.fit_transform(X_train)
         model.fit(X_scaled, y_train)
@@ -65,22 +68,34 @@ def predict_maintenance_risk(vehicle_id):
         logs_res = supabase.table('maintenance_log').select('source: maintenance_id').eq('vehicle_id', vehicle_id).execute()
         past_repairs = len(logs_res.data) if logs_res.data else 0
 
-        # Execute Multiple Linear Regression Inference
         live_features = np.array([[total_mileage, age, trip_count, past_repairs]])
         scaled_features = scaler.transform(live_features)
         
-        # Predict continuous days remaining
         predicted_days = float(model.predict(scaled_features)[0])
-        predicted_days = max(0.0, round(predicted_days, 1)) # Prevent negative days
+        predicted_days = max(0.0, round(predicted_days, 1)) 
         
-        # Re-using the risk_score column in DB to store the forecasted days
+        # 🛡️ BULLETPROOF BOOLEAN PARSER
+        raw_is_avail = vehicle.get('is_available')
+        is_active = True
+        if raw_is_avail is False or str(raw_is_avail).lower() == 'false':
+            is_active = False
+
         update_payload = {"risk_score": predicted_days}
         
-        # 🚨 Lockout Strategy: If predicted days is 7 or less, trigger automated lockout
-        if predicted_days <= 7.0 and vehicle.get('is_available') == True:
+        if predicted_days <= 7.0:
+            if is_active:
+                update_payload["is_available"] = False
+                update_payload["last_maintenance_description"] = f"⚠️ ML FORECAST: Structural maintenance required within {predicted_days} days."
             update_payload["health_status"] = "Needs Maintenance"
-            update_payload["is_available"] = False
-            update_payload["last_maintenance_description"] = f"⚠️ ML FORECAST: Structural maintenance required within {predicted_days} days."
+        else:
+            # STRICT Auto-Heal: Only touch health_status if the vehicle is actively cleared for dispatch
+            if is_active:
+                if predicted_days > 90.0:
+                    update_payload["health_status"] = "Excellent"
+                elif predicted_days > 30.0:
+                    update_payload["health_status"] = "Good"
+                else:
+                    update_payload["health_status"] = "Fair"
 
         supabase.table('vehicle').update(update_payload).eq('vehicle_id', vehicle_id).execute()
 
@@ -88,7 +103,7 @@ def predict_maintenance_risk(vehicle_id):
             "success": True,
             "vehicle_id": vehicle_id,
             "plate_number": vehicle.get('plate_number'),
-            "risk_index": predicted_days, # This now sends DAYS instead of PERCENTAGE
+            "risk_index": predicted_days, 
             "telemetry_metrics": {
                 "total_mileage_km": total_mileage,
                 "age_years": age,
@@ -134,17 +149,29 @@ def evaluate_entire_fleet():
             predicted_days = float(model.predict(scaled_features)[0])
             predicted_days = max(0.0, round(predicted_days, 1))
 
+            # 🛡️ BULLETPROOF BOOLEAN PARSER
+            raw_is_avail = vehicle.get('is_available')
+            is_active = True
+            if raw_is_avail is False or str(raw_is_avail).lower() == 'false':
+                is_active = False
+
             update_payload = {"risk_score": predicted_days}
             
-            if predicted_days <= 7.0 and vehicle.get('is_available') == True:
+            if predicted_days <= 7.0:
+                if is_active:
+                    update_payload["is_available"] = False
+                    update_payload["last_maintenance_description"] = f"⚠️ ML FORECAST: Background sweep triggered lockout. Maintenance due in {predicted_days} days."
+                    flagged_assets.append({"plate": vehicle.get('plate_number'), "forecast_days": predicted_days})
                 update_payload["health_status"] = "Needs Maintenance"
-                update_payload["is_available"] = False
-                update_payload["last_maintenance_description"] = f"⚠️ ML FORECAST: Background sweep triggered lockout. Maintenance due in {predicted_days} days."
-                
-                flagged_assets.append({
-                    "plate": vehicle.get('plate_number'),
-                    "forecast_days": predicted_days
-                })
+            else:
+                # STRICT Auto-Heal
+                if is_active:
+                    if predicted_days > 90.0:
+                        update_payload["health_status"] = "Excellent"
+                    elif predicted_days > 30.0:
+                        update_payload["health_status"] = "Good"
+                    else:
+                        update_payload["health_status"] = "Fair"
 
             supabase.table('vehicle').update(update_payload).eq('vehicle_id', vehicle_id).execute()
                 
