@@ -11,7 +11,7 @@ import '../../constant.dart';
 import '../../utils/file_download.dart';
 
 class SharedReportsManager extends StatefulWidget {
-  final String userRole; // 'admin' or 'staff'
+  final String userRole;
 
   const SharedReportsManager({
     super.key,
@@ -32,8 +32,18 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
   String _selectedReportType = 'Timecard';
   bool _isImporting = false;
   bool _isLoadingSystemData = false;
-  final int _rowsPerPage = 10;
   String _sourceFileName = 'No file selected';
+
+  // Custom Pagination, Sorting & Search State
+  int _rowsPerPage = 10;
+  int _currentPage = 0;
+  bool _sortDateAscending = false; // Default: newest first
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  // Main UI Date Filter State
+  String _selectedRange = 'All Time';
+  DateTimeRange? _customDateRange;
 
   final List<String> _timecardColumns = [
     'employee',
@@ -56,10 +66,102 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
     _loadCurrentReportData();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   bool get _canImportCurrentReport => _selectedReportType == 'Timecard';
 
+  // ===========================================================================
+  // PIPELINE: FILTER, SEARCH & SORT 
+  // ===========================================================================
+
+  List<Map<String, String>> get _processedRows {
+    List<Map<String, String>> result = List.from(_rows);
+
+    // 1. Date Filter (Applied from the main UI dropdown)
+    DateTime now = DateTime.now();
+    DateTime? startDate;
+    DateTime? endDate;
+
+    if (_selectedRange == 'Today') {
+      startDate = DateTime(now.year, now.month, now.day);
+      endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    } else if (_selectedRange == 'This Week') {
+      startDate = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1)); 
+      endDate = startDate.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59)); 
+    } else if (_selectedRange == 'This Month') {
+      startDate = DateTime(now.year, now.month, 1);
+      endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59); 
+    } else if (_selectedRange == 'This Year') {
+      startDate = DateTime(now.year, 1, 1);
+      endDate = DateTime(now.year, 12, 31, 23, 59, 59);
+    } else if (_selectedRange == 'Custom Range' && _customDateRange != null) {
+      startDate = _customDateRange!.start;
+      endDate = DateTime(_customDateRange!.end.year, _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
+    }
+
+    if (startDate != null && endDate != null) {
+      result = result.where((row) {
+        final dateStr = _extractDateFromRow(row);
+        if (dateStr == 'NaN' || dateStr.isEmpty) return false;
+        try {
+          final parsed = DateTime.parse(dateStr.split('T')[0]);
+          return parsed.isAfter(startDate!.subtract(const Duration(days: 1))) && 
+                 parsed.isBefore(endDate!.add(const Duration(days: 1)));
+        } catch (_) {
+          return false;
+        }
+      }).toList();
+    }
+
+    // 2. Search Filter
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      result = result.where((row) {
+        return row.values.any((val) => _formatDisplayValue('', val).toLowerCase().contains(query));
+      }).toList();
+    }
+
+    // 3. Sort By Explicit Target Date
+    result.sort((a, b) {
+      DateTime dateA = _parseFlexibleDate(_extractDateFromRow(a)) ?? DateTime(1970);
+      DateTime dateB = _parseFlexibleDate(_extractDateFromRow(b)) ?? DateTime(1970);
+      return _sortDateAscending ? dateA.compareTo(dateB) : dateB.compareTo(dateA);
+    });
+
+    return result;
+  }
+
+  DateTime? _parseFlexibleDate(String dateStr) {
+    if (dateStr == 'NaN' || dateStr.isEmpty) return null;
+    try {
+      return DateTime.parse(dateStr.split('T')[0]);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _extractDateFromRow(Map<String, String> row) {
+    if (_selectedReportType == 'Timecard') return row['date'] ?? '';
+    if (_selectedReportType == 'Maintenance') return row['incident_date'] ?? '';
+    if (_selectedReportType == 'Trips') return row['schedule_date'] ?? row['schedule'] ?? '';
+    return '';
+  }
+
+  // ===========================================================================
+  // DATA LOADING
+  // ===========================================================================
+
   Future<void> _loadCurrentReportData() async {
-    setState(() => _isLoadingSystemData = true);
+    setState(() {
+      _isLoadingSystemData = true;
+      _currentPage = 0;
+      _selectedRange = 'All Time';
+      _customDateRange = null;
+    });
 
     try {
       http.Response response;
@@ -69,7 +171,6 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
       } else if (_selectedReportType == 'Maintenance') {
         response = await http.get(Uri.parse('$backendUrl/vehicles/maintenance'));
       } else {
-        // Fallback Routing: Try role-based route first, fallback to admin route if blocked
         response = await http.get(Uri.parse('$backendUrl/${widget.userRole}/timecards'));
         if (response.statusCode != 200) {
           response = await http.get(Uri.parse('$backendUrl/admin/timecards'));
@@ -198,7 +299,6 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
 
       if (lowerName.endsWith('.xls')) {
         rawRows = await _convertLegacyXlsDirectly(fileBytes, file.name);
-        
         if (rawRows.isEmpty) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -224,6 +324,9 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
         _sourceFileName = file.name;
         _columns = _timecardColumns;
         _rows = parsedRows;
+        _currentPage = 0;
+        _selectedRange = 'All Time';
+        _customDateRange = null;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -256,7 +359,6 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
         if (response.statusCode == 200) {
           final decoded = jsonDecode(response.body);
           final rows = decoded['rows'] as List<dynamic>? ?? const [];
-          
           if (rows.isNotEmpty && rows.first is Map) {
             return rows.map<List<dynamic>>((row) => (row as Map).values.toList()).toList();
           } else if (rows.isNotEmpty && rows.first is List) {
@@ -284,36 +386,76 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
     return unique.isEmpty ? ['No columns detected'] : unique;
   }
 
-  Future<void> _exportCurrentReport() async {
-    if (_selectedReportType == 'Timecard' && _columns.isEmpty) {
+  // ===========================================================================
+  // EXPORT LOGIC
+  // ===========================================================================
+
+  Future<void> _showExportDialog() async {
+    final activeRows = _processedRows;
+    if (activeRows.isEmpty || (activeRows.length == 1 && activeRows.first['status'] == 'No records found')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Load or import data before exporting.')),
+        const SnackBar(content: Text('No data available to export.')),
       );
       return;
     }
 
-    final isTimecardExport = _selectedReportType == 'Timecard';
-    final exportColumns = isTimecardExport ? _timecardColumns : (_rows.isEmpty ? ['report_type', 'status', 'generated_at'] : _columns);
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Export ${_selectedReportType}'),
+          content: Text(
+            'You are about to export ${activeRows.length} displayed records.\n\nPlease select your preferred file format.',
+            style: const TextStyle(fontSize: 15),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _executeExport('CSV');
+              },
+              icon: const Icon(Icons.data_object),
+              label: const Text('Download CSV'),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _executeExport('XLSX');
+              },
+              icon: const Icon(Icons.table_view),
+              label: const Text('Download XLSX'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-    // File Naming Logic
+  Future<void> _executeExport(String format) async {
+    final filteredRows = _processedRows;
+    final exportColumns = _selectedReportType == 'Timecard' ? _timecardColumns : _columns;
+
     String baseName;
     if (_sourceFileName != 'No file selected' && !_sourceFileName.startsWith('System ')) {
-      // Retains the original imported filename, just removing its old extension
       baseName = _sourceFileName.replaceAll(RegExp(r'\.[^.]+$'), '');
     } else {
-      // Defaults to system name if no file was imported
-      baseName = '${_selectedReportType.toLowerCase()}_report_${DateTime.now().millisecondsSinceEpoch}';
+      String suffix = _selectedRange == 'All Time' ? 'all_time' : _selectedRange.toLowerCase().replaceAll(' ', '_');
+      baseName = '${_selectedReportType.toLowerCase()}_report_$suffix';
     }
 
-    final fileName = isTimecardExport ? '$baseName.xlsx' : '$baseName.csv';
+    final fileName = '$baseName.${format.toLowerCase()}';
 
     try {
-      final bytes = isTimecardExport
-          ? _convertRowsToXlsx(_rows.isEmpty ? [{for (final column in exportColumns) column: ''}] : _rows, exportColumns)
+      final bytes = format == 'XLSX'
+          ? _convertRowsToXlsx(filteredRows.isEmpty ? [{for (final column in exportColumns) column: ''}] : filteredRows, exportColumns)
           : utf8.encode(
               <List<String>>[
                 exportColumns,
-                ...(_rows.isEmpty ? _getEmptyRow() : _rows).map((row) => exportColumns.map((column) => _escapeCsv(_formatDisplayValue(column, row[column] ?? ''))).toList()),
+                ...filteredRows.map((row) => exportColumns.map((column) => _escapeCsv(_formatDisplayValue(column, row[column] ?? ''))).toList()),
               ].map((row) => row.map((value) => value).join(',')).join('\n'),
             );
 
@@ -324,7 +466,7 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exported $fileName')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exported ${filteredRows.length} rows as $fileName')));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to export report: $error')));
@@ -335,18 +477,27 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final activeData = _processedRows;
+    final startIndex = _currentPage * _rowsPerPage;
+    final endIndex = (startIndex + _rowsPerPage > activeData.length) ? activeData.length : startIndex + _rowsPerPage;
+    final displayRows = activeData.isEmpty ? [] : activeData.sublist(startIndex, endIndex);
+    final totalPages = (activeData.length / _rowsPerPage).ceil();
+
     final tableColumns = _columns.isEmpty
         ? const [DataColumn(label: Text('No data'))]
-        : _columns.map((column) => DataColumn(label: Text(_formatTableHeader(column)))).toList();
+        : _columns.map((col) => DataColumn(label: Text(_formatTableHeader(col), style: const TextStyle(fontWeight: FontWeight.bold)))).toList();
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // ==========================================
+              // TOP HEADER
+              // ==========================================
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -356,19 +507,12 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
                       children: [
                         Text(
                           'Import & Export',
-                          style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
+                          style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           'View system reports and manage timecards.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
-                          ),
+                          style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
                         ),
                       ],
                     ),
@@ -383,13 +527,17 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
                   ),
                   const SizedBox(width: 12),
                   OutlinedButton.icon(
-                    onPressed: _exportCurrentReport,
+                    onPressed: _showExportDialog,
                     icon: const Icon(Icons.download_outlined),
-                    label: Text(_selectedReportType == 'Timecard' ? 'Export XLS' : 'Export CSV'),
+                    label: const Text('Export Report'),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
+              
+              // ==========================================
+              // INFO PANEL
+              // ==========================================
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -404,17 +552,14 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
                     Expanded(
                       child: Text(
                         _sourceFileName,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.w600),
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(color: Colors.blue.withOpacity(0.12), borderRadius: BorderRadius.circular(999)),
                       child: Text(
-                        '${_rows.length} rows',
+                        'Total: ${activeData.length} rows',
                         style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -422,66 +567,295 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
                 ),
               ),
               const SizedBox(height: 20),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: _reportTypes.map((type) {
-                  final isSelected = _selectedReportType == type;
-                  return ChoiceChip(
-                    label: Text(type),
-                    selected: isSelected,
-                    avatar: Icon(
-                      type == 'Trips'
-                          ? Icons.route_outlined
-                          : type == 'Maintenance'
-                          ? Icons.build_outlined
-                          : Icons.schedule_outlined,
-                      size: 18,
+
+              // ==========================================
+              // CONTROLS ROW (Chips, Search, Filter, Sort)
+              // ==========================================
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: _reportTypes.map((type) {
+                        final isSelected = _selectedReportType == type;
+                        return ChoiceChip(
+                          label: Text(type),
+                          selected: isSelected,
+                          avatar: Icon(
+                            type == 'Trips' ? Icons.route_outlined : type == 'Maintenance' ? Icons.build_outlined : Icons.schedule_outlined,
+                            size: 18,
+                          ),
+                          onSelected: (_) async {
+                            setState(() => _selectedReportType = type);
+                            await _loadCurrentReportData();
+                          },
+                          selectedColor: Colors.blue.shade100,
+                          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          labelStyle: TextStyle(
+                            color: isSelected ? Colors.blue.shade900 : (isDark ? Colors.white : Colors.black87),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        );
+                      }).toList(),
                     ),
-                    onSelected: (_) async {
-                      setState(() => _selectedReportType = type);
-                      await _loadCurrentReportData();
-                    },
-                    selectedColor: Colors.blue.shade100,
-                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.blue.shade900 : (isDark ? Colors.white : Colors.black87),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              if (_isLoadingSystemData)
-                const Center(child: CircularProgressIndicator())
-              else if (_rows.isEmpty)
-                const Center(child: Text('No report data found'))
-              else
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF111827) : Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                   ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: PaginatedDataTable(
-                      columns: tableColumns,
-                      source: _TimecardDataSource(
-                        columns: _columns,
-                        rows: _rows,
-                        formatter: _formatDisplayValue,
+                  if (_columns.isNotEmpty && _rows.isNotEmpty) ...[
+                    // Search Bar
+                    SizedBox(
+                      width: 200,
+                      height: 42,
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (val) => setState(() {
+                          _searchQuery = val;
+                          _currentPage = 0;
+                        }),
+                        style: const TextStyle(fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'Search...',
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _searchQuery = '';
+                                      _currentPage = 0;
+                                    });
+                                  },
+                                )
+                              : null,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF1F2937) : Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                          ),
+                        ),
                       ),
-                      rowsPerPage: _rowsPerPage,
-                      availableRowsPerPage: const [10, 20, 50],
-                      onPageChanged: (_) {},
-                      columnSpacing: 24,
-                      horizontalMargin: 16,
-                      headingRowColor: WidgetStatePropertyAll(isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
                     ),
-                  ),
-                ),
+                    const SizedBox(width: 8),
+                    // Date Filter Dropdown
+                    Container(
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1F2937) : Colors.white,
+                        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: PopupMenuButton<String>(
+                        tooltip: 'Filter by Date Range',
+                        offset: const Offset(0, 48),
+                        icon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.calendar_today_outlined, size: 18, color: isDark ? Colors.white : Colors.black87),
+                            const SizedBox(width: 4),
+                            Icon(Icons.keyboard_arrow_down, size: 18, color: isDark ? Colors.white : Colors.black87),
+                          ],
+                        ),
+                        onSelected: (val) async {
+                          if (val == 'Custom Range') {
+                            final picked = await showDateRangePicker(
+                              context: context,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2100),
+                              initialDateRange: _customDateRange,
+                              builder: (context, child) {
+                                return Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 400,
+                                      maxHeight: 600,
+                                    ),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                _selectedRange = val;
+                                _customDateRange = picked;
+                                _currentPage = 0;
+                              });
+                            }
+                          } else {
+                            setState(() {
+                              _selectedRange = val;
+                              _currentPage = 0;
+                            });
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(value: 'All Time', child: Text('All Time')),
+                          const PopupMenuItem(value: 'Today', child: Text('Today')),
+                          const PopupMenuItem(value: 'This Week', child: Text('This Week')),
+                          const PopupMenuItem(value: 'This Month', child: Text('This Month')),
+                          const PopupMenuItem(value: 'This Year', child: Text('This Year')),
+                          const PopupMenuItem(value: 'Custom Range', child: Text('Custom Range...')),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Date Sort Asc/Desc Toggle
+                    Container(
+                      height: 42,
+                      width: 42,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1F2937) : Colors.white,
+                        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Tooltip(
+                        message: _sortDateAscending ? 'Oldest First' : 'Newest First',
+                        child: InkWell(
+                          onTap: () => setState(() {
+                            _sortDateAscending = !_sortDateAscending;
+                            _currentPage = 0;
+                          }),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Center(
+                            child: Icon(_sortDateAscending ? Icons.arrow_upward : Icons.arrow_downward, size: 18),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (_selectedRange != 'All Time')
+                 Padding(
+                   padding: const EdgeInsets.only(top: 8.0),
+                   child: Text(
+                     'Filtering: $_selectedRange', 
+                     style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w600, fontSize: 13),
+                   ),
+                 ),
+              const SizedBox(height: 16),
+
+              // ==========================================
+              // FIT TABLE CONTAINER 
+              // ==========================================
+              Expanded(
+                child: _isLoadingSystemData
+                  ? const Center(child: CircularProgressIndicator())
+                  : activeData.isEmpty
+                      ? const Center(child: Text('No report data matches current filters'))
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF111827) : Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.vertical,
+                                      child: DataTable(
+                                        headingRowColor: WidgetStatePropertyAll(isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                                        columnSpacing: 24,
+                                        dataRowMinHeight: 52,
+                                        dataRowMaxHeight: 90,
+                                        columns: tableColumns,
+                                        rows: displayRows.map((row) {
+                                          return DataRow(
+                                            cells: _columns.map((col) {
+                                              final displayValue = _formatDisplayValue(col, row[col] ?? '');
+                                              return DataCell(
+                                                ConstrainedBox(
+                                                  constraints: const BoxConstraints(minWidth: 80, maxWidth: 200),
+                                                  child: Text(
+                                                    displayValue,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    maxLines: 2,
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const Divider(height: 1),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Rows per page:',
+                                      style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 13),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    DropdownButton<int>(
+                                      value: _rowsPerPage,
+                                      underline: const SizedBox(),
+                                      iconSize: 20,
+                                      items: [10, 20, 50].map((int value) {
+                                        return DropdownMenuItem<int>(
+                                          value: value,
+                                          child: Text(value.toString(), style: const TextStyle(fontSize: 13)),
+                                        );
+                                      }).toList(),
+                                      onChanged: (value) {
+                                        if (value != null) {
+                                          setState(() {
+                                            _rowsPerPage = value;
+                                            _currentPage = 0;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(width: 24),
+                                    Text(
+                                      '${activeData.isEmpty ? 0 : startIndex + 1}-${endIndex} of ${activeData.length}',
+                                      style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 13),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    IconButton(
+                                      icon: const Icon(Icons.chevron_left),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      splashRadius: 20,
+                                      onPressed: _currentPage > 0
+                                          ? () => setState(() => _currentPage--)
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    IconButton(
+                                      icon: const Icon(Icons.chevron_right),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      splashRadius: 20,
+                                      onPressed: _currentPage < totalPages - 1
+                                          ? () => setState(() => _currentPage++)
+                                          : null,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+              ),
             ],
           ),
         ),
@@ -498,7 +872,7 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
       return _formatTimeValue(rawValue);
     } else if (column == 'work_time' || column == 'daily_total') {
       return _formatDurationValue(rawValue);
-    } else if (column == 'date') {
+    } else if (column == 'date' || column == 'incident_date' || column == 'schedule_date') {
       return _formatDateValue(rawValue);
     } else if (column == 'day') {
       return (rawValue == 'NaN' || rawValue.isEmpty || rawValue == 'null') ? '-' : rawValue.toUpperCase();
@@ -807,44 +1181,8 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
       }).toList();
       sheet.insertRowIterables(values, i + 1);
     }
-    return Uint8List.fromList(workbook.save() ?? []);
+    
+    // CHANGED: Use encode() instead of save() to prevent the double-download on Web
+    return Uint8List.fromList(workbook.encode() ?? []);
   }
-}
-
-class _TimecardDataSource extends DataTableSource {
-  final List<String> columns;
-  final List<Map<String, String>> rows;
-  final String Function(String column, String rawValue) formatter;
-
-  _TimecardDataSource({
-    required this.columns,
-    required this.rows,
-    required this.formatter,
-  });
-
-  @override
-  DataRow? getRow(int index) {
-    if (index >= rows.length) return null;
-    final row = rows[index];
-    return DataRow(
-      cells: columns.map((col) {
-        final rawValue = row[col] ?? '';
-        final displayValue = formatter(col, rawValue);
-        return DataCell(
-          ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 80, maxWidth: 200),
-            child: Text(
-              displayValue,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  @override bool get isRowCountApproximate => false;
-  @override int get rowCount => rows.length;
-  @override int get selectedRowCount => 0;
 }
