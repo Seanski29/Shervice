@@ -1,34 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shervice_flutter/screens/admin/admin_import_export.dart';
+
+// Make sure this points to your active Admin wrapper or SharedReportsManager
+import 'package:shervice_flutter/screens/admin/admin_reports_manager.dart'; 
 import 'package:shervice_flutter/session_manager.dart';
 import 'package:shervice_flutter/theme/theme_manager.dart';
 
 void main() {
-  testWidgets('admin import/export screen limits import to attendance only', (
+  testWidgets('admin reports screen enables import only on timecard tab', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: AdminImportExport()));
+    await tester.pumpWidget(const MaterialApp(home: AdminReportsManager()));
 
     expect(find.text('Import & Export'), findsOneWidget);
     expect(find.text('Trips'), findsOneWidget);
     expect(find.text('Maintenance'), findsOneWidget);
-    expect(find.text('Attendance'), findsOneWidget);
+    expect(find.text('Timecard'), findsOneWidget);
+    
+    // Verify Attendance was completely removed
+    expect(find.text('Attendance'), findsNothing); 
 
-    final initialImportButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Import Locked'),
-    );
-    expect(initialImportButton.onPressed, isNull);
-
-    await tester.tap(find.text('Attendance'));
-    await tester.pump();
-
-    final attendanceImportButton = tester.widget<FilledButton>(
+    // 1. Timecard is now the default, so the button should be active immediately
+    final timecardImportButton = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Import Excel'),
     );
-    expect(attendanceImportButton.onPressed, isNotNull);
-    expect(find.textContaining('xlsx'), findsWidgets);
+    expect(timecardImportButton.onPressed, isNotNull);
+
+    // 2. Tap 'Trips' to verify the button correctly locks itself
+    await tester.tap(find.text('Trips'));
+    await tester.pump();
+
+    final lockedImportButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Import Locked'),
+    );
+    expect(lockedImportButton.onPressed, isNull);
   });
 
   test('theme preference survives loading and logout', () async {
