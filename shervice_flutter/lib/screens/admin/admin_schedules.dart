@@ -28,6 +28,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     'Ongoing',
     'Completed',
     'Rejected',
+    'Expired',
   ];
 
   @override
@@ -193,18 +194,20 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     final s = (t['trip_status'] ?? '').toString().toLowerCase();
     return s.contains('reject') || s.contains('cancel');
   }).length;
+  int get _expiredTrips => _baseSchedules.where((t) {
+    return (t['trip_status'] ?? '').toString().toLowerCase().contains(
+      'expired',
+    );
+  }).length;
 
   Color _getStatusColor(String status) {
     final s = status.toLowerCase();
-    if (s.contains('ongoing') ||
-        s.contains('progress') ||
-        s.contains('active')) {
+    if (s.contains('ongoing') || s.contains('progress') || s.contains('active'))
       return const Color(0xFFF59E0B);
-    }
     if (s.contains('completed')) return const Color(0xFF10B981);
-    if (s.contains('reject') || s.contains('cancel')) {
+    if (s.contains('reject') || s.contains('cancel'))
       return const Color(0xFFEF4444);
-    }
+    if (s.contains('expired')) return Colors.grey.shade600;
     return const Color(0xFF3B82F6);
   }
 
@@ -628,6 +631,13 @@ class _AdminSchedulesState extends State<AdminSchedules> {
         'icon': Icons.close,
         'color': const Color(0xFFEF4444),
         'filter': 'Rejected',
+      },
+      {
+        'label': 'Expired',
+        'value': _expiredTrips.toString(),
+        'icon': Icons.timer_off,
+        'color': Colors.grey.shade600,
+        'filter': 'Expired',
       },
     ];
 

@@ -166,6 +166,7 @@ class _OicTripsState extends State<OicTrips> {
           (_statusFilter == 'Completed' && status.contains('completed')) ||
           (_statusFilter == 'Ongoing' && status.contains('ongoing')) ||
           (_statusFilter == 'Scheduled' && status.contains('scheduled')) ||
+          (_statusFilter == 'Expired' && status.contains('expired')) ||
           (_statusFilter == 'Cancelled' &&
               (status.contains('cancelled') || status.contains('rejected')));
 
@@ -264,6 +265,13 @@ class _OicTripsState extends State<OicTrips> {
     final s = (t['trip_status'] ?? '').toString().toLowerCase();
     return s.contains('cancelled') || s.contains('rejected');
   }).length;
+  int get _expiredTrips => _trips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase().contains(
+          'expired',
+        ),
+      )
+      .length;
 
   Color _getStatusColor(String statusStr) {
     String lower = statusStr.toLowerCase();
@@ -528,6 +536,13 @@ class _OicTripsState extends State<OicTrips> {
         'icon': Icons.cancel_outlined,
         'color': const Color(0xFFEF4444),
         'filter': 'Cancelled',
+      },
+      {
+        'label': 'Expired',
+        'value': _expiredTrips.toString(),
+        'icon': Icons.timer_off,
+        'color': Colors.grey.shade600,
+        'filter': 'Expired',
       },
     ];
 

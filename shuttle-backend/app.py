@@ -16,6 +16,7 @@ import roles.vehicle as vehicles_module
 import roles.schedules as schedules_module
 import roles.predictive_ml as predictive_ml
 import roles.driver_ml as driver_ml_module
+import roles.route_ml as route_ml_module
 
 from gemeni import ai_bp  # Kept the import here cleanly
 
@@ -68,7 +69,7 @@ class TransportBackendApp:
         schedules_module.supabase = self.supabase
         predictive_ml.supabase = self.supabase
         driver_ml_module.supabase = self.supabase
-
+        route_ml_module.supabase = self.supabase
         # Register functional application blueprints cleanly
         self.app.register_blueprint(auth_module.auth_bp)
         self.app.register_blueprint(notifs_module.notifs_bp) #new
@@ -81,6 +82,7 @@ class TransportBackendApp:
         self.app.register_blueprint(schedules_module.schedules_bp)
         self.app.register_blueprint(predictive_ml.predictive_bp)
         self.app.register_blueprint(driver_ml_module.driver_ml_bp)
+        self.app.register_blueprint(route_ml_module.route_ml_bp)
         # REGISTER THE AI BLUEPRINT HERE CORRECTLY
         self.app.register_blueprint(ai_bp)
 

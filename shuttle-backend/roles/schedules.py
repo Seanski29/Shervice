@@ -179,7 +179,6 @@ def get_driver_trips(driver_uuid):
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-    
 @schedules_bp.route('/api/schedules/update-status', methods=['POST'])
 def update_trip_status():
     try:
@@ -187,6 +186,16 @@ def update_trip_status():
         trip_id = data.get('trip_id')
         new_status = data.get('status')
         
+        # 🛡️ CONCURRENCY LOCK: Prevent starting a new trip if one is already ongoing
+        if new_status == 'Ongoing':
+            trip_query = supabase.table('trip_schedule').select('user_id').eq('trip_id', trip_id).execute()
+            if trip_query.data and trip_query.data[0].get('user_id'):
+                user_uuid = trip_query.data[0].get('user_id')
+                active_check = supabase.table('trip_schedule').select('trip_id').eq('user_id', user_uuid).eq('trip_status', 'Ongoing').execute()
+                
+                if active_check.data:
+                    return jsonify({"success": False, "message": "You already have an active trip in progress. Please finish it first."}), 400
+
         update_payload = {"trip_status": new_status}
         
         # Capture precise timestamps for the ML Clustering Pipeline
@@ -195,12 +204,7 @@ def update_trip_status():
         elif new_status == 'Completed':
             update_payload['actual_end_time'] = datetime.utcnow().isoformat()
         
-        response = (
-            supabase.table('trip_schedule')
-            .update(update_payload)
-            .eq('trip_id', trip_id)
-            .execute()
-        )
+        response = supabase.table('trip_schedule').update(update_payload).eq('trip_id', trip_id).execute()
 
         return jsonify({"success": True, "message": f"Trip updated to {new_status}"}), 200
     except Exception as e:
