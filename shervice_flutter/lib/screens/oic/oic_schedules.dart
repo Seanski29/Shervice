@@ -19,7 +19,7 @@ class _OicSchedulesState extends State<OicSchedules> {
   bool _isLoading = true;
   bool _isRefreshing = false;
   List<dynamic> _myTrips = [];
-  
+
   // Calendar State
   DateTime _focusedMonth = DateTime.now();
   DateTime? _selectedDate;
@@ -27,7 +27,7 @@ class _OicSchedulesState extends State<OicSchedules> {
   // Filtering & Searching
   String _searchQuery = '';
   String _statusFilter = 'All'; // Interactive cross-filtering
-  
+
   String _sortOption = 'Date (Newest)';
   final List<String> _sortOptions = [
     'Date (Newest)',
@@ -108,9 +108,13 @@ class _OicSchedulesState extends State<OicSchedules> {
 
   // --- Filtering & Sorting ---
   List<dynamic> get _filteredAndSortedTrips {
-    final placeholderStatus = _statusFilter == 'All' ? 'Scheduled' : _statusFilter;
+    final placeholderStatus = _statusFilter == 'All'
+        ? 'Scheduled'
+        : _statusFilter;
     final displayTrips = _isLoading
-        ? List.generate(5, (index) => {
+        ? List.generate(
+            5,
+            (index) => {
               'trip_id': index + 1,
               'route_name': 'Loading Route',
               'trip_status': placeholderStatus,
@@ -119,26 +123,30 @@ class _OicSchedulesState extends State<OicSchedules> {
               'plate_number': 'Loading Vehicle',
               'departure_time': '08:00',
               'estimated_arrival_time': '09:00',
-            })
+            },
+          )
         : _myTrips;
     List<dynamic> filtered = displayTrips.where((trip) {
       final route = (trip['route_name'] ?? '').toString().toLowerCase();
       final status = (trip['trip_status'] ?? '').toString().toLowerCase();
       final query = _searchQuery.toLowerCase();
-      
+
       // Text Search
       final matchesSearch = route.contains(query) || status.contains(query);
 
       // Status Pill Filter
-      final matchesStatus = _statusFilter == 'All' ||
+      final matchesStatus =
+          _statusFilter == 'All' ||
           (_statusFilter == 'Pending' && status.contains('pending')) ||
           (_statusFilter == 'Rejected' && status.contains('rejected')) ||
           (_statusFilter == 'Scheduled' && status == 'scheduled') ||
+          (_statusFilter == 'Expired' && status.contains('expired')) ||
           (_statusFilter == 'Completed' && status == 'completed');
 
       // Date Filter
       final tripDate = _parseDate(trip['schedule_date']);
-      final matchesDate = _selectedDate == null ||
+      final matchesDate =
+          _selectedDate == null ||
           (tripDate != null &&
               tripDate.year == _selectedDate!.year &&
               tripDate.month == _selectedDate!.month &&
@@ -194,21 +202,52 @@ class _OicSchedulesState extends State<OicSchedules> {
 
   // --- Base Stats Calculation (Unfiltered) ---
   int get _totalTrips => _myTrips.length;
-  int get _pendingTrips => _myTrips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase().contains('pending')).length;
-  int get _scheduledTrips => _myTrips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'scheduled').length;
-  int get _completedTrips => _myTrips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'completed').length;
-  int get _rejectedTrips => _myTrips.where((t) => (t['trip_status'] ?? '').toString().toLowerCase().contains('rejected')).length;
+  int get _pendingTrips => _myTrips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase().contains(
+          'pending',
+        ),
+      )
+      .length;
+  int get _scheduledTrips => _myTrips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'scheduled',
+      )
+      .length;
+  int get _completedTrips => _myTrips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase() == 'completed',
+      )
+      .length;
+  int get _rejectedTrips => _myTrips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase().contains(
+          'rejected',
+        ),
+      )
+      .length;
+  int get _expiredTrips => _myTrips
+      .where(
+        (t) => (t['trip_status'] ?? '').toString().toLowerCase().contains(
+          'expired',
+        ),
+      )
+      .length;
 
   Color _getStatusColor(String statusStr) {
     String lower = statusStr.toLowerCase();
     if (lower.contains('completed')) return const Color(0xFF10B981); // Green
-    if (lower.contains('pending') || lower.contains('ongoing')) return const Color(0xFFF59E0B); // Amber
-    if (lower.contains('rejected') || lower.contains('cancelled')) return const Color(0xFFEF4444); // Red
+    if (lower.contains('pending') || lower.contains('ongoing'))
+      return const Color(0xFFF59E0B); // Amber
+    if (lower.contains('rejected') || lower.contains('cancelled'))
+      return const Color(0xFFEF4444); // Red
+    if (lower.contains('expired')) return Colors.grey.shade600;
     return const Color(0xFF3B82F6); // Blue (Default/Scheduled)
   }
 
   // --- Pagination Helpers ---
-  int get _totalPages => max(1, (_filteredAndSortedTrips.length / _itemsPerPage).ceil());
+  int get _totalPages =>
+      max(1, (_filteredAndSortedTrips.length / _itemsPerPage).ceil());
 
   List<dynamic> get _paginatedTrips {
     final start = _currentPage * _itemsPerPage;
@@ -248,8 +287,18 @@ class _OicSchedulesState extends State<OicSchedules> {
 
   String _monthYearFormat(DateTime date) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${months[date.month - 1]} ${date.year}';
   }
@@ -277,39 +326,42 @@ class _OicSchedulesState extends State<OicSchedules> {
       body: Skeletonizer(
         enabled: _isLoading,
         child: RefreshIndicator(
-        onRefresh: _fetchMyTrips,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ----- HEADER & FILTERS -----
-              isMobile
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildTitleHeader(isDark),
-                        const SizedBox(height: 16),
-                        _buildSearchAndActionRow(isDark, isMobile),
-                      ],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        _buildTitleHeader(isDark),
-                        const Spacer(), // Forces actions to far right
-                        _buildSearchAndActionRow(isDark, isMobile),
-                      ],
-                    ),
-              const SizedBox(height: 24),
+          onRefresh: _fetchMyTrips,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 24.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ----- HEADER & FILTERS -----
+                isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTitleHeader(isDark),
+                          const SizedBox(height: 16),
+                          _buildSearchAndActionRow(isDark, isMobile),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _buildTitleHeader(isDark),
+                          const Spacer(), // Forces actions to far right
+                          _buildSearchAndActionRow(isDark, isMobile),
+                        ],
+                      ),
+                const SizedBox(height: 24),
 
-              // ----- SUMMARY PILL CARDS -----
-              _buildTopSummaryStats(isDark, isMobile),
-              const SizedBox(height: 24),
+                // ----- SUMMARY PILL CARDS -----
+                _buildTopSummaryStats(isDark, isMobile),
+                const SizedBox(height: 24),
 
-              // ----- MAIN CONTENT (Desktop: Row, Mobile: Column) -----
-              isMobile
+                // ----- MAIN CONTENT (Desktop: Row, Mobile: Column) -----
+                isMobile
                     ? Column(
                         children: [
                           _buildCompactCalendarGrid(isDark),
@@ -325,15 +377,12 @@ class _OicSchedulesState extends State<OicSchedules> {
                             child: _buildCompactCalendarGrid(isDark),
                           ),
                           const SizedBox(width: 20),
-                          Expanded(
-                            flex: 2,
-                            child: _buildTripListView(isDark),
-                          ),
+                          Expanded(flex: 2, child: _buildTripListView(isDark)),
                         ],
                       ),
-            ],
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -381,21 +430,35 @@ class _OicSchedulesState extends State<OicSchedules> {
                 _currentPage = 0;
               });
             },
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontSize: 13,
+            ),
             decoration: InputDecoration(
               hintText: 'Search requests...',
               hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-              prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+              prefixIcon: const Icon(
+                Icons.search,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
               filled: true,
               fillColor: Theme.of(context).cardColor,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 0,
+                horizontal: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
               ),
             ),
           ),
@@ -407,14 +470,20 @@ class _OicSchedulesState extends State<OicSchedules> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
-            border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _sortOption,
               icon: const Icon(Icons.sort, size: 16, color: Color(0xFF64748B)),
-              style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontWeight: FontWeight.bold,
+              ),
               dropdownColor: Theme.of(context).cardColor,
               items: _sortOptions.map((String value) {
                 return DropdownMenuItem<String>(
@@ -446,7 +515,14 @@ class _OicSchedulesState extends State<OicSchedules> {
           child: IconButton(
             onPressed: _isRefreshing ? null : _fetchMyTrips,
             icon: _isRefreshing
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.blue,
+                    ),
+                  )
                 : const Icon(Icons.refresh, color: Colors.blue, size: 20),
             padding: EdgeInsets.zero,
           ),
@@ -460,12 +536,18 @@ class _OicSchedulesState extends State<OicSchedules> {
             icon: const Icon(Icons.add, size: 18, color: Colors.white),
             label: const Text(
               'New Trip',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF3B82F6), // Strict Action Blue
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               elevation: 0,
             ),
           ),
@@ -477,11 +559,41 @@ class _OicSchedulesState extends State<OicSchedules> {
   // --- INTERACTIVE PILL CARDS ---
   Widget _buildTopSummaryStats(bool isDark, bool isMobile) {
     final List<Map<String, dynamic>> stats = [
-      {'label': 'Total', 'value': _totalTrips.toString(), 'icon': Icons.inventory_2_outlined, 'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600, 'filter': 'All'},
-      {'label': 'Pending', 'value': _pendingTrips.toString(), 'icon': Icons.hourglass_top, 'color': const Color(0xFFF59E0B), 'filter': 'Pending'},
-      {'label': 'Scheduled', 'value': _scheduledTrips.toString(), 'icon': Icons.event_available, 'color': const Color(0xFF3B82F6), 'filter': 'Scheduled'},
-      {'label': 'Completed', 'value': _completedTrips.toString(), 'icon': Icons.check_circle_outline, 'color': const Color(0xFF10B981), 'filter': 'Completed'},
-      {'label': 'Rejected', 'value': _rejectedTrips.toString(), 'icon': Icons.cancel_outlined, 'color': const Color(0xFFEF4444), 'filter': 'Rejected'},
+      {
+        'label': 'Total',
+        'value': _totalTrips.toString(),
+        'icon': Icons.inventory_2_outlined,
+        'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+        'filter': 'All',
+      },
+      {
+        'label': 'Pending',
+        'value': _pendingTrips.toString(),
+        'icon': Icons.hourglass_top,
+        'color': const Color(0xFFF59E0B),
+        'filter': 'Pending',
+      },
+      {
+        'label': 'Scheduled',
+        'value': _scheduledTrips.toString(),
+        'icon': Icons.event_available,
+        'color': const Color(0xFF3B82F6),
+        'filter': 'Scheduled',
+      },
+      {
+        'label': 'Completed',
+        'value': _completedTrips.toString(),
+        'icon': Icons.check_circle_outline,
+        'color': const Color(0xFF10B981),
+        'filter': 'Completed',
+      },
+      {
+        'label': 'Rejected',
+        'value': _rejectedTrips.toString(),
+        'icon': Icons.cancel_outlined,
+        'color': const Color(0xFFEF4444),
+        'filter': 'Rejected',
+      },
     ];
 
     Widget buildCard(Map<String, dynamic> stat) {
@@ -502,7 +614,9 @@ class _OicSchedulesState extends State<OicSchedules> {
                 : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(40),
             border: Border.all(
-              color: isSelected ? stat['color'] : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+              color: isSelected
+                  ? stat['color']
+                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
               width: isSelected ? 2.0 : 1.0,
             ),
           ),
@@ -528,7 +642,9 @@ class _OicSchedulesState extends State<OicSchedules> {
                     stat['label'],
                     style: TextStyle(
                       fontSize: 12,
-                      color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : const Color(0xFF64748B),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -586,7 +702,9 @@ class _OicSchedulesState extends State<OicSchedules> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: headerBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
             child: Row(
@@ -603,20 +721,40 @@ class _OicSchedulesState extends State<OicSchedules> {
                 Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.chevron_left, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                      icon: Icon(
+                        Icons.chevron_left,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                       onPressed: () => setState(
-                        () => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1),
+                        () => _focusedMonth = DateTime(
+                          _focusedMonth.year,
+                          _focusedMonth.month - 1,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
                     IconButton(
-                      icon: Icon(Icons.chevron_right, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                      icon: Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                       onPressed: () => setState(
-                        () => _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1),
+                        () => _focusedMonth = DateTime(
+                          _focusedMonth.year,
+                          _focusedMonth.month + 1,
+                        ),
                       ),
                     ),
                   ],
@@ -648,7 +786,9 @@ class _OicSchedulesState extends State<OicSchedules> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.grey.shade400 : const Color(0xFF475569),
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : const Color(0xFF475569),
                           ),
                         ),
                       ),
@@ -670,15 +810,21 @@ class _OicSchedulesState extends State<OicSchedules> {
                     if (index < firstWeekday) return Container();
 
                     final day = index - firstWeekday + 1;
-                    final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+                    final date = DateTime(
+                      _focusedMonth.year,
+                      _focusedMonth.month,
+                      day,
+                    );
                     final trips = _schedulesForDate(date);
                     final hasTrips = trips.isNotEmpty;
 
-                    final isSelected = _selectedDate?.year == date.year &&
+                    final isSelected =
+                        _selectedDate?.year == date.year &&
                         _selectedDate?.month == date.month &&
                         _selectedDate?.day == date.day;
 
-                    final isToday = DateTime.now().year == date.year &&
+                    final isToday =
+                        DateTime.now().year == date.year &&
                         DateTime.now().month == date.month &&
                         DateTime.now().day == date.day;
 
@@ -699,12 +845,18 @@ class _OicSchedulesState extends State<OicSchedules> {
                           color: isSelected
                               ? const Color(0xFF3B82F6) // Active Blue
                               : (hasTrips
-                                  ? (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF))
-                                  : Theme.of(context).cardColor),
+                                    ? (isDark
+                                          ? Colors.blue.withValues(alpha: 0.2)
+                                          : const Color(0xFFEFF6FF))
+                                    : Theme.of(context).cardColor),
                           border: Border.all(
                             color: isToday
-                                ? const Color(0xFFF59E0B) // Amber border for today
-                                : (isSelected ? const Color(0xFF3B82F6) : borderColor),
+                                ? const Color(
+                                    0xFFF59E0B,
+                                  ) // Amber border for today
+                                : (isSelected
+                                      ? const Color(0xFF3B82F6)
+                                      : borderColor),
                             width: isToday ? 1.5 : (isSelected ? 1.5 : 1),
                           ),
                           borderRadius: BorderRadius.circular(6),
@@ -714,12 +866,16 @@ class _OicSchedulesState extends State<OicSchedules> {
                             day.toString(),
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
+                              fontWeight: isSelected || isToday
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
                               color: isSelected
                                   ? Colors.white
                                   : (hasTrips
-                                      ? const Color(0xFF3B82F6)
-                                      : (isDark ? Colors.grey.shade300 : const Color(0xFF0F172A))),
+                                        ? const Color(0xFF3B82F6)
+                                        : (isDark
+                                              ? Colors.grey.shade300
+                                              : const Color(0xFF0F172A))),
                             ),
                           ),
                         ),
@@ -752,7 +908,9 @@ class _OicSchedulesState extends State<OicSchedules> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
             child: Row(
@@ -761,7 +919,13 @@ class _OicSchedulesState extends State<OicSchedules> {
                 Flexible(
                   child: Row(
                     children: [
-                      Icon(Icons.list_alt, color: isDark ? Colors.grey.shade400 : const Color(0xFF475569), size: 20),
+                      Icon(
+                        Icons.list_alt,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : const Color(0xFF475569),
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
@@ -771,7 +935,9 @@ class _OicSchedulesState extends State<OicSchedules> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -780,15 +946,22 @@ class _OicSchedulesState extends State<OicSchedules> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
+                    color: isDark
+                        ? Colors.blue.withValues(alpha: 0.2)
+                        : const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${_filteredAndSortedTrips.length} found',
                     style: TextStyle(
-                      color: isDark ? Colors.blue.shade300 : const Color(0xFF3B82F6),
+                      color: isDark
+                          ? Colors.blue.shade300
+                          : const Color(0xFF3B82F6),
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
@@ -799,15 +972,30 @@ class _OicSchedulesState extends State<OicSchedules> {
           ),
           _paginatedTrips.isEmpty
               ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 60,
+                    horizontal: 16,
+                  ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.inbox_outlined, size: 48, color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                      Icon(
+                        Icons.inbox_outlined,
+                        size: 48,
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         'No requests found.',
-                        style: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade500, fontSize: 15, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.grey.shade500
+                              : Colors.grey.shade500,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
@@ -832,10 +1020,14 @@ class _OicSchedulesState extends State<OicSchedules> {
   }
 
   // --- TRIP CARD ---
-  Widget _buildTripCard(Map<String, dynamic> trip, bool isDark, Color borderColor) {
+  Widget _buildTripCard(
+    Map<String, dynamic> trip,
+    bool isDark,
+    Color borderColor,
+  ) {
     final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
     final statusColor = _getStatusColor(statusStr);
-    
+
     final bool isPending = statusStr.toLowerCase().contains('pending');
     final bool isRejected = statusStr.toLowerCase().contains('rejected');
 
@@ -874,7 +1066,11 @@ class _OicSchedulesState extends State<OicSchedules> {
                   runSpacing: 6,
                   children: [
                     _cardIconText(Icons.calendar_month, dateStr, isDark),
-                    _cardIconText(Icons.access_time, '$timeStr - $etaStr', isDark),
+                    _cardIconText(
+                      Icons.access_time,
+                      '$timeStr - $etaStr',
+                      isDark,
+                    ),
                     _cardIconText(Icons.groups, '$pax Pax', isDark),
                     _cardIconText(Icons.map_outlined, '$dist km', isDark),
                   ],
@@ -887,7 +1083,10 @@ class _OicSchedulesState extends State<OicSchedules> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -908,10 +1107,13 @@ class _OicSchedulesState extends State<OicSchedules> {
                   icon: Icon(Icons.edit, color: Colors.blue.shade600, size: 18),
                   onPressed: () => _showEditScheduleModal(context, trip),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   tooltip: 'Edit Request',
                 ),
-              ]
+              ],
             ],
           ),
         ],
@@ -923,7 +1125,11 @@ class _OicSchedulesState extends State<OicSchedules> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B)),
+        Icon(
+          icon,
+          size: 14,
+          color: isDark ? Colors.grey.shade500 : const Color(0xFF64748B),
+        ),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
@@ -953,21 +1159,34 @@ class _OicSchedulesState extends State<OicSchedules> {
         children: [
           Text(
             'Showing ${(_currentPage * _itemsPerPage) + 1} to ${min((_currentPage + 1) * _itemsPerPage, _filteredAndSortedTrips.length)} of ${_filteredAndSortedTrips.length} entries',
-            style: TextStyle(color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           Row(
             children: [
               IconButton(
                 icon: const Icon(Icons.chevron_left, size: 20),
-                onPressed: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
+                onPressed: _currentPage > 0
+                    ? () => _goToPage(_currentPage - 1)
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                color: _currentPage > 0 ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                color: _currentPage > 0
+                    ? const Color(0xFF3B82F6)
+                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
+                  color: isDark
+                      ? Colors.blue.withValues(alpha: 0.2)
+                      : const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -981,10 +1200,14 @@ class _OicSchedulesState extends State<OicSchedules> {
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right, size: 20),
-                onPressed: _currentPage < _totalPages - 1 ? () => _goToPage(_currentPage + 1) : null,
+                onPressed: _currentPage < _totalPages - 1
+                    ? () => _goToPage(_currentPage + 1)
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                color: _currentPage < _totalPages - 1 ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                color: _currentPage < _totalPages - 1
+                    ? const Color(0xFF3B82F6)
+                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
               ),
             ],
           ),
@@ -1001,7 +1224,8 @@ class CreateTripRequestDialog extends StatefulWidget {
   const CreateTripRequestDialog({super.key, required this.oicId});
 
   @override
-  State<CreateTripRequestDialog> createState() => _CreateTripRequestDialogState();
+  State<CreateTripRequestDialog> createState() =>
+      _CreateTripRequestDialogState();
 }
 
 class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
@@ -1045,17 +1269,27 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
 
   Future<void> _submitRequest() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedDate == null || _selectedTime == null || _selectedArrivalTime == null || _selectedStaffId == null) {
+    if (_selectedDate == null ||
+        _selectedTime == null ||
+        _selectedArrivalTime == null ||
+        _selectedStaffId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete all fields.'), backgroundColor: Color(0xFFEF4444), behavior: SnackBarBehavior.floating),
+        const SnackBar(
+          content: Text('Please complete all fields.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
     setState(() => _isLoading = true);
 
-    final formattedDate = "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
-    final formattedTime = "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
-    final formattedETA = "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
+    final formattedDate =
+        "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
+    final formattedTime =
+        "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
+    final formattedETA =
+        "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
 
     try {
       final response = await http.post(
@@ -1077,13 +1311,25 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
       if (response.statusCode == 201 && data['success'] == true) {
         if (!mounted) return;
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Trip requested!"), backgroundColor: Color(0xFF10B981), behavior: SnackBarBehavior.floating));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Trip requested!"),
+            backgroundColor: Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
         throw Exception(data['message'] ?? "Failed to submit request.");
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: const Color(0xFFEF4444), behavior: SnackBarBehavior.floating));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1097,7 +1343,14 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
     return AlertDialog(
       backgroundColor: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text("Request Schedule", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
+      title: Text(
+        "Request Schedule",
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+          color: textColor,
+        ),
+      ),
       content: SizedBox(
         width: 440,
         child: Form(
@@ -1114,14 +1367,40 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                     style: TextStyle(color: textColor, fontSize: 13),
                     decoration: InputDecoration(
                       labelText: "Dispatch Staff",
-                      labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                      labelStyle: TextStyle(
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
                       border: const OutlineInputBorder(),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                      prefixIcon: Icon(Icons.support_agent, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: isDark
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                      prefixIcon: Icon(
+                        Icons.support_agent,
+                        size: 18,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
                     ),
                     initialValue: _selectedStaffId,
-                    items: _staffMembers.map((s) => DropdownMenuItem<String>(value: s['user_id'], child: Text(s['full_name'] ?? 'Staff'))).toList(),
+                    items: _staffMembers
+                        .map(
+                          (s) => DropdownMenuItem<String>(
+                            value: s['user_id'],
+                            child: Text(s['full_name'] ?? 'Staff'),
+                          ),
+                        )
+                        .toList(),
                     onChanged: (val) => setState(() => _selectedStaffId = val),
                   ),
                 const SizedBox(height: 12),
@@ -1131,11 +1410,30 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                   validator: (val) => val!.isEmpty ? "Required" : null,
                   decoration: InputDecoration(
                     labelText: "Route / Destination",
-                    labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                    labelStyle: TextStyle(
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
                     border: const OutlineInputBorder(),
-                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                    prefixIcon: Icon(Icons.location_on, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    prefixIcon: Icon(
+                      Icons.location_on,
+                      size: 18,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1153,11 +1451,30 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                         },
                         decoration: InputDecoration(
                           labelText: "Distance (km)",
-                          labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                          labelStyle: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
                           border: const OutlineInputBorder(),
-                          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                          prefixIcon: Icon(Icons.map, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          prefixIcon: Icon(
+                            Icons.map,
+                            size: 18,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
@@ -1176,11 +1493,30 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                         },
                         decoration: InputDecoration(
                           labelText: "Passengers",
-                          labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                          labelStyle: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
                           border: const OutlineInputBorder(),
-                          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                          prefixIcon: Icon(Icons.people, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          prefixIcon: Icon(
+                            Icons.people,
+                            size: 18,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
@@ -1194,22 +1530,40 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: context,
-                            initialDate: DateTime.now().add(const Duration(days: 1)),
+                            initialDate: DateTime.now().add(
+                              const Duration(days: 1),
+                            ),
                             firstDate: DateTime.now(),
                             lastDate: DateTime(2030),
                           );
-                          if (picked != null) setState(() => _selectedDate = picked);
+                          if (picked != null)
+                            setState(() => _selectedDate = picked);
                         },
                         child: InputDecorator(
                           decoration: InputDecoration(
                             labelText: 'Date',
-                            labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            labelStyle: TextStyle(
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
                             border: const OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                           ),
                           child: Text(
-                            _selectedDate == null ? "Select Date" : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}",
+                            _selectedDate == null
+                                ? "Select Date"
+                                : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}",
                             style: TextStyle(fontSize: 13, color: textColor),
                           ),
                         ),
@@ -1219,19 +1573,38 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final picked = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 8, minute: 0));
-                          if (picked != null) setState(() => _selectedTime = picked);
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 8, minute: 0),
+                          );
+                          if (picked != null)
+                            setState(() => _selectedTime = picked);
                         },
                         child: InputDecorator(
                           decoration: InputDecoration(
                             labelText: 'Depart',
-                            labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            labelStyle: TextStyle(
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
                             border: const OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                           ),
                           child: Text(
-                            _selectedTime == null ? "Time" : _selectedTime!.format(context),
+                            _selectedTime == null
+                                ? "Time"
+                                : _selectedTime!.format(context),
                             style: TextStyle(fontSize: 13, color: textColor),
                           ),
                         ),
@@ -1241,19 +1614,38 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final picked = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 17, minute: 0));
-                          if (picked != null) setState(() => _selectedArrivalTime = picked);
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 17, minute: 0),
+                          );
+                          if (picked != null)
+                            setState(() => _selectedArrivalTime = picked);
                         },
                         child: InputDecorator(
                           decoration: InputDecoration(
                             labelText: 'ETA',
-                            labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            labelStyle: TextStyle(
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
                             border: const OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                           ),
                           child: Text(
-                            _selectedArrivalTime == null ? "Arrival" : _selectedArrivalTime!.format(context),
+                            _selectedArrivalTime == null
+                                ? "Arrival"
+                                : _selectedArrivalTime!.format(context),
                             style: TextStyle(fontSize: 13, color: textColor),
                           ),
                         ),
@@ -1267,7 +1659,10 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancel"),
+        ),
         ElevatedButton(
           onPressed: _isLoading ? null : _submitRequest,
           style: ElevatedButton.styleFrom(
@@ -1275,8 +1670,21 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           ),
           child: _isLoading
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text("Submit", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  "Submit",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         ),
       ],
     );
@@ -1288,7 +1696,11 @@ class EditTripRequestDialog extends StatefulWidget {
   final Map<String, dynamic> trip;
   final String backendUrl;
 
-  const EditTripRequestDialog({super.key, required this.trip, required this.backendUrl});
+  const EditTripRequestDialog({
+    super.key,
+    required this.trip,
+    required this.backendUrl,
+  });
 
   @override
   State<EditTripRequestDialog> createState() => _EditTripRequestDialogState();
@@ -1309,34 +1721,57 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
   @override
   void initState() {
     super.initState();
-    _destinationController = TextEditingController(text: widget.trip['route_name']);
-    _passengerController = TextEditingController(text: widget.trip['passenger_count'].toString());
-    _distanceController = TextEditingController(text: widget.trip['route_distance'].toString());
+    _destinationController = TextEditingController(
+      text: widget.trip['route_name'],
+    );
+    _passengerController = TextEditingController(
+      text: widget.trip['passenger_count'].toString(),
+    );
+    _distanceController = TextEditingController(
+      text: widget.trip['route_distance'].toString(),
+    );
 
     if (widget.trip['schedule_date'] != null) {
-      _selectedDate = DateTime.parse(widget.trip['schedule_date'].toString().split(' ').first);
+      _selectedDate = DateTime.parse(
+        widget.trip['schedule_date'].toString().split(' ').first,
+      );
     }
     _selectedTime = _parseTimeOfDay(widget.trip['departure_time']);
-    _selectedArrivalTime = _parseTimeOfDay(widget.trip['estimated_arrival_time']);
+    _selectedArrivalTime = _parseTimeOfDay(
+      widget.trip['estimated_arrival_time'],
+    );
   }
 
   TimeOfDay? _parseTimeOfDay(dynamic timeString) {
     if (timeString == null) return null;
     final parts = timeString.toString().split(':');
-    if (parts.length >= 2) return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+    if (parts.length >= 2)
+      return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
     return null;
   }
 
   Future<void> _submitEdit() async {
-    if (!_formKey.currentState!.validate() || _selectedDate == null || _selectedTime == null || _selectedArrivalTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please complete all fields.'), backgroundColor: Color(0xFFEF4444), behavior: SnackBarBehavior.floating));
+    if (!_formKey.currentState!.validate() ||
+        _selectedDate == null ||
+        _selectedTime == null ||
+        _selectedArrivalTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please complete all fields.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
     setState(() => _isLoading = true);
 
-    final formattedDate = "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
-    final formattedTime = "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
-    final formattedETA = "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
+    final formattedDate =
+        "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
+    final formattedTime =
+        "${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}:00";
+    final formattedETA =
+        "${_selectedArrivalTime!.hour.toString().padLeft(2, '0')}:${_selectedArrivalTime!.minute.toString().padLeft(2, '0')}:00";
 
     try {
       final response = await http.put(
@@ -1358,13 +1793,25 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
       if (response.statusCode == 200 && data['success'] == true) {
         if (!mounted) return;
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Trip updated!"), backgroundColor: Color(0xFF10B981), behavior: SnackBarBehavior.floating));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Trip updated!"),
+            backgroundColor: Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
         throw Exception(data['message'] ?? "Failed to update request.");
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: const Color(0xFFEF4444), behavior: SnackBarBehavior.floating));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1378,7 +1825,14 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
     return AlertDialog(
       backgroundColor: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text("Edit Request", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
+      title: Text(
+        "Edit Request",
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+          color: textColor,
+        ),
+      ),
       content: SizedBox(
         width: 440,
         child: Form(
@@ -1393,11 +1847,30 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                   validator: (val) => val!.isEmpty ? "Required" : null,
                   decoration: InputDecoration(
                     labelText: "Route / Destination",
-                    labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                    labelStyle: TextStyle(
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
                     border: const OutlineInputBorder(),
-                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                    prefixIcon: Icon(Icons.location_on, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    prefixIcon: Icon(
+                      Icons.location_on,
+                      size: 18,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1408,14 +1881,35 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                         controller: _distanceController,
                         keyboardType: TextInputType.number,
                         style: TextStyle(color: textColor, fontSize: 13),
-                        validator: (val) => val == null || val.isEmpty ? "Required" : (double.tryParse(val) == null ? "Invalid" : null),
+                        validator: (val) => val == null || val.isEmpty
+                            ? "Required"
+                            : (double.tryParse(val) == null ? "Invalid" : null),
                         decoration: InputDecoration(
                           labelText: "Distance (km)",
-                          labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                          labelStyle: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
                           border: const OutlineInputBorder(),
-                          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                          prefixIcon: Icon(Icons.map, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          prefixIcon: Icon(
+                            Icons.map,
+                            size: 18,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
@@ -1434,11 +1928,30 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                         },
                         decoration: InputDecoration(
                           labelText: "Passengers",
-                          labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                          labelStyle: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
                           border: const OutlineInputBorder(),
-                          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                          prefixIcon: Icon(Icons.people, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          prefixIcon: Icon(
+                            Icons.people,
+                            size: 18,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
@@ -1452,22 +1965,40 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: context,
-                            initialDate: _selectedDate ?? DateTime.now().add(const Duration(days: 1)),
+                            initialDate:
+                                _selectedDate ??
+                                DateTime.now().add(const Duration(days: 1)),
                             firstDate: DateTime.now(),
                             lastDate: DateTime(2030),
                           );
-                          if (picked != null) setState(() => _selectedDate = picked);
+                          if (picked != null)
+                            setState(() => _selectedDate = picked);
                         },
                         child: InputDecorator(
                           decoration: InputDecoration(
                             labelText: 'Date',
-                            labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            labelStyle: TextStyle(
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
                             border: const OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                           ),
                           child: Text(
-                            _selectedDate == null ? "Select Date" : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}",
+                            _selectedDate == null
+                                ? "Select Date"
+                                : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}",
                             style: TextStyle(fontSize: 13, color: textColor),
                           ),
                         ),
@@ -1477,19 +2008,40 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final picked = await showTimePicker(context: context, initialTime: _selectedTime ?? const TimeOfDay(hour: 8, minute: 0));
-                          if (picked != null) setState(() => _selectedTime = picked);
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime:
+                                _selectedTime ??
+                                const TimeOfDay(hour: 8, minute: 0),
+                          );
+                          if (picked != null)
+                            setState(() => _selectedTime = picked);
                         },
                         child: InputDecorator(
                           decoration: InputDecoration(
                             labelText: 'Depart',
-                            labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            labelStyle: TextStyle(
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
                             border: const OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                           ),
                           child: Text(
-                            _selectedTime == null ? "Time" : _selectedTime!.format(context),
+                            _selectedTime == null
+                                ? "Time"
+                                : _selectedTime!.format(context),
                             style: TextStyle(fontSize: 13, color: textColor),
                           ),
                         ),
@@ -1499,19 +2051,40 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final picked = await showTimePicker(context: context, initialTime: _selectedArrivalTime ?? const TimeOfDay(hour: 17, minute: 0));
-                          if (picked != null) setState(() => _selectedArrivalTime = picked);
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime:
+                                _selectedArrivalTime ??
+                                const TimeOfDay(hour: 17, minute: 0),
+                          );
+                          if (picked != null)
+                            setState(() => _selectedArrivalTime = picked);
                         },
                         child: InputDecorator(
                           decoration: InputDecoration(
                             labelText: 'ETA',
-                            labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            labelStyle: TextStyle(
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
                             border: const OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                           ),
                           child: Text(
-                            _selectedArrivalTime == null ? "Arrival" : _selectedArrivalTime!.format(context),
+                            _selectedArrivalTime == null
+                                ? "Arrival"
+                                : _selectedArrivalTime!.format(context),
                             style: TextStyle(fontSize: 13, color: textColor),
                           ),
                         ),
@@ -1525,7 +2098,10 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancel"),
+        ),
         ElevatedButton(
           onPressed: _isLoading ? null : _submitEdit,
           style: ElevatedButton.styleFrom(
@@ -1533,8 +2109,21 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           ),
           child: _isLoading
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text("Save", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  "Save",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         ),
       ],
     );

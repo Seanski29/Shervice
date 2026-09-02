@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:skeletonizer/skeletonizer.dart';
-
+import 'route_optimization_tab.dart';
 // Your Global Constants
 import '../../../constant.dart';
 
@@ -219,6 +219,12 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                       Icons.directions_bus,
                       isDark,
                     ),
+                    _buildNavTab(
+                      3,
+                      'Route Clustering',
+                      Icons.alt_route,
+                      isDark,
+                    ),
                   ],
                 ),
               ),
@@ -245,6 +251,10 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                           ),
                           VehicleMlTab(
                             vehicles: _allVehicles,
+                            backendUrl: backendUrl,
+                            onSyncAction: _handleManualSync,
+                          ),
+                          RouteOptimizationTab(
                             backendUrl: backendUrl,
                             onSyncAction: _handleManualSync,
                           ),
