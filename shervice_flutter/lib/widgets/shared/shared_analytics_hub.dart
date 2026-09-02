@@ -6,7 +6,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 // Your Global Constants
 import '../../../constant.dart';
 
-// The new separated local tab files
+// The separated local tab files
 import 'fleet_overview_tab.dart';
 import 'driver_performance_tab.dart';
 import 'vehicle_ml_tab.dart';
@@ -19,11 +19,9 @@ class SharedAnalyticsHub extends StatefulWidget {
 }
 
 class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
-  int _activeTab =
-      0; // 0 = Fleet Overview, 1 = Driver Performance, 2 = Vehicle ML
+  int _activeTab = 0;
   bool _isLoading = true;
 
-  // Single Source of Truth Arrays
   List<dynamic> _allDrivers = [];
   List<dynamic> _allVehicles = [];
   List<dynamic> _allTrips = [];
@@ -37,38 +35,32 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
 
   Future<void> _fetchGlobalAnalyticsPayload() async {
     try {
-      // 1. Fetch Drivers & Synchronize ML Scores concurrently
+      // 1. Fetch Drivers (Sequential fetch to prevent crashing Flask)
       final dRes = await http.get(Uri.parse('$backendUrl/test-db'));
       if (dRes.statusCode == 200) {
         List<dynamic> drivers =
             jsonDecode(dRes.body)['sample_data_payload'] ?? [];
-
-        await Future.wait(
-          drivers.map((d) async {
-            final String dId = (d['user_id'] ?? d['id'] ?? '').toString();
-            if (dId.isNotEmpty) {
-              try {
-                final String cacheBuster = DateTime.now().millisecondsSinceEpoch
-                    .toString();
-                final mlRes = await http.get(
-                  Uri.parse(
-                    '$backendUrl/drivers/classify/$dId?cb=$cacheBuster',
-                  ),
-                );
-
-                if (mlRes.statusCode == 200) {
-                  d['ml_classification'] =
-                      jsonDecode(mlRes.body)['classification'] ??
-                      'Insufficient Data';
-                } else {
-                  d['ml_classification'] = 'Unavailable';
-                }
-              } catch (_) {
+        for (var d in drivers) {
+          final String dId = (d['user_id'] ?? d['id'] ?? '').toString();
+          if (dId.isNotEmpty) {
+            try {
+              final String cacheBuster = DateTime.now().millisecondsSinceEpoch
+                  .toString();
+              final mlRes = await http.get(
+                Uri.parse('$backendUrl/drivers/classify/$dId?cb=$cacheBuster'),
+              );
+              if (mlRes.statusCode == 200) {
+                d['ml_classification'] =
+                    jsonDecode(mlRes.body)['classification'] ??
+                    'Insufficient Data';
+              } else {
                 d['ml_classification'] = 'Unavailable';
               }
+            } catch (_) {
+              d['ml_classification'] = 'Unavailable';
             }
-          }),
-        );
+          }
+        }
         _allDrivers = drivers;
       }
 
@@ -90,39 +82,30 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
         _allMaintenanceLogs = mData['data'] ?? mData['logs'] ?? [];
       }
 
-      // 4. Fetch Vehicles & Synchronize ML Scores concurrently
+      // 4. Fetch Vehicles (Read DB risk score instead of pinging ML endpoint again)
       final vRes = await http.get(Uri.parse('$backendUrl/vehicles'));
       if (vRes.statusCode == 200) {
         List<dynamic> vehicles = jsonDecode(vRes.body)['data'] ?? [];
-        await Future.wait(
-          vehicles.map((v) async {
-            try {
-              final String cacheBuster = DateTime.now().millisecondsSinceEpoch
-                  .toString();
-              final mlRes = await http.get(
-                Uri.parse(
-                  '$backendUrl/vehicles/predict/${v['vehicle_id']}?cb=$cacheBuster',
-                ),
-              );
-              if (mlRes.statusCode == 200) {
-                v['live_risk_score'] =
-                    (jsonDecode(mlRes.body)['risk_index'] as num?)
-                        ?.toDouble() ??
-                    0.0;
-              } else {
-                v['live_risk_score'] = 0.0;
-              }
-            } catch (_) {
-              v['live_risk_score'] = 0.0;
-            }
-          }),
-        );
+        for (var v in vehicles) {
+          v['live_risk_score'] = (v['risk_score'] as num?)?.toDouble() ?? 0.0;
+        }
         _allVehicles = vehicles;
       }
     } catch (e) {
       debugPrint("Global Analytics Fetch Error: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleManualSync() async {
+    setState(() => _isLoading = true);
+    try {
+      await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
+      await _fetchGlobalAnalyticsPayload();
+    } catch (e) {
+      debugPrint("Manual sweep failed: $e");
+      setState(() => _isLoading = false);
     }
   }
 
@@ -144,26 +127,75 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── HEADER ──
-              Text(
-                'Analytics',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: textColor,
-                  letterSpacing: -0.5,
-                ),
+              // ── UNIVERSAL HEADER WITH MASTER SYNC ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Analytics Hub',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: textColor,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Evaluate granular driver feedback logs, monitor live fleet metrics, and execute predictive ML diagnostics.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: subtitleColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _handleManualSync,
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.memory,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                    label: const Text(
+                      "Run AI Sweep",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Evaluate granular driver feedback logs, monitor live fleet metrics, and execute predictive ML diagnostics.',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: subtitleColor,
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               // ── 3-TAB NAVIGATOR ──
               Container(
@@ -184,7 +216,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                     _buildNavTab(
                       2,
                       'Vehicle Predictive ML',
-                      Icons.memory,
+                      Icons.directions_bus,
                       isDark,
                     ),
                   ],
@@ -193,7 +225,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
               const SizedBox(height: 16),
 
               // ── FAST RENDERING TABS ──
-              // IndexedStack prevents Flutter from rebuilding the tabs when you switch them.
               Expanded(
                 child: _isLoading && _allVehicles.isEmpty
                     ? const Center(child: CircularProgressIndicator())
@@ -205,16 +236,17 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                             drivers: _allDrivers,
                             trips: _allTrips,
                             maintenanceLogs: _allMaintenanceLogs,
+                            onSyncAction: _handleManualSync,
                           ),
                           DriverPerformanceTab(
                             drivers: _allDrivers,
                             backendUrl: backendUrl,
-                            onSyncAction: _fetchGlobalAnalyticsPayload,
+                            onSyncAction: _handleManualSync,
                           ),
                           VehicleMlTab(
                             vehicles: _allVehicles,
                             backendUrl: backendUrl,
-                            onSyncAction: _fetchGlobalAnalyticsPayload,
+                            onSyncAction: _handleManualSync,
                           ),
                         ],
                       ),

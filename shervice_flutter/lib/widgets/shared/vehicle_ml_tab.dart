@@ -29,22 +29,22 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
     List<dynamic> tempV = widget.vehicles.where((v) {
       final plate = (v['plate_number'] ?? '').toString().toLowerCase();
       final type = (v['bus_type'] ?? '').toString().toLowerCase();
-      final dbStatus = (v['health_status'] ?? 'Good').toString();
+      final dbStatus = (v['health_status'] ?? 'Excellent').toString();
 
       final double daysRemaining =
           (v['live_risk_score'] as num?)?.toDouble() ?? 0.0;
 
-      String dynamicStatus = 'Optimal';
+      String dynamicStatus = 'Excellent';
       if (dbStatus.toLowerCase().contains('maintenance') ||
           dbStatus.toLowerCase().contains('repair') ||
           daysRemaining <= 7.0) {
-        dynamicStatus = 'Needs Maint.';
+        dynamicStatus = 'Needs Maintenance';
       } else if (daysRemaining <= 30.0) {
-        dynamicStatus = 'High Risk';
-      } else if (daysRemaining <= 90.0) {
         dynamicStatus = 'Fair';
+      } else if (daysRemaining <= 90.0) {
+        dynamicStatus = 'Good';
       } else {
-        dynamicStatus = 'Optimal';
+        dynamicStatus = 'Excellent';
       }
 
       bool matchesSearch =
@@ -168,10 +168,10 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                           [
                                 'A to Z',
                                 'Z to A',
-                                'Condition: Optimal',
+                                'Condition: Excellent',
+                                'Condition: Good',
                                 'Condition: Fair',
-                                'Condition: High Risk',
-                                'Condition: Needs Maint.',
+                                'Condition: Needs Maintenance',
                               ]
                               .map(
                                 (String value) => DropdownMenuItem(
@@ -237,25 +237,26 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                   itemCount: paginatedVehicles.length,
                   itemBuilder: (context, index) {
                     final vehicle = paginatedVehicles[index];
-                    final String dbStatus = vehicle['health_status'] ?? 'Good';
+                    final String dbStatus =
+                        vehicle['health_status'] ?? 'Excellent';
                     final double daysRemaining =
                         (vehicle['live_risk_score'] as num?)?.toDouble() ?? 0.0;
 
-                    String statusLabel = 'Optimal';
-                    Color statusColor = const Color(0xFF059669);
+                    String statusLabel = 'Excellent';
+                    Color statusColor = const Color(0xFF10B981);
                     if (dbStatus.toLowerCase().contains('maintenance') ||
                         dbStatus.toLowerCase().contains('repair') ||
                         daysRemaining <= 7.0) {
                       statusLabel = 'Needs Maint.';
                       statusColor = const Color(0xFFEF4444);
                     } else if (daysRemaining <= 30.0) {
-                      statusLabel = 'High Risk';
+                      statusLabel = 'Fair';
                       statusColor = const Color(0xFFF97316);
                     } else if (daysRemaining <= 90.0) {
-                      statusLabel = 'Fair';
+                      statusLabel = 'Good';
                       statusColor = const Color(0xFFF59E0B);
                     } else {
-                      statusLabel = 'Optimal';
+                      statusLabel = 'Excellent';
                       statusColor = const Color(0xFF10B981);
                     }
 
@@ -263,7 +264,9 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                         ? const Color(0xFFEF4444)
                         : (daysRemaining <= 30.0
                               ? const Color(0xFFF97316)
-                              : const Color(0xFF10B981));
+                              : (daysRemaining <= 90.0
+                                    ? const Color(0xFFF59E0B)
+                                    : const Color(0xFF10B981)));
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -608,22 +611,29 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
     Color bgColor;
     String statusLabel;
     String statusDesc;
+
     if (daysRemaining <= 7.0) {
       statusColor = const Color(0xFFEF4444);
       bgColor = isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2);
-      statusLabel = 'MAINTENANCE REQUIRED';
+      statusLabel = 'NEEDS MAINTENANCE';
       statusDesc =
           'Multiple Linear Regression forecasts breakdown within 7 days. Lockout triggered.';
     } else if (daysRemaining <= 30.0) {
       statusColor = const Color(0xFFF97316);
       bgColor = isDark ? const Color(0xFF451A03) : const Color(0xFFFFFBEB);
-      statusLabel = 'HIGH RISK WINDOW';
+      statusLabel = 'FAIR CONDITION';
       statusDesc =
           'Asset is operational, but structural wear indicates maintenance needed soon.';
+    } else if (daysRemaining <= 90.0) {
+      statusColor = const Color(0xFFF59E0B);
+      bgColor = isDark ? const Color(0xFF422006) : const Color(0xFFFEF3C7);
+      statusLabel = 'GOOD CONDITION';
+      statusDesc =
+          'Asset is performing well, with nominal wear and tear detected.';
     } else {
       statusColor = const Color(0xFF10B981);
       bgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5);
-      statusLabel = 'OPTIMAL HEALTH';
+      statusLabel = 'EXCELLENT CONDITION';
       statusDesc =
           'Telemetry parameters forecast stable operations for the foreseeable future.';
     }
