@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
+import '../../widgets/shared/universal_pagination.dart';
 
 class AdminSchedules extends StatefulWidget {
   const AdminSchedules({super.key});
@@ -30,6 +32,9 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     'Rejected',
     'Expired',
   ];
+
+  int _currentPage = 0;
+  final int _itemsPerPage = 10;
 
   @override
   void initState() {
@@ -137,6 +142,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
 
     setState(() {
       _filteredSchedules = temp;
+      _currentPage = 0;
     });
   }
 
@@ -194,6 +200,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     final s = (t['trip_status'] ?? '').toString().toLowerCase();
     return s.contains('reject') || s.contains('cancel');
   }).length;
+  
   int get _expiredTrips => _baseSchedules.where((t) {
     return (t['trip_status'] ?? '').toString().toLowerCase().contains(
       'expired',
@@ -875,6 +882,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                     return GestureDetector(
                       onTap: () {
                         setState(() {
+                          _currentPage = 0;
                           if (isSelected) {
                             _selectedDate = null;
                           } else {
@@ -934,7 +942,11 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   }
 
   Widget _buildTripListView(bool isDark) {
-    final List<dynamic> displayedTrips = _isLoading
+    final List<dynamic> allDisplayedTrips = _getDisplayedTrips();
+    final int totalItems = allDisplayedTrips.length;
+    final int totalPages = (totalItems / _itemsPerPage).ceil();
+
+    final List<dynamic> paginatedTrips = _isLoading
         ? List.generate(
             4,
             (index) => {
@@ -952,7 +964,12 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               'oic_profile': {'company_name': 'Skeleton Company Name'},
             },
           )
-        : _getDisplayedTrips();
+        : (() {
+            if (allDisplayedTrips.isEmpty) return <dynamic>[];
+            int start = _currentPage * _itemsPerPage;
+            int end = min(start + _itemsPerPage, totalItems);
+            return allDisplayedTrips.sublist(start, end);
+          })();
 
     final headerBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final borderColor = isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0);
@@ -1019,7 +1036,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${displayedTrips.length} trips',
+                    '$totalItems trips',
                     style: TextStyle(
                       color: isDark
                           ? Colors.blue.shade300
@@ -1032,7 +1049,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               ],
             ),
           ),
-          !_isLoading && displayedTrips.isEmpty
+          !_isLoading && paginatedTrips.isEmpty
               ? Padding(
                   padding: const EdgeInsets.symmetric(
                     vertical: 40,
@@ -1065,12 +1082,29 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               : ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: displayedTrips.length,
+                  itemCount: paginatedTrips.length,
                   itemBuilder: (context, index) {
-                    final trip = displayedTrips[index];
+                    final trip = paginatedTrips[index];
                     return _buildTripCard(trip, isDark, borderColor);
                   },
                 ),
+          if (!_isLoading && totalItems > 0)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: UniversalPagination(
+                currentPage: _currentPage,
+                totalPages: totalPages,
+                totalItems: totalItems,
+                itemsPerPage: _itemsPerPage,
+                itemName: 'trips',
+                onNextPage: _currentPage < totalPages - 1 
+                    ? () => setState(() => _currentPage++) 
+                    : null,
+                onPrevPage: _currentPage > 0 
+                    ? () => setState(() => _currentPage--) 
+                    : null,
+              ),
+            ),
         ],
       ),
     );
