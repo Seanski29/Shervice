@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
+import 'universal_pagination.dart';
 
 class VehicleFleetView extends StatefulWidget {
   final String userRole;
@@ -903,77 +904,14 @@ class _VehicleFleetViewState extends State<VehicleFleetView> {
           ),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredVehicles.length)} of ${_filteredVehicles.length}',
-            style: TextStyle(
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              fontSize: 13,
-            ),
-          ),
-          Row(
-            children: [
-              OutlinedButton(
-                onPressed: _currentPage > 0 ? _prevPage : null,
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  side: BorderSide(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: Text(
-                  'Prev',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade600,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${_currentPage + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: _currentPage < _totalPages - 1 ? _nextPage : null,
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  side: BorderSide(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: Text(
-                  'Next',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+      child: UniversalPagination(
+        currentPage: _currentPage,
+        totalPages: _totalPages,
+        totalItems: _filteredVehicles.length,
+        itemsPerPage: _itemsPerPage,
+        itemName: 'vehicles',
+        onNextPage: _currentPage < _totalPages - 1 ? _nextPage : null,
+        onPrevPage: _currentPage > 0 ? _prevPage : null,
       ),
     );
   }

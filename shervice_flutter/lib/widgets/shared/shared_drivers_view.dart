@@ -6,6 +6,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 import '../driver/driver_profile_model.dart';
 import '../../constant.dart';
 import '../driver/driver_rating_badge.dart';
+import 'universal_pagination.dart';
 
 class SharedDriversView extends StatefulWidget {
   final bool canManage;
@@ -169,7 +170,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _buildTitleArea(isDark),
-                      const Spacer(), // Pushes everything below to the far right!
+                      const Spacer(),
                       _buildSearchAndFilterRow(isDark, isMobile),
                     ],
                   ),
@@ -202,6 +203,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
                   ),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     ListView.builder(
                       shrinkWrap: true,
@@ -259,7 +261,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // Search Box
         SizedBox(
           width: isMobile ? double.infinity : 220,
           height: 40,
@@ -301,7 +302,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
             ),
           ),
         ),
-        // Sort Dropdown
         Container(
           height: 40,
           width: isMobile ? double.infinity : 160,
@@ -341,7 +341,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
             ),
           ),
         ),
-        // Refresh Button
         Container(
           height: 40,
           width: 40,
@@ -365,7 +364,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
             padding: EdgeInsets.zero,
           ),
         ),
-        // Add Button
         if (widget.actionWidget != null)
           SizedBox(height: 40, child: widget.actionWidget!),
       ],
@@ -642,81 +640,18 @@ class SharedDriversViewState extends State<SharedDriversView> {
           ),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredDrivers.length)} of ${_filteredDrivers.length}',
-            style: TextStyle(
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              fontSize: 13,
-            ),
-          ),
-          Row(
-            children: [
-              OutlinedButton(
-                onPressed: _currentPage > 0
-                    ? () => setState(() => _currentPage--)
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  side: BorderSide(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: Text(
-                  'Prev',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade600,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${_currentPage + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: _currentPage < _totalPages - 1
-                    ? () => setState(() => _currentPage++)
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  side: BorderSide(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: Text(
-                  'Next',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+      child: UniversalPagination(
+        currentPage: _currentPage,
+        totalPages: _totalPages,
+        totalItems: _filteredDrivers.length,
+        itemsPerPage: _itemsPerPage,
+        itemName: 'drivers',
+        onNextPage: _currentPage < _totalPages - 1
+            ? () => setState(() => _currentPage++)
+            : null,
+        onPrevPage: _currentPage > 0
+            ? () => setState(() => _currentPage--)
+            : null,
       ),
     );
   }

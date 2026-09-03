@@ -9,6 +9,7 @@ import 'package:excel/excel.dart' as excel;
 
 import '../../constant.dart';
 import '../../utils/file_download.dart';
+import 'universal_pagination.dart';
 
 class SharedReportsManager extends StatefulWidget {
   final String userRole;
@@ -796,57 +797,53 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
                               ),
                               const Divider(height: 1),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.start,
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                                child: Wrap(
+                                  alignment: WrapAlignment.start,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 24,
+                                  runSpacing: 12,
                                   children: [
-                                    Text(
-                                      'Rows per page:',
-                                      style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 13),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Rows per page:',
+                                          style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 13),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        DropdownButton<int>(
+                                          value: _rowsPerPage,
+                                          underline: const SizedBox(),
+                                          iconSize: 20,
+                                          items: [10, 20, 50].map((int value) {
+                                            return DropdownMenuItem<int>(
+                                              value: value,
+                                              child: Text(value.toString(), style: const TextStyle(fontSize: 13)),
+                                            );
+                                          }).toList(),
+                                          onChanged: (value) {
+                                            if (value != null) {
+                                              setState(() {
+                                                _rowsPerPage = value;
+                                                _currentPage = 0;
+                                              });
+                                            }
+                                          },
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 8),
-                                    DropdownButton<int>(
-                                      value: _rowsPerPage,
-                                      underline: const SizedBox(),
-                                      iconSize: 20,
-                                      items: [10, 20, 50].map((int value) {
-                                        return DropdownMenuItem<int>(
-                                          value: value,
-                                          child: Text(value.toString(), style: const TextStyle(fontSize: 13)),
-                                        );
-                                      }).toList(),
-                                      onChanged: (value) {
-                                        if (value != null) {
-                                          setState(() {
-                                            _rowsPerPage = value;
-                                            _currentPage = 0;
-                                          });
-                                        }
-                                      },
-                                    ),
-                                    const SizedBox(width: 24),
-                                    Text(
-                                      '${activeData.isEmpty ? 0 : startIndex + 1}-${endIndex} of ${activeData.length}',
-                                      style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 13),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_left),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      splashRadius: 20,
-                                      onPressed: _currentPage > 0
-                                          ? () => setState(() => _currentPage--)
+                                    UniversalPagination(
+                                      currentPage: _currentPage,
+                                      totalPages: totalPages,
+                                      totalItems: activeData.length,
+                                      itemsPerPage: _rowsPerPage,
+                                      itemName: 'rows',
+                                      onNextPage: _currentPage < totalPages - 1 
+                                          ? () => setState(() => _currentPage++) 
                                           : null,
-                                    ),
-                                    const SizedBox(width: 16),
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_right),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      splashRadius: 20,
-                                      onPressed: _currentPage < totalPages - 1
-                                          ? () => setState(() => _currentPage++)
+                                      onPrevPage: _currentPage > 0 
+                                          ? () => setState(() => _currentPage--) 
                                           : null,
                                     ),
                                   ],
