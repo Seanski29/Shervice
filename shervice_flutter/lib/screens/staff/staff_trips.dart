@@ -15,12 +15,10 @@ class StaffTrips extends StatefulWidget {
 }
 
 class _StaffTripsState extends State<StaffTrips> {
-  // --- State Variables ---
   bool _isLoading = true;
   bool _isRefreshing = false;
   List<dynamic> _trips = [];
 
-  // Filtering, Searching & Sorting
   String _searchTerm = '';
   String _statusFilter = 'All';
   final List<String> _statusOptions = [
@@ -28,6 +26,8 @@ class _StaffTripsState extends State<StaffTrips> {
     'Scheduled',
     'Ongoing',
     'Completed',
+    'Rejected', // Added
+    'Expired', // Added
   ];
 
   String _sortOption = 'Date (Newest)';
@@ -37,11 +37,9 @@ class _StaffTripsState extends State<StaffTrips> {
     'Route Name',
   ];
 
-  // Calendar State
   DateTime _focusedMonth = DateTime.now();
   DateTime? _filterDate;
 
-  // Pagination
   int _currentPage = 0;
   final int _itemsPerPage = 10;
 
@@ -51,7 +49,6 @@ class _StaffTripsState extends State<StaffTrips> {
     _fetchStaffLogs();
   }
 
-  // --- Data Fetching ---
   Future<void> _fetchStaffLogs() async {
     if (_isRefreshing) return;
     setState(() {
@@ -85,10 +82,21 @@ class _StaffTripsState extends State<StaffTrips> {
     }
   }
 
-  // --- Filter, Sort, Pagination ---
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null || timestamp.toString().trim().isEmpty)
+      return '--:--';
+    try {
+      final dt = DateTime.parse(timestamp.toString()).toLocal();
+      final hour = dt.hour.toString().padLeft(2, '0');
+      final minute = dt.minute.toString().padLeft(2, '0');
+      return '$hour:$minute';
+    } catch (_) {
+      return '--:--';
+    }
+  }
+
   List<dynamic> get _filteredAndSortedTrips {
     List<dynamic> filtered = _trips.where((trip) {
-      // 1. Date Filter
       if (_filterDate != null) {
         final dateStr = trip['schedule_date']?.toString() ?? '';
         final todayStr =
@@ -96,7 +104,6 @@ class _StaffTripsState extends State<StaffTrips> {
         if (!dateStr.startsWith(todayStr)) return false;
       }
 
-      // 2. Search Filter
       if (_searchTerm.isNotEmpty) {
         final route = (trip['route_name'] ?? '').toString().toLowerCase();
         final driver = (trip['driver_name'] ?? '').toString().toLowerCase();
@@ -109,16 +116,19 @@ class _StaffTripsState extends State<StaffTrips> {
         }
       }
 
-      // 3. Status Filter
       if (_statusFilter != 'All') {
         final status = (trip['trip_status'] ?? '').toString().toLowerCase();
-        if (status != _statusFilter.toLowerCase()) return false;
+        if (_statusFilter == 'Rejected') {
+          if (!status.contains('reject') && !status.contains('cancel'))
+            return false;
+        } else if (!status.contains(_statusFilter.toLowerCase())) {
+          return false;
+        }
       }
 
       return true;
     }).toList();
 
-    // 4. Sort
     switch (_sortOption) {
       case 'Date (Newest)':
         filtered.sort((a, b) {
@@ -187,7 +197,6 @@ class _StaffTripsState extends State<StaffTrips> {
     }
   }
 
-  // --- Base Stats ---
   int get _totalTrips => _trips.length;
   int get _todayTrips => _trips.where((t) {
     final dateStr = t['schedule_date']?.toString() ?? '';
@@ -211,12 +220,26 @@ class _StaffTripsState extends State<StaffTrips> {
       )
       .length;
 
+  // Added Rejected Counter
+  int get _rejectedTrips => _trips.where((t) {
+    final s = (t['trip_status'] ?? '').toString().toLowerCase();
+    return s.contains('reject') || s.contains('cancel');
+  }).length;
+
+  // Added Expired Counter
+  int get _expiredTrips => _trips.where((t) {
+    final s = (t['trip_status'] ?? '').toString().toLowerCase();
+    return s.contains('expired');
+  }).length;
+
   Color _getStatusColor(String status) {
     final s = status.toLowerCase();
     if (s.contains('ongoing')) return const Color(0xFFF59E0B);
     if (s.contains('completed')) return const Color(0xFF10B981);
     if (s.contains('reject') || s.contains('cancel'))
       return const Color(0xFFEF4444);
+    if (s.contains('expired'))
+      return Colors.grey.shade600; // Added grey for expired
     return const Color(0xFF3B82F6);
   }
 
@@ -238,7 +261,6 @@ class _StaffTripsState extends State<StaffTrips> {
     return '${months[date.month - 1]} ${date.year}';
   }
 
-  // --- MAIN BUILD ---
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -261,7 +283,6 @@ class _StaffTripsState extends State<StaffTrips> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ----- HEADER & FILTERS -----
                 isMobile
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,12 +301,8 @@ class _StaffTripsState extends State<StaffTrips> {
                         ],
                       ),
                 const SizedBox(height: 24),
-
-                // ----- TOP STATS -----
                 _buildTopSummaryStats(isDark, isMobile),
                 const SizedBox(height: 24),
-
-                // ----- MAIN LAYOUT -----
                 isMobile
                     ? Column(
                         children: [
@@ -339,14 +356,12 @@ class _StaffTripsState extends State<StaffTrips> {
     );
   }
 
-  // ---- SEARCH, FILTERS, & SORT ROW ----
   Widget _buildSearchAndFilterRow(bool isDark, bool isMobile) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // Search Box
         SizedBox(
           width: isMobile ? double.infinity : 220,
           height: 44,
@@ -390,7 +405,6 @@ class _StaffTripsState extends State<StaffTrips> {
             ),
           ),
         ),
-        // Sort Dropdown
         Container(
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -424,7 +438,6 @@ class _StaffTripsState extends State<StaffTrips> {
             ),
           ),
         ),
-        // Status Dropdown
         Container(
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -462,7 +475,6 @@ class _StaffTripsState extends State<StaffTrips> {
             ),
           ),
         ),
-        // Refresh Button
         Container(
           height: 44,
           width: 44,
@@ -481,8 +493,8 @@ class _StaffTripsState extends State<StaffTrips> {
     );
   }
 
-  // ---- TOP SUMMARY STATS ----
   Widget _buildTopSummaryStats(bool isDark, bool isMobile) {
+    // Added Rejected and Expired to the pills array
     final List<Map<String, dynamic>> stats = [
       {
         'label': 'Total Trips',
@@ -518,6 +530,20 @@ class _StaffTripsState extends State<StaffTrips> {
         'icon': Icons.check_circle,
         'color': const Color(0xFF10B981),
         'filter': 'Completed',
+      },
+      {
+        'label': 'Rejected',
+        'value': _rejectedTrips.toString(),
+        'icon': Icons.cancel_outlined,
+        'color': const Color(0xFFEF4444),
+        'filter': 'Rejected',
+      },
+      {
+        'label': 'Expired',
+        'value': _expiredTrips.toString(),
+        'icon': Icons.timer_off_outlined,
+        'color': Colors.grey.shade600,
+        'filter': 'Expired',
       },
     ];
 
@@ -601,7 +627,7 @@ class _StaffTripsState extends State<StaffTrips> {
         children: stats.map((stat) {
           return Expanded(
             child: Padding(
-              padding: EdgeInsets.only(right: stat == stats.last ? 0 : 16.0),
+              padding: EdgeInsets.only(right: stat == stats.last ? 0 : 8.0),
               child: buildCard(stat),
             ),
           );
@@ -610,7 +636,6 @@ class _StaffTripsState extends State<StaffTrips> {
     }
   }
 
-  // ---- CALENDAR ----
   Widget _buildCompactCalendarGrid(bool isDark) {
     final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final lastDay = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
@@ -818,9 +843,7 @@ class _StaffTripsState extends State<StaffTrips> {
     );
   }
 
-  // ---- TRIP LIST ----
   Widget _buildTripListView(bool isDark) {
-    // Dummy list data during `_isLoading` so Skeletonizer can render the structure
     final List<dynamic> displayedTrips = _isLoading
         ? List.generate(
             4,
@@ -966,7 +989,6 @@ class _StaffTripsState extends State<StaffTrips> {
     );
   }
 
-  // ---- TRIP CARD ----
   Widget _buildTripCard(
     Map<String, dynamic> trip,
     bool isDark,

@@ -50,6 +50,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
     'Scheduled',
     'Unassigned',
     'Rejected',
+    'Expired',
   ];
 
   @override
@@ -157,6 +158,8 @@ class _StaffSchedulesState extends State<StaffSchedules> {
         if (_statusFilter == 'Scheduled') return isScheduled;
         if (_statusFilter == 'Unassigned') return isUnassigned;
         if (_statusFilter == 'Rejected') return isRejected;
+        if (_statusFilter == 'Expired')
+          return statusStr.toLowerCase().contains('expired');
         return true;
       }).toList();
     }
@@ -190,6 +193,12 @@ class _StaffSchedulesState extends State<StaffSchedules> {
       : _assignedTrips.where((t) {
           final statusStr = t['trip_status']?.toString() ?? 'Unknown';
           return statusStr.toLowerCase().contains('rejected');
+        }).length;
+  int get _expiredTrips => _isLoading
+      ? 0
+      : _assignedTrips.where((t) {
+          final statusStr = t['trip_status']?.toString() ?? 'Unknown';
+          return statusStr.toLowerCase().contains('expired');
         }).length;
 
   int get _scheduledTrips => _isLoading
@@ -534,6 +543,13 @@ class _StaffSchedulesState extends State<StaffSchedules> {
         'icon': Icons.cancel_outlined,
         'color': const Color(0xFFEF4444),
         'filter': 'Rejected',
+      },
+      {
+        'label': 'Expired',
+        'value': _expiredTrips.toString(),
+        'icon': Icons.timer_off,
+        'color': Colors.grey.shade600,
+        'filter': 'Expired',
       },
     ];
 
@@ -993,10 +1009,11 @@ class TripCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusStr = trip['trip_status']?.toString() ?? 'Unknown';
     final isRejected = statusStr.toLowerCase().contains('rejected');
-    final isUnassigned = needsAssignment && !isRejected;
+    final isExpired = statusStr.toLowerCase().contains('expired');
+    final isUnassigned = needsAssignment && !isRejected && !isExpired;
 
-    Color statusColor = const Color(0xFF10B981);
-    String badgeText = 'SCHEDULED';
+    Color statusColor = const Color(0xFF10B981); // Default to Completed Green
+    String badgeText = statusStr.toUpperCase();
 
     if (isRejected) {
       statusColor = const Color(0xFFEF4444);
@@ -1004,9 +1021,15 @@ class TripCard extends StatelessWidget {
     } else if (isUnassigned) {
       statusColor = const Color(0xFFF59E0B);
       badgeText = 'UNASSIGNED';
+    } else if (isExpired) {
+      statusColor = Colors.grey.shade600;
+      badgeText = 'EXPIRED';
     } else if (statusStr.toLowerCase().contains('ongoing')) {
       statusColor = const Color(0xFF3B82F6);
       badgeText = 'ONGOING';
+    } else if (statusStr.toLowerCase().contains('scheduled')) {
+      statusColor = const Color(0xFFF59E0B);
+      badgeText = 'SCHEDULED';
     }
 
     final String routeName = trip['route_name'] ?? 'Unspecified Route';

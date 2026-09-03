@@ -147,15 +147,17 @@ def diagnostic_database_check():
         return jsonify({"connection_status": "FAILED", "error_details": str(e)}), 500
 
 # ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
+# ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
 
 @admin_bp.route('/trips', methods=['GET'])
 def get_admin_schedules():
-    """Fetches all trip schedules and manually resolves the missing OIC company relationship map"""
+    """Fetches all trip schedules, resolves OIC mapping, and attaches passenger CSAT ratings."""
     try:
         # 1. Fetch trip schedules along with valid relational foreign keys (vehicle & user_account)
         trips_res = supabase.table('trip_schedule').select(
             'trip_id, schedule_date, departure_time, route_name, route_distance, '
-            'trip_status, passenger_count, estimated_arrival_time, oic_id, '
+            'trip_status, passenger_count, estimated_arrival_time, '
+            'actual_start_time, actual_end_time, oic_id, '
             'vehicle_id, vehicle(plate_number, bus_type), '
             'user_id, user_account(full_name)'
         ).order('schedule_date', desc=False).execute()
@@ -165,23 +167,45 @@ def get_admin_schedules():
         # 2. Fetch all corporate OIC profile entries to build an in-memory mapping index
         oic_res = supabase.table('oic_profile').select('oic_id, company_name').execute()
         raw_oics = oic_res.data or []
-        
-        # Map: oic_id -> company_name
         company_map = {item['oic_id']: item['company_name'] for item in raw_oics if 'oic_id' in item}
 
-        # 3. Manually map the company names back into the trips structure
+        # 3. NEW: Fetch Passenger Evaluations to calculate CSAT per trip
+        evals_res = supabase.table('passenger_evaluation').select('trip_id, safety_score, punctuality_score, professionalism_score').execute()
+        
+        # Group evaluations by trip_id
+        trip_evals = {}
+        for ev in (evals_res.data or []):
+            t_id = ev.get('trip_id')
+            if t_id is not None:
+                s = float(ev.get('safety_score') or 0.0)
+                p = float(ev.get('punctuality_score') or 0.0)
+                pr = float(ev.get('professionalism_score') or 0.0)
+                eval_avg = (s + p + pr) / 3.0
+                
+                if t_id not in trip_evals:
+                    trip_evals[t_id] = []
+                trip_evals[t_id].append(eval_avg)
+
+        # 4. Manually map the company names and CSAT scores back into the trips structure
         for trip in raw_trips:
             current_oic_id = trip.get('oic_id')
             trip['oic_profile'] = {
                 "company_name": company_map.get(current_oic_id, "GT LANTIN")
             }
+            
+            # Inject the calculated CSAT rating for this specific trip
+            t_id = trip.get('trip_id')
+            if t_id in trip_evals and trip_evals[t_id]:
+                scores = trip_evals[t_id]
+                trip['evaluation_score'] = sum(scores) / len(scores)
+            else:
+                # Leave null if no passengers have rated this trip yet
+                trip['evaluation_score'] = None
 
         return jsonify({"success": True, "trips": raw_trips}), 200
     except Exception as e:
         print(f"❌ Admin Schedule Fetch Exception: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
-
-
 
 # ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
 @admin_bp.route('/api/admin/attendance/upload-legacy-xls', methods=['POST'])
