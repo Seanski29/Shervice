@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
+import '../../widgets/shared/universal_pagination.dart';
 
 // ─── MAIN DASHBOARD COMPONENT ───
 class AdminUsers extends StatefulWidget {
@@ -214,7 +215,6 @@ class _AdminUsersState extends State<AdminUsers> {
     final double horizontalPadding = isMobile ? 12.0 : 24.0;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // --- Extracted Action Controls Bar (Wrapped in Skeleton.ignore) ---
     final Widget actionControls = Skeleton.ignore(
       child: Wrap(
         spacing: 10,
@@ -222,7 +222,6 @@ class _AdminUsersState extends State<AdminUsers> {
         alignment: isMobile ? WrapAlignment.start : WrapAlignment.end,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          // 1. Search Box
           ConstrainedBox(
             constraints:
                 BoxConstraints(maxWidth: isMobile ? double.infinity : 280),
@@ -270,7 +269,6 @@ class _AdminUsersState extends State<AdminUsers> {
               ),
             ),
           ),
-          // 2. Sort Dropdown
           ConstrainedBox(
             constraints:
                 BoxConstraints(maxWidth: isMobile ? double.infinity : 160),
@@ -314,7 +312,6 @@ class _AdminUsersState extends State<AdminUsers> {
               ),
             ),
           ),
-          // 3. Desktop Refresh Button
           SizedBox(
             height: 42,
             width: 42,
@@ -333,7 +330,6 @@ class _AdminUsersState extends State<AdminUsers> {
                   const Icon(Icons.refresh, color: Color(0xFF3B82F6), size: 20),
             ),
           ),
-          // 4. Add User Button
           SizedBox(
             height: 42,
             child: ElevatedButton.icon(
@@ -360,7 +356,6 @@ class _AdminUsersState extends State<AdminUsers> {
       ),
     );
 
-    // --- Extracted Header Title (Wrapped in Skeleton.ignore) ---
     final Widget headerTitle = Skeleton.ignore(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,7 +394,6 @@ class _AdminUsersState extends State<AdminUsers> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ----- HEADER & CONTROLS LAYOUT -----
                 if (isMobile) ...[
                   headerTitle,
                   const SizedBox(height: 16),
@@ -416,8 +410,6 @@ class _AdminUsersState extends State<AdminUsers> {
                   ),
                 ],
                 const SizedBox(height: 20),
-
-                // ----- USER LIST -----
                 Expanded(
                   child: !_isLoading && _filteredUsers.isEmpty
                       ? Center(
@@ -451,8 +443,8 @@ class _AdminUsersState extends State<AdminUsers> {
                             final user = _paginatedUsers[index];
                             final String status = user['status'] ?? 'Active';
                             final Color statusColor = (status == 'Active')
-                                ? const Color(0xFF10B981) // green
-                                : const Color(0xFFF59E0B); // yellow
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFF59E0B);
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -488,7 +480,6 @@ class _AdminUsersState extends State<AdminUsers> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.center,
                                       children: [
-                                        // Left indicator bar
                                         Container(
                                           width: 4,
                                           height: 36,
@@ -602,94 +593,18 @@ class _AdminUsersState extends State<AdminUsers> {
                           },
                         ),
                 ),
-
-                // ----- PAGINATION -----
                 if (!_isLoading && _filteredUsers.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 16),
-                    child: Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 16,
-                      runSpacing: 12,
-                      children: [
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 260),
-                          child: Text(
-                            'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredUsers.length)} of ${_filteredUsers.length} users',
-                            style: TextStyle(
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : const Color(0xFF64748B),
-                              fontSize: 13,
-                            ),
-                            softWrap: true,
-                          ),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            OutlinedButton(
-                              onPressed: _currentPage > 0 ? _prevPage : null,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor:
-                                    Theme.of(context).colorScheme.onSurface,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                side: BorderSide(
-                                    color: isDark
-                                        ? Colors.grey.shade700
-                                        : Colors.grey.shade300),
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
-                              ),
-                              child: const Text('Previous'),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.blue.withValues(alpha: 0.15)
-                                    : const Color(0xFFEFF6FF),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${_currentPage + 1} / $_totalPages',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark
-                                      ? Colors.blue.shade300
-                                      : const Color(0xFF3B82F6),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton(
-                              onPressed: _currentPage < _totalPages - 1
-                                  ? _nextPage
-                                  : null,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor:
-                                    Theme.of(context).colorScheme.onSurface,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                side: BorderSide(
-                                    color: isDark
-                                        ? Colors.grey.shade700
-                                        : Colors.grey.shade300),
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
-                              ),
-                              child: const Text('Next'),
-                            ),
-                          ],
-                        ),
-                      ],
+                    child: UniversalPagination(
+                      currentPage: _currentPage,
+                      totalPages: _totalPages,
+                      totalItems: _filteredUsers.length,
+                      itemsPerPage: _itemsPerPage,
+                      itemName: 'users',
+                      onNextPage:
+                          _currentPage < _totalPages - 1 ? _nextPage : null,
+                      onPrevPage: _currentPage > 0 ? _prevPage : null,
                     ),
                   ),
               ],
@@ -944,7 +859,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -968,8 +882,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
               ],
             ),
             const SizedBox(height: 16),
-
-            // Form (scrollable)
             Flexible(
               child: SingleChildScrollView(
                 child: Form(
@@ -1087,10 +999,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Actions (responsive wrap)
             Wrap(
               alignment: WrapAlignment.spaceBetween,
               crossAxisAlignment: WrapCrossAlignment.center,
