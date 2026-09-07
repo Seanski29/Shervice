@@ -72,6 +72,30 @@ def create_trip_request():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+from datetime import datetime
+
+def _sweep_expired_trips():
+    """Automatically sweeps the database for missed schedules and finishes abandoned ongoing trips."""
+    try:
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        
+        # 1. Mark unassigned or unstarted trips older than today as Expired
+        supabase.table('trip_schedule').update({
+            "trip_status": "Expired"
+        }).lt('schedule_date', today_str).in_(
+            'trip_status', ['Pending Staff Assignment', 'Scheduled']
+        ).execute()
+
+        # 2. Force-complete abandoned 'Ongoing' trips from past days so drivers are unlocked,
+        # but leave actual_end_time as None so Route Delay ML clustering ignores them.
+        supabase.table('trip_schedule').update({
+            "trip_status": "Completed",
+            "actual_end_time": None
+        }).lt('schedule_date', today_str).eq('trip_status', 'Ongoing').execute()
+
+    except Exception as e:
+        print(f"⚠️ Auto-Sweep Error: {e}")
+
 
 @schedules_bp.route('/api/schedules/staff-options', methods=['GET'])
 def get_staff_options():
@@ -210,10 +234,11 @@ def update_trip_status():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-
 @schedules_bp.route('/api/schedules/all', methods=['GET'])
 def get_all_trips():
     try:
+        _sweep_expired_trips()
+
         trips = supabase.table('trip_schedule').select('*').order('schedule_date', desc=True).execute()
         vehicles = supabase.table('vehicle').select('vehicle_id, plate_number').execute()
         drivers = supabase.table('driver_profile').select('user_id, full_name').execute()
@@ -235,6 +260,8 @@ def get_all_trips():
 @schedules_bp.route('/api/schedules/staff/<string:staff_uuid>', methods=['GET'])
 def get_staff_assigned_trips(staff_uuid):
     try:
+        _sweep_expired_trips()
+
         trips = supabase.table('trip_schedule').select('*').eq('staff_id', staff_uuid).order('schedule_date', desc=True).execute()
         vehicles = supabase.table('vehicle').select('vehicle_id, plate_number').execute()
         drivers = supabase.table('driver_profile').select('user_id, full_name').execute()
@@ -254,7 +281,6 @@ def get_staff_assigned_trips(staff_uuid):
         return jsonify({"success": True, "data": formatted_trips}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
-
 
 @schedules_bp.route('/api/schedules/update-request', methods=['PUT'])
 def update_trip_request():
