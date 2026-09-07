@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, request
 from supabase import create_client
 import xlrd
 from openpyxl import Workbook
+from roles.schedules import _sweep_expired_trips
 
 # Blueprint must be defined first so decorators can use it down the line
 admin_bp = Blueprint('admin', __name__)
@@ -153,6 +154,7 @@ def diagnostic_database_check():
 def get_admin_schedules():
     """Fetches all trip schedules, resolves OIC mapping, and attaches passenger CSAT ratings."""
     try:
+        _sweep_expired_trips()
         # 1. Fetch trip schedules along with valid relational foreign keys (vehicle & user_account)
         trips_res = supabase.table('trip_schedule').select(
             'trip_id, schedule_date, departure_time, route_name, route_distance, '
