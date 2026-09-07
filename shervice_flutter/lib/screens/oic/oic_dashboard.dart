@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
+import '../../widgets/shared/universal_pagination.dart';
 
 class OicDashboard extends StatefulWidget {
   final String oicName;
@@ -669,6 +670,7 @@ class _OicDashboardState extends State<OicDashboard> {
 
   Widget _buildPagination(int start, int end, int totalPages, int total, bool isDark) {
     return Container(
+      width: double.infinity,
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
@@ -676,43 +678,19 @@ class _OicDashboardState extends State<OicDashboard> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Showing ${start + 1}–$end of $total entries',
-            style: TextStyle(color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
-          ),
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left, size: 20),
-                onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                color: _currentPage > 0 ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '${_currentPage + 1} / $totalPages',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF3B82F6), fontSize: 12),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right, size: 20),
-                onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage++) : null,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                color: _currentPage < totalPages - 1 ? const Color(0xFF3B82F6) : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
-              ),
-            ],
-          ),
-        ],
+      alignment: Alignment.centerLeft,
+      child: UniversalPagination(
+        currentPage: _currentPage,
+        totalPages: totalPages,
+        totalItems: total,
+        itemsPerPage: _itemsPerPage,
+        itemName: 'entries',
+        onNextPage: _currentPage < totalPages - 1 
+            ? () => setState(() => _currentPage++) 
+            : null,
+        onPrevPage: _currentPage > 0 
+            ? () => setState(() => _currentPage--) 
+            : null,
       ),
     );
   }

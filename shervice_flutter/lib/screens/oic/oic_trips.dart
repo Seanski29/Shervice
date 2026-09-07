@@ -4,6 +4,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 import 'dart:convert';
 import 'dart:math';
 import '../../constant.dart';
+import '../../widgets/shared/universal_pagination.dart';
 
 class OicTrips extends StatefulWidget {
   final String oicId;
@@ -1116,69 +1117,25 @@ class _OicTripsState extends State<OicTrips> {
 
   Widget _buildPagination(bool isDark, Color borderColor) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Showing ${(_currentPage * _itemsPerPage) + 1} to ${min((_currentPage + 1) * _itemsPerPage, _filteredAndSortedTrips.length)} of ${_filteredAndSortedTrips.length} entries',
-            style: TextStyle(
-              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left, size: 20),
-                onPressed: _currentPage > 0
-                    ? () => _goToPage(_currentPage - 1)
-                    : null,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                color: _currentPage > 0
-                    ? const Color(0xFF3B82F6)
-                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.blue.withValues(alpha: 0.2)
-                      : const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '${_currentPage + 1} / $_totalPages',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF3B82F6),
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right, size: 20),
-                onPressed: _currentPage < _totalPages - 1
-                    ? () => _goToPage(_currentPage + 1)
-                    : null,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                color: _currentPage < _totalPages - 1
-                    ? const Color(0xFF3B82F6)
-                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
-              ),
-            ],
-          ),
-        ],
+      alignment: Alignment.centerLeft,
+      child: UniversalPagination(
+        currentPage: _currentPage,
+        totalPages: _totalPages,
+        totalItems: _filteredAndSortedTrips.length,
+        itemsPerPage: _itemsPerPage,
+        itemName: 'entries',
+        onNextPage: _currentPage < _totalPages - 1
+            ? () => _goToPage(_currentPage + 1)
+            : null,
+        onPrevPage: _currentPage > 0
+            ? () => _goToPage(_currentPage - 1)
+            : null,
       ),
     );
   }
