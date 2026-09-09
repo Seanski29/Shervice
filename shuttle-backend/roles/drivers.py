@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, request
 
-# Update the blueprint variable or name string to plural if desired
 drivers_bp = Blueprint('drivers', __name__)
 supabase = None
 
@@ -28,11 +27,9 @@ def get_all_drivers():
             "error": str(e)
         }), 500
 
-# Update your route decorators below to use the new variable name:
 @drivers_bp.route('/api/driver/active-trip/<driver_name>', methods=['GET'])
 def get_driver_active_trip(driver_name):
     try:
-        # 1. Resolve driver_name to locate the driver's user_id reference row
         driver_res = supabase.table('driver_profile')\
             .select('user_id')\
             .ilike('full_name', driver_name)\
@@ -45,8 +42,6 @@ def get_driver_active_trip(driver_name):
             
         user_uuid = driver_data.get('user_id')
 
-        # 2. Query the trip schedule table for the active/ongoing trip assigned to this user_id
-        # We also join the vehicle details relationship map
         trip_res = supabase.table('trip_schedule').select(
             '*, vehicle(*)'
         ).eq('user_id', user_uuid)\
@@ -60,10 +55,8 @@ def get_driver_active_trip(driver_name):
         if not trip:
             return jsonify({"success": True, "active_trip": None}), 200
 
-        # Safely capture joined vehicle profile specs
         vehicle_info = trip.get('vehicle') or {}
         
-        # Format metrics cleanly for Flutter consumption
         formatted_trip = {
             'trip_id': trip.get('trip_id'),
             'status': trip.get('trip_status', 'Scheduled').upper(),
@@ -72,7 +65,8 @@ def get_driver_active_trip(driver_name):
             'estimated_arrival_time': str(trip.get('estimated_arrival_time'))[:5] if trip.get('estimated_arrival_time') else '--:--',
             'passenger_count': trip.get('passenger_count', 0),
             'route_distance': trip.get('route_distance', 0.0),
-            # Vehicle Mappings
+            'actual_start_time': trip.get('actual_start_time'), 
+            'actual_end_time': trip.get('actual_end_time'),     
             'plate_number': vehicle_info.get('plate_number', 'No Plate Assigned'),
         }
 
@@ -80,4 +74,4 @@ def get_driver_active_trip(driver_name):
         
     except Exception as e:
         print(f"❌ Driver Active Trip Sync Exception: {e}")
-        return jsonify({"success": False, "error": str(e)}), 
+        return jsonify({"success": False, "error": str(e)}), 500

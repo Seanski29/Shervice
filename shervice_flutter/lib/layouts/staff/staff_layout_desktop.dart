@@ -5,7 +5,7 @@ import '../../screens/staff/staff_vehicle.dart';
 import '../../screens/staff/staff_schedules.dart';
 import '../../screens/staff/staff_trips.dart';
 import '../../screens/staff/staff_drivers.dart';
-import '../../screens/staff/staff_attendance.dart';
+import '../../screens/staff/staff_reports_manager.dart';
 import '../../widgets/shared/shared_analytics_hub.dart';
 import '../../login/login.dart';
 import '../../screens/staff/staff_settings.dart';
@@ -50,7 +50,7 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
       StaffTrips(staffId: widget.staffId),
       StaffVehicle(staffId: widget.staffId),
       const StaffDrivers(),
-      const StaffAttendance(),
+      const StaffReportsManager(),
       SharedAnalyticsHub(),
       StaffSettings(
         staffId: widget.staffId,
@@ -199,7 +199,7 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
                   Icons.directions_car_outlined,
                 ),
                 _buildNavItem(4, 'Driver Records', Icons.people_outline),
-                _buildNavItem(5, 'Attendance', Icons.how_to_reg),
+                _buildNavItem(5, 'Import & Export', Icons.import_export_outlined),
                 _buildNavItem(6, 'Analytics', Icons.analytics),
                 _buildNavItem(7, 'Settings', Icons.settings_outlined),
               ],

@@ -6,6 +6,7 @@ class FleetOverviewTab extends StatefulWidget {
   final List<dynamic> drivers;
   final List<dynamic> trips;
   final List<dynamic> maintenanceLogs;
+  final VoidCallback onSyncAction;
 
   const FleetOverviewTab({
     super.key,
@@ -13,6 +14,7 @@ class FleetOverviewTab extends StatefulWidget {
     required this.drivers,
     required this.trips,
     required this.maintenanceLogs,
+    required this.onSyncAction,
   });
 
   @override
@@ -41,7 +43,6 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
 
-    // --- TIMEFRAME FILTERING ---
     DateTime now = DateTime.now();
     DateTime start = DateTime(2000);
     if (_timeFrame == 'Last 7 Days') {
@@ -76,17 +77,39 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     );
 
     int readyV = widget.vehicles.where((v) {
-      double r = (v['live_risk_score'] as num?)?.toDouble() ?? 0.0;
+      double daysRemaining = (v['live_risk_score'] as num?)?.toDouble() ?? 0.0;
       String st = (v['health_status'] ?? '').toString().toLowerCase();
       return !st.contains('maintenance') &&
           !st.contains('repair') &&
-          (r * 100) < 80.0;
+          daysRemaining > 7.0;
     }).length;
 
-    double csat = widget.drivers.isEmpty
-        ? 0.0
-        : widget.drivers.fold(0.0, (s, d) => s + _parseDouble(d['rating'])) /
-              widget.drivers.length;
+    // Safety Fallback: Because backend /trips lacks rating info, we use the global driver average
+    List<dynamic> evaluatedTrips = fTrips
+        .where(
+          (t) =>
+              t['rating'] != null ||
+              t['csat'] != null ||
+              t['evaluation_score'] != null,
+        )
+        .toList();
+
+    double csat = 0.0;
+    if (evaluatedTrips.isNotEmpty) {
+      csat =
+          evaluatedTrips.fold(
+            0.0,
+            (s, t) =>
+                s +
+                _parseDouble(t['rating'] ?? t['csat'] ?? t['evaluation_score']),
+          ) /
+          evaluatedTrips.length;
+    } else {
+      csat = widget.drivers.isEmpty
+          ? 0.0
+          : widget.drivers.fold(0.0, (s, d) => s + _parseDouble(d['rating'])) /
+                widget.drivers.length;
+    }
 
     // --- CHART DATA GROUPING ---
     Map<String, int> dateCounts = {};
@@ -439,22 +462,20 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
   }
 
   Widget _buildRiskDistributionBar(List<dynamic> vehicles, bool isDark) {
-    int exc = 0, good = 0, fair = 0, risk = 0, maint = 0;
+    int optimal = 0, fair = 0, risk = 0, maint = 0;
     for (var v in vehicles) {
-      double p = ((v['live_risk_score'] as num?)?.toDouble() ?? 0.0) * 100;
+      double daysRemaining = (v['live_risk_score'] as num?)?.toDouble() ?? 0.0;
       String dbStatus = (v['health_status'] ?? '').toString().toLowerCase();
       if (dbStatus.contains('maintenance') ||
           dbStatus.contains('repair') ||
-          p >= 80.0) {
+          daysRemaining <= 7.0) {
         maint++;
-      } else if (p >= 60.0) {
+      } else if (daysRemaining <= 30.0) {
         risk++;
-      } else if (p >= 40.0) {
+      } else if (daysRemaining <= 90.0) {
         fair++;
-      } else if (p >= 20.0) {
-        good++;
       } else {
-        exc++;
+        optimal++;
       }
     }
 
@@ -472,7 +493,7 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Live Fleet ML Risk Distribution",
+            "Forecasted Maintenance Cycle Distribution",
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 13,
@@ -486,14 +507,9 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
               height: 32,
               child: Row(
                 children: [
-                  if (exc > 0)
+                  if (optimal > 0)
                     Expanded(
-                      flex: exc,
-                      child: Container(color: const Color(0xFF059669)),
-                    ),
-                  if (good > 0)
-                    Expanded(
-                      flex: good,
+                      flex: optimal,
                       child: Container(color: const Color(0xFF10B981)),
                     ),
                   if (fair > 0)
@@ -520,11 +536,25 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
             spacing: 16,
             runSpacing: 12,
             children: [
-              _legendItem('Excellent', exc, const Color(0xFF059669), isDark),
-              _legendItem('Good', good, const Color(0xFF10B981), isDark),
-              _legendItem('Fair', fair, const Color(0xFFF59E0B), isDark),
-              _legendItem('High Risk', risk, const Color(0xFFF97316), isDark),
-              _legendItem('Maint.', maint, const Color(0xFFEF4444), isDark),
+              _legendItem(
+                'Optimal (>90d)',
+                optimal,
+                const Color(0xFF10B981),
+                isDark,
+              ),
+              _legendItem('Fair (<90d)', fair, const Color(0xFFF59E0B), isDark),
+              _legendItem(
+                'High Risk (<30d)',
+                risk,
+                const Color(0xFFF97316),
+                isDark,
+              ),
+              _legendItem(
+                'Critical (<7d)',
+                maint,
+                const Color(0xFFEF4444),
+                isDark,
+              ),
             ],
           ),
         ],

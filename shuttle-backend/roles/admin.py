@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, request
 from supabase import create_client
 import xlrd
 from openpyxl import Workbook
+from roles.schedules import _sweep_expired_trips
 
 # Blueprint must be defined first so decorators can use it down the line
 admin_bp = Blueprint('admin', __name__)
@@ -16,6 +17,78 @@ supabase = None
 def get_admin_client():
     """Helper to create a dedicated Admin Client for secure Auth modifications"""
     return create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+
+
+def _normalize_xls_cell(value: Any) -> Any:
+    """Normalizes raw .xls cell values to strings and plain Python values."""
+    if value is None:
+        return ""
+    if isinstance(value, float):
+        if value.is_integer():
+            return str(int(value))
+        return str(value)
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    return str(value).strip()
+
+
+def parse_legacy_xls_bytes(file_bytes: bytes) -> Dict[str, Any]:
+    """Reads a legacy .xls workbook, normalizes rows, and converts it to XLSX in memory."""
+    try:
+        workbook = xlrd.open_workbook(file_contents=file_bytes)
+        sheet = workbook.sheet_by_index(0)
+
+        rows: List[List[Any]] = []
+        for row_idx in range(sheet.nrows):
+            values = []
+            for col_idx in range(sheet.ncols):
+                values.append(sheet.cell_value(row_idx, col_idx))
+            rows.append(values)
+
+        if not rows:
+            return {"success": False, "error": "Uploaded file has no rows."}
+
+        headers = []
+        for index, header in enumerate(rows[0]):
+            normalized = _normalize_xls_cell(header)
+            headers.append(normalized or f"Column {index + 1}")
+
+        data_rows = []
+        for row in rows[1:]:
+            record = {}
+            for index, header in enumerate(headers):
+                value = row[index] if index < len(row) else ""
+                record[header] = _normalize_xls_cell(value)
+            if any(str(value).strip() for value in record.values()):
+                data_rows.append(record)
+
+        workbook_out = Workbook()
+        ws = workbook_out.active
+        ws.title = 'Attendance'
+        ws.append(headers)
+
+        for row in rows[1:]:
+            converted_row = []
+            for index in range(len(headers)):
+                value = row[index] if index < len(row) else ""
+                converted_row.append(_normalize_xls_cell(value))
+            ws.append(converted_row)
+
+        buffer = BytesIO()
+        workbook_out.save(buffer)
+        xlsx_bytes = buffer.getvalue()
+
+        return {
+            "success": True,
+            "sheet_name": sheet.name,
+            "headers": headers,
+            "rows": data_rows,
+            "xlsx_bytes": xlsx_bytes,
+            "row_count": len(data_rows),
+            "xlsx_size": len(xlsx_bytes),
+        }
+    except Exception as exc:
+        return {"success": False, "error": f"Unable to convert legacy .xls file: {exc}"}
 
 
 # ─────────── DIAGNOSTIC DATABASE CHECKS (DRIVERS USE THIS) ───────────
@@ -75,15 +148,18 @@ def diagnostic_database_check():
         return jsonify({"connection_status": "FAILED", "error_details": str(e)}), 500
 
 # ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
+# ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
 
 @admin_bp.route('/trips', methods=['GET'])
 def get_admin_schedules():
-    """Fetches all trip schedules and manually resolves the missing OIC company relationship map"""
+    """Fetches all trip schedules, resolves OIC mapping, and attaches passenger CSAT ratings."""
     try:
+        _sweep_expired_trips()
         # 1. Fetch trip schedules along with valid relational foreign keys (vehicle & user_account)
         trips_res = supabase.table('trip_schedule').select(
             'trip_id, schedule_date, departure_time, route_name, route_distance, '
-            'trip_status, passenger_count, estimated_arrival_time, oic_id, '
+            'trip_status, passenger_count, estimated_arrival_time, '
+            'actual_start_time, actual_end_time, oic_id, '
             'vehicle_id, vehicle(plate_number, bus_type), '
             'user_id, user_account(full_name)'
         ).order('schedule_date', desc=False).execute()
@@ -93,28 +169,50 @@ def get_admin_schedules():
         # 2. Fetch all corporate OIC profile entries to build an in-memory mapping index
         oic_res = supabase.table('oic_profile').select('oic_id, company_name').execute()
         raw_oics = oic_res.data or []
-        
-        # Map: oic_id -> company_name
         company_map = {item['oic_id']: item['company_name'] for item in raw_oics if 'oic_id' in item}
 
-        # 3. Manually map the company names back into the trips structure
+        # 3. NEW: Fetch Passenger Evaluations to calculate CSAT per trip
+        evals_res = supabase.table('passenger_evaluation').select('trip_id, safety_score, punctuality_score, professionalism_score').execute()
+        
+        # Group evaluations by trip_id
+        trip_evals = {}
+        for ev in (evals_res.data or []):
+            t_id = ev.get('trip_id')
+            if t_id is not None:
+                s = float(ev.get('safety_score') or 0.0)
+                p = float(ev.get('punctuality_score') or 0.0)
+                pr = float(ev.get('professionalism_score') or 0.0)
+                eval_avg = (s + p + pr) / 3.0
+                
+                if t_id not in trip_evals:
+                    trip_evals[t_id] = []
+                trip_evals[t_id].append(eval_avg)
+
+        # 4. Manually map the company names and CSAT scores back into the trips structure
         for trip in raw_trips:
             current_oic_id = trip.get('oic_id')
             trip['oic_profile'] = {
                 "company_name": company_map.get(current_oic_id, "GT LANTIN")
             }
+            
+            # Inject the calculated CSAT rating for this specific trip
+            t_id = trip.get('trip_id')
+            if t_id in trip_evals and trip_evals[t_id]:
+                scores = trip_evals[t_id]
+                trip['evaluation_score'] = sum(scores) / len(scores)
+            else:
+                # Leave null if no passengers have rated this trip yet
+                trip['evaluation_score'] = None
 
         return jsonify({"success": True, "trips": raw_trips}), 200
     except Exception as e:
         print(f"❌ Admin Schedule Fetch Exception: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-
-
 # ─────────── UNIFIED MUTUAL EVALUATIONS SINGLE-TABLE ENDPOINT ───────────
 @admin_bp.route('/api/admin/attendance/upload-legacy-xls', methods=['POST'])
 def upload_legacy_xls_attendance():
-    """Accepts a legacy .xls file, converts it in memory to workbook data, and returns rows for immediate processing."""
+    """Reads legacy .xls uploads, converts them in memory to xlsx, and returns the normalized rows."""
     try:
         if 'file' not in request.files:
             return jsonify({"success": False, "error": "No file uploaded."}), 400
@@ -127,53 +225,17 @@ def upload_legacy_xls_attendance():
         if not file_bytes:
             return jsonify({"success": False, "error": "Uploaded file is empty."}), 400
 
-        workbook = xlrd.open_workbook(file_contents=file_bytes)
-        sheet = workbook.sheet_by_index(0)
-
-        rows = []
-        for row_idx in range(sheet.nrows):
-            row = []
-            for col_idx in range(sheet.ncols):
-                value = sheet.cell_value(row_idx, col_idx)
-                if isinstance(value, float) and value.is_integer():
-                    row.append(str(int(value)))
-                else:
-                    row.append('' if value is None else str(value))
-            rows.append(row)
-
-        if not rows:
-            return jsonify({"success": False, "error": "Uploaded file has no rows."}), 400
-
-        headers = rows[0]
-        data_rows = []
-        for row in rows[1:]:
-            record = {}
-            for index, header in enumerate(headers):
-                key = (header or f'Column {index + 1}').strip()
-                value = row[index] if index < len(row) else ''
-                record[key] = value
-            if any(str(value).strip() for value in record.values()):
-                data_rows.append(record)
-
-        workbook_out = Workbook()
-        ws = workbook_out.active
-        ws.title = 'Attendance'
-        if headers:
-            ws.append(headers)
-        for row in rows[1:]:
-            ws.append(row)
-
-        buffer = BytesIO()
-        workbook_out.save(buffer)
-        xlsx_bytes = buffer.getvalue()
+        result = parse_legacy_xls_bytes(file_bytes)
+        if not result.get('success'):
+            return jsonify({"success": False, "error": result.get('error', 'Unable to convert legacy .xls file.')}), 400
 
         return jsonify({
             "success": True,
-            "sheet_name": sheet.name,
-            "headers": headers,
-            "rows": data_rows,
-            "xlsx_size": len(xlsx_bytes),
-            "row_count": len(data_rows),
+            "sheet_name": result.get('sheet_name'),
+            "headers": result.get('headers', []),
+            "rows": result.get('rows', []),
+            "xlsx_size": result.get('xlsx_size', 0),
+            "row_count": result.get('row_count', 0),
         }), 200
     except Exception as exc:
         return jsonify({"success": False, "error": f"Unable to convert legacy .xls file: {exc}"}), 500

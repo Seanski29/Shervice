@@ -6,6 +6,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 import '../driver/driver_profile_model.dart';
 import '../../constant.dart';
 import '../driver/driver_rating_badge.dart';
+import 'universal_pagination.dart';
 
 class SharedDriversView extends StatefulWidget {
   final bool canManage;
@@ -36,6 +37,8 @@ class SharedDriversViewState extends State<SharedDriversView> {
 
   String _searchQuery = '';
   String _currentSort = 'A to Z';
+  String _selectedStatusFilter = 'All';
+  
   final List<String> _sortOptions = [
     'A to Z',
     'Z to A',
@@ -44,8 +47,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
   ];
 
   int _currentPage = 0;
-  final int _itemsPerPage =
-      10; // Increased items per page for better screen utilization
+  final int _itemsPerPage = 10;
 
   @override
   void initState() {
@@ -98,7 +100,18 @@ class SharedDriversViewState extends State<SharedDriversView> {
 
   void _applyFiltersAndSort() {
     List<DriverProfileModel> temp = _allDrivers.where((driver) {
-      return driver.name.toLowerCase().contains(_searchQuery.toLowerCase());
+      // 1. Search Query Match
+      final matchesSearch = driver.name.toLowerCase().contains(_searchQuery.toLowerCase());
+      
+      // 2. Status Card Match
+      bool matchesStatus = true;
+      if (_selectedStatusFilter == 'Active') {
+        matchesStatus = driver.status.toLowerCase() == 'active';
+      } else if (_selectedStatusFilter == 'Inactive') {
+        matchesStatus = driver.status.toLowerCase() != 'active';
+      }
+
+      return matchesSearch && matchesStatus;
     }).toList();
 
     temp.sort((a, b) {
@@ -169,7 +182,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _buildTitleArea(isDark),
-                      const Spacer(), // Pushes everything below to the far right!
+                      const Spacer(),
                       _buildSearchAndFilterRow(isDark, isMobile),
                     ],
                   ),
@@ -202,6 +215,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
                   ),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     ListView.builder(
                       shrinkWrap: true,
@@ -259,7 +273,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // Search Box
         SizedBox(
           width: isMobile ? double.infinity : 220,
           height: 40,
@@ -301,7 +314,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
             ),
           ),
         ),
-        // Sort Dropdown
         Container(
           height: 40,
           width: isMobile ? double.infinity : 160,
@@ -341,7 +353,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
             ),
           ),
         ),
-        // Refresh Button
         Container(
           height: 40,
           width: 40,
@@ -365,7 +376,6 @@ class SharedDriversViewState extends State<SharedDriversView> {
             padding: EdgeInsets.zero,
           ),
         ),
-        // Add Button
         if (widget.actionWidget != null)
           SizedBox(height: 40, child: widget.actionWidget!),
       ],
@@ -379,62 +389,85 @@ class SharedDriversViewState extends State<SharedDriversView> {
         'value': _totalDrivers.toString(),
         'icon': Icons.people_outline,
         'color': isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+        'filter': 'All',
       },
       {
         'label': 'Active Duty',
         'value': _activeDrivers.toString(),
         'icon': Icons.check_circle_outline,
         'color': const Color(0xFF10B981),
+        'filter': 'Active',
       },
       {
         'label': 'Inactive/Leave',
         'value': _inactiveDrivers.toString(),
         'icon': Icons.pause_circle_outline,
         'color': const Color(0xFFF59E0B),
+        'filter': 'Inactive',
       },
     ];
 
     Widget buildCard(Map<String, dynamic> stat) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      final bool isSelected = _selectedStatusFilter == stat['filter'];
+      final Color statColor = stat['color'] as Color;
+
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
           borderRadius: BorderRadius.circular(40),
-          border: Border.all(
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(stat['icon'], color: stat['color'], size: 28),
-            const SizedBox(width: 12),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
+          onTap: () {
+            setState(() {
+              _selectedStatusFilter = stat['filter'] as String;
+              _applyFiltersAndSort();
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected 
+                  ? statColor.withValues(alpha: 0.1) 
+                  : (isDark ? const Color(0xFF1E293B) : Colors.white),
+              borderRadius: BorderRadius.circular(40),
+              border: Border.all(
+                color: isSelected 
+                    ? statColor 
+                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                width: isSelected ? 2.0 : 1.0, 
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  stat['value'],
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    height: 1.1,
-                  ),
-                ),
-                Text(
-                  stat['label'],
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark
-                        ? Colors.grey.shade400
-                        : const Color(0xFF64748B),
-                    fontWeight: FontWeight.w600,
-                  ),
+                Icon(stat['icon'] as IconData, color: statColor, size: 28),
+                const SizedBox(width: 12),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      stat['value'].toString(),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        height: 1.1,
+                      ),
+                    ),
+                    Text(
+                      stat['label'].toString(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : const Color(0xFF64748B),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       );
     }
@@ -642,81 +675,18 @@ class SharedDriversViewState extends State<SharedDriversView> {
           ),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Showing ${(_currentPage * _itemsPerPage) + 1} - ${min((_currentPage + 1) * _itemsPerPage, _filteredDrivers.length)} of ${_filteredDrivers.length}',
-            style: TextStyle(
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              fontSize: 13,
-            ),
-          ),
-          Row(
-            children: [
-              OutlinedButton(
-                onPressed: _currentPage > 0
-                    ? () => setState(() => _currentPage--)
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  side: BorderSide(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: Text(
-                  'Prev',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade600,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${_currentPage + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: _currentPage < _totalPages - 1
-                    ? () => setState(() => _currentPage++)
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  side: BorderSide(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: Text(
-                  'Next',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+      child: UniversalPagination(
+        currentPage: _currentPage,
+        totalPages: _totalPages,
+        totalItems: _filteredDrivers.length,
+        itemsPerPage: _itemsPerPage,
+        itemName: 'drivers',
+        onNextPage: _currentPage < _totalPages - 1
+            ? () => setState(() => _currentPage++)
+            : null,
+        onPrevPage: _currentPage > 0
+            ? () => setState(() => _currentPage--)
+            : null,
       ),
     );
   }

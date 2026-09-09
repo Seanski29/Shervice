@@ -6,7 +6,6 @@ oic_bp = Blueprint('oic', __name__)
 supabase = None # Assigned by app.py
 
 # ─────────── 1. CORE TRIPS & SCHEDULES PIPELINE ───────────
-
 @oic_bp.route('/api/trips', methods=['GET', 'POST'])
 def handle_trips_pipeline():
     if request.method == 'GET':
@@ -23,35 +22,34 @@ def handle_trips_pipeline():
                 for row in (oic_res.data or [])
                 if row.get('oic_id') is not None
             }
+            
+            # NEW: Fetch Passenger Evaluations to calculate CSAT per trip
+            evals_res = supabase.table('passenger_evaluation').select('trip_id, safety_score, punctuality_score, professionalism_score').execute()
+            trip_evals = {}
+            for ev in (evals_res.data or []):
+                t_id = ev.get('trip_id')
+                if t_id:
+                    s = float(ev.get('safety_score') or 0.0)
+                    p = float(ev.get('punctuality_score') or 0.0)
+                    pr = float(ev.get('professionalism_score') or 0.0)
+                    if t_id not in trip_evals:
+                        trip_evals[t_id] = []
+                    trip_evals[t_id].append((s + p + pr) / 3.0)
+
             for trip in raw_trips:
                 trip['client_company'] = company_by_oic_id.get(trip.get('oic_id'))
+                
+                # Inject the calculated CSAT rating for this specific trip
+                t_id = trip.get('trip_id')
+                if t_id in trip_evals and trip_evals[t_id]:
+                    trip['evaluation_score'] = sum(trip_evals[t_id]) / len(trip_evals[t_id])
+                else:
+                    trip['evaluation_score'] = None
+                    
             return jsonify({"success": True, "trips": raw_trips}), 200
         except Exception as e:
             print(f"❌ Admin Schedule Fetch Exception: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
-
-    elif request.method == 'POST':
-        try:
-            body = cast(Dict[str, Any], request.get_json() or {})
-            new_trip = {
-                "schedule_date": body.get("schedule_date"),
-                "departure_time": body.get("departure_time"),
-                "route_name": body.get("route_name"),
-                "trip_status": body.get("trip_status", "Pending Staff Assignment"), 
-                "user_id": body.get("user_id"), 
-                "vehicle_id": body.get("vehicle_id"), 
-                "oic_id": body.get("oic_id"),
-                "passenger_count": body.get("passenger_count", 0),
-                "estimated_arrival_time": body.get("estimated_arrival_time"),
-                "route_distance": body.get("route_distance", 0.0)
-            }
-            insert_res = supabase.table('trip_schedule').insert(new_trip).execute()
-            return jsonify({"success": True, "inserted": insert_res.data}), 201
-        except Exception as e:
-            print(f"❌ Backend Trip Injection Error: {e}")
-            return jsonify({"success": False, "error": str(e)}), 500
-            
-    return jsonify({"success": False, "message": "Method request disallowed."}), 405
 
 
 # ─────────── 2. MUTUAL EVALUATIONS PIPELINE ───────────

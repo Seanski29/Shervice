@@ -29,22 +29,22 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
     List<dynamic> tempV = widget.vehicles.where((v) {
       final plate = (v['plate_number'] ?? '').toString().toLowerCase();
       final type = (v['bus_type'] ?? '').toString().toLowerCase();
-      final dbStatus = (v['health_status'] ?? 'Good').toString();
+      final dbStatus = (v['health_status'] ?? 'Excellent').toString();
 
-      final double riskPercentage =
-          ((v['live_risk_score'] as num?)?.toDouble() ?? 0.0) * 100;
+      final double daysRemaining =
+          (v['live_risk_score'] as num?)?.toDouble() ?? 0.0;
 
       String dynamicStatus = 'Excellent';
       if (dbStatus.toLowerCase().contains('maintenance') ||
           dbStatus.toLowerCase().contains('repair') ||
-          riskPercentage >= 80.0) {
-        dynamicStatus = 'Needs Maint.';
-      } else if (riskPercentage >= 60.0) {
-        dynamicStatus = 'High Risk';
-      } else if (riskPercentage >= 40.0) {
+          daysRemaining <= 7.0) {
+        dynamicStatus = 'Needs Maintenance';
+      } else if (daysRemaining <= 30.0) {
         dynamicStatus = 'Fair';
-      } else if (riskPercentage >= 20.0) {
+      } else if (daysRemaining <= 90.0) {
         dynamicStatus = 'Good';
+      } else {
+        dynamicStatus = 'Excellent';
       }
 
       bool matchesSearch =
@@ -171,8 +171,7 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                                 'Condition: Excellent',
                                 'Condition: Good',
                                 'Condition: Fair',
-                                'Condition: High Risk',
-                                'Condition: Needs Maint.',
+                                'Condition: Needs Maintenance',
                               ]
                               .map(
                                 (String value) => DropdownMenuItem(
@@ -202,7 +201,7 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: IconButton(
-                tooltip: 'Sync AI Scores',
+                tooltip: 'Sync AI Forecasts',
                 onPressed: widget.onSyncAction,
                 icon: const Icon(
                   Icons.sync,
@@ -238,35 +237,36 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                   itemCount: paginatedVehicles.length,
                   itemBuilder: (context, index) {
                     final vehicle = paginatedVehicles[index];
-                    final String dbStatus = vehicle['health_status'] ?? 'Good';
-                    final double riskPercentage =
-                        ((vehicle['live_risk_score'] as num?)?.toDouble() ??
-                            0.0) *
-                        100;
+                    final String dbStatus =
+                        vehicle['health_status'] ?? 'Excellent';
+                    final double daysRemaining =
+                        (vehicle['live_risk_score'] as num?)?.toDouble() ?? 0.0;
 
                     String statusLabel = 'Excellent';
-                    Color statusColor = const Color(0xFF059669);
+                    Color statusColor = const Color(0xFF10B981);
                     if (dbStatus.toLowerCase().contains('maintenance') ||
                         dbStatus.toLowerCase().contains('repair') ||
-                        riskPercentage >= 80.0) {
+                        daysRemaining <= 7.0) {
                       statusLabel = 'Needs Maint.';
                       statusColor = const Color(0xFFEF4444);
-                    } else if (riskPercentage >= 60.0) {
-                      statusLabel = 'High Risk';
-                      statusColor = const Color(0xFFF97316);
-                    } else if (riskPercentage >= 40.0) {
+                    } else if (daysRemaining <= 30.0) {
                       statusLabel = 'Fair';
-                      statusColor = const Color(0xFFF59E0B);
-                    } else if (riskPercentage >= 20.0) {
+                      statusColor = const Color(0xFFF97316);
+                    } else if (daysRemaining <= 90.0) {
                       statusLabel = 'Good';
+                      statusColor = const Color(0xFFF59E0B);
+                    } else {
+                      statusLabel = 'Excellent';
                       statusColor = const Color(0xFF10B981);
                     }
 
-                    Color mlColor = riskPercentage >= 80.0
+                    Color mlColor = daysRemaining <= 7.0
                         ? const Color(0xFFEF4444)
-                        : (riskPercentage >= 50.0
-                              ? const Color(0xFFF59E0B)
-                              : const Color(0xFF10B981));
+                        : (daysRemaining <= 30.0
+                              ? const Color(0xFFF97316)
+                              : (daysRemaining <= 90.0
+                                    ? const Color(0xFFF59E0B)
+                                    : const Color(0xFF10B981)));
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -355,13 +355,13 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      Icons.psychology,
+                                      Icons.calendar_month,
                                       size: 12,
                                       color: mlColor,
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      '${riskPercentage.toStringAsFixed(1)}%',
+                                      '${daysRemaining.toStringAsFixed(0)} Days',
                                       style: TextStyle(
                                         color: mlColor,
                                         fontSize: 11,
@@ -536,7 +536,7 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
               children: [
                 Expanded(
                   child: Text(
-                    'ML Diagnostics: ${widget.vehicle['plate_number']}',
+                    'ML Forecast: ${widget.vehicle['plate_number']}',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -572,7 +572,7 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
                       CircularProgressIndicator(color: Colors.purple),
                       SizedBox(height: 16),
                       Text(
-                        "Compiling Logistic Regression Model...",
+                        "Compiling Multiple Linear Regression...",
                         style: TextStyle(color: Colors.grey),
                       ),
                     ],
@@ -604,31 +604,38 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
   }
 
   Widget _buildResultsView(bool isMobile, bool isDark) {
-    final double riskIndex = (_results!['risk_index'] ?? 0.0) * 100;
+    final double daysRemaining = (_results!['risk_index'] ?? 0.0);
     final Map<String, dynamic> telemetry = _results!['telemetry_metrics'] ?? {};
 
     Color statusColor;
     Color bgColor;
     String statusLabel;
     String statusDesc;
-    if (riskIndex >= 80.0) {
+
+    if (daysRemaining <= 7.0) {
       statusColor = const Color(0xFFEF4444);
       bgColor = isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2);
-      statusLabel = 'CLASS 1: CRITICAL RISK';
+      statusLabel = 'NEEDS MAINTENANCE';
       statusDesc =
-          'Algorithm dictates an imminent breakdown risk. Asset lockout triggered.';
-    } else if (riskIndex >= 50.0) {
-      statusColor = const Color(0xFFF59E0B);
+          'Multiple Linear Regression forecasts breakdown within 7 days. Lockout triggered.';
+    } else if (daysRemaining <= 30.0) {
+      statusColor = const Color(0xFFF97316);
       bgColor = isDark ? const Color(0xFF451A03) : const Color(0xFFFFFBEB);
-      statusLabel = 'WARNING: ELEVATED RISK';
+      statusLabel = 'FAIR CONDITION';
       statusDesc =
-          'Asset is operational, but structural wear is increasing. Monitor closely.';
+          'Asset is operational, but structural wear indicates maintenance needed soon.';
+    } else if (daysRemaining <= 90.0) {
+      statusColor = const Color(0xFFF59E0B);
+      bgColor = isDark ? const Color(0xFF422006) : const Color(0xFFFEF3C7);
+      statusLabel = 'GOOD CONDITION';
+      statusDesc =
+          'Asset is performing well, with nominal wear and tear detected.';
     } else {
       statusColor = const Color(0xFF10B981);
       bgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5);
-      statusLabel = 'CLASS 0: SAFE';
+      statusLabel = 'EXCELLENT CONDITION';
       statusDesc =
-          'Baseline structural integrity is normal. Asset is cleared for operations.';
+          'Telemetry parameters forecast stable operations for the foreseeable future.';
     }
 
     return Column(
@@ -644,7 +651,7 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
           child: Column(
             children: [
               Text(
-                'LOGISTIC REGRESSION CLASSIFICATION',
+                'MULTIPLE LINEAR REGRESSION FORECAST',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
@@ -689,9 +696,9 @@ class _MlPredictionDialogState extends State<MlPredictionDialog> {
               runSpacing: 12,
               children: [
                 _buildStatCard(
-                  'Risk Prob.',
-                  '${riskIndex.toStringAsFixed(1)}%',
-                  Icons.analytics,
+                  'Forecast',
+                  '${daysRemaining.toStringAsFixed(0)} Days Left',
+                  Icons.calendar_month,
                   statusColor,
                   cardWidth,
                   isDark,
