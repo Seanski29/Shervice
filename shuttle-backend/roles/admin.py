@@ -96,20 +96,16 @@ def parse_legacy_xls_bytes(file_bytes: bytes) -> Dict[str, Any]:
 def diagnostic_database_check():
     """Fetches all driver profiles, calculates ratings, and links them to the Flutter UI"""
     try:
-        # 1. Fetch Drivers
         test_query = supabase.table('driver_profile').select(
             '*, user_account(username)'
         ).execute()
         raw_data = test_query.data or []
 
-        # 2. Fetch Trips to map trip_id -> driver user_id
         trips_res = supabase.table('trip_schedule').select('trip_id, user_id').execute()
         trip_to_driver = {t['trip_id']: t['user_id'] for t in trips_res.data if t.get('user_id')}
 
-        # 3. Fetch Passenger Evaluations to calculate averages
         evals_res = supabase.table('passenger_evaluation').select('trip_id, safety_score, punctuality_score, professionalism_score').execute()
         
-        # Aggregate evaluation averages per driver UUID
         driver_scores = {}
         for ev in evals_res.data or []:
             t_id = ev.get('trip_id')
@@ -126,11 +122,9 @@ def diagnostic_database_check():
 
         flattened_drivers = []
         for row in raw_data:
-            # Link account email
             linked_account = row.get('user_account') or {}
             row['username'] = linked_account.get('username', '')
             
-            # 4. Attach calculated rating for Flutter sorting!
             d_uuid = row.get('user_id')
             scores = driver_scores.get(d_uuid, [])
             row['rating'] = sum(scores) / len(scores) if scores else 0.0
@@ -147,33 +141,35 @@ def diagnostic_database_check():
         print(f"❌ Diagnostic database connection failed: {e}")
         return jsonify({"connection_status": "FAILED", "error_details": str(e)}), 500
 
-# ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
+# ─────────── TRIP SCHEDULES (NOW USING MANUAL CLIENT_COMPANY MERGE) ───────────
 
 @admin_bp.route('/trips', methods=['GET'])
 def get_admin_schedules():
-    """Fetches all trip schedules, resolves OIC mapping, and attaches passenger CSAT ratings."""
+    """Fetches all trip schedules, fetches actual company safely, and attaches passenger CSAT ratings."""
     try:
         _sweep_expired_trips()
-        # 1. Fetch trip schedules along with valid relational foreign keys (vehicle & user_account)
+        # 1. Fetch trip schedules directly without relying on Supabase Join cache
         trips_res = supabase.table('trip_schedule').select(
             'trip_id, schedule_date, departure_time, route_name, route_distance, '
             'trip_status, passenger_count, estimated_arrival_time, '
-            'actual_start_time, actual_end_time, oic_id, '
+            'actual_start_time, actual_end_time, company_id, '
             'vehicle_id, vehicle(plate_number, bus_type), '
             'user_id, user_account(full_name)'
         ).order('schedule_date', desc=False).execute()
         
         raw_trips = trips_res.data or []
 
-        # 2. Fetch all corporate OIC profile entries to build an in-memory mapping index
-        oic_res = supabase.table('oic_profile').select('oic_id, company_name').execute()
-        raw_oics = oic_res.data or []
-        company_map = {item['oic_id']: item['company_name'] for item in raw_oics if 'oic_id' in item}
+        # 2. Fetch companies to build a manual mapping index
+        clients_res = supabase.table('client_company').select('company_id, company_name').execute()
+        company_map = {
+            str(c['company_id']): c['company_name'] 
+            for c in (clients_res.data or []) 
+            if c.get('company_id') is not None
+        }
 
-        # 3. NEW: Fetch Passenger Evaluations to calculate CSAT per trip
+        # 3. Fetch Passenger Evaluations to calculate CSAT per trip
         evals_res = supabase.table('passenger_evaluation').select('trip_id, safety_score, punctuality_score, professionalism_score').execute()
         
-        # Group evaluations by trip_id
         trip_evals = {}
         for ev in (evals_res.data or []):
             t_id = ev.get('trip_id')
@@ -183,24 +179,30 @@ def get_admin_schedules():
                 pr = float(ev.get('professionalism_score') or 0.0)
                 eval_avg = (s + p + pr) / 3.0
                 
-                if t_id not in trip_evals:
-                    trip_evals[t_id] = []
-                trip_evals[t_id].append(eval_avg)
+                t_id_str = str(t_id)
+                if t_id_str not in trip_evals:
+                    trip_evals[t_id_str] = []
+                trip_evals[t_id_str].append(eval_avg)
 
-        # 4. Manually map the company names and CSAT scores back into the trips structure
+        # 4. Inject scores and safely map companies
         for trip in raw_trips:
-            current_oic_id = trip.get('oic_id')
-            trip['oic_profile'] = {
-                "company_name": company_map.get(current_oic_id, "GT LANTIN")
+            # Safely resolve company by matching the ID
+            comp_id = trip.get('company_id')
+            if comp_id is not None and str(comp_id) in company_map:
+                resolved_company = company_map[str(comp_id)]
+            else:
+                resolved_company = "Unassigned Company"
+
+            # Attach to trip under the exact format Flutter expects
+            trip['client_company'] = {
+                "company_name": resolved_company
             }
-            
-            # Inject the calculated CSAT rating for this specific trip
-            t_id = trip.get('trip_id')
-            if t_id in trip_evals and trip_evals[t_id]:
-                scores = trip_evals[t_id]
+
+            t_id_str = str(trip.get('trip_id'))
+            if t_id_str in trip_evals and trip_evals[t_id_str]:
+                scores = trip_evals[t_id_str]
                 trip['evaluation_score'] = sum(scores) / len(scores)
             else:
-                # Leave null if no passengers have rated this trip yet
                 trip['evaluation_score'] = None
 
         return jsonify({"success": True, "trips": raw_trips}), 200
@@ -304,8 +306,7 @@ def get_dashboard_metrics():
                     "description": log.get('description', 'No details provided.')
                 })
 
-        # 5. Count Ongoing Trips (Replaces Punctuality)
-        # Added broad exact-match terms to ensure nothing gets missed
+        # 5. Count Ongoing Trips
         ongoing_query = supabase.table('trip_schedule').select('trip_id, trip_status')\
             .in_('trip_status', ['Ongoing', 'ongoing', 'ONGOING', 'In Progress', 'in progress', 'IN PROGRESS'])\
             .execute()
@@ -316,14 +317,12 @@ def get_dashboard_metrics():
         ]
 
         # 6. Count Unassigned Schedules
-        # Targeting "Pending Staff Assignment" and standard "Scheduled" formats
         pending_query = supabase.table('trip_schedule').select('trip_id, user_id, vehicle_id')\
             .in_('trip_status', ['Pending Staff Assignment', 'pending staff assignment', 'Pending', 'pending', 'Scheduled', 'scheduled'])\
             .execute()
         
         unassigned_count = 0
         if pending_query.data:
-            # Safely catch trips missing a driver OR missing a vehicle
             unassigned_count = sum(1 for t in pending_query.data if t.get('user_id') is None or t.get('vehicle_id') is None)
         unassigned_details = [
             {"label": f"Trip {trip.get('trip_id', 'Unknown')}", "status": "Needs assignment"}
@@ -346,38 +345,38 @@ def get_dashboard_metrics():
                 next_month = datetime(selected_year, selected_month + 1, 1)
             period_end = next_month.date().isoformat()
             
-            # 1. Fetch companies, strictly excluding internal operational tags
-            companies_fetch = supabase.table('client_company').select('company_name').execute()
+            # Fetch valid companies directly
+            companies_fetch = supabase.table('client_company').select('company_id, company_name').execute()
+            
+            company_map = {}
+            company_list = []
             if companies_fetch.data:
-                company_list = [
-                    c['company_name'] for c in companies_fetch.data 
-                    if c.get('company_name') and 'INTERNAL' not in c['company_name'].upper() and 'GT LANTIN' not in c['company_name'].upper()
-                ]
-            else:
+                for c in companies_fetch.data:
+                    name = c.get('company_name')
+                    if name and 'INTERNAL' not in name.upper() and 'GT LANTIN' not in name.upper():
+                        company_list.append(name)
+                        company_map[str(c['company_id'])] = name
+            
+            # Fallback just in case
+            if not company_list:
                 company_list = ["Bandai", "NX Logistics", "EPSON"]
 
-            # 2. Map OICs to resolve which trips belong to which external client
-            oics_fetch = supabase.table('oic_profile').select('oic_id, company_name').execute()
-            company_by_oic_id = {
-                row['oic_id']: row.get('company_name')
-                for row in (oics_fetch.data or [])
-                if row.get('oic_id') is not None and row.get('company_name')
-            }
-
+            # Fetch trips without relying on foreign key auto-joins
             trips_fetch = supabase.table('trip_schedule')\
-                .select('*')\
-                .eq('trip_status', 'Completed')\
+                .select('trip_id, company_id, trip_status')\
+                .in_('trip_status', ['Completed', 'COMPLETED', 'completed'])\
                 .gte('schedule_date', period_start)\
                 .lt('schedule_date', period_end)\
                 .execute()
             
-            # 3. Track counts strictly for external partner companies
             counts = {name: 0 for name in company_list}
             
             if trips_fetch.data:
                 for trip in trips_fetch.data:
-                    assigned_company = company_by_oic_id.get(trip.get('oic_id'))
-                    # Only increment if it matches an external client company
+                    # Manually resolve the company ID to name
+                    comp_id = trip.get('company_id')
+                    assigned_company = company_map.get(str(comp_id))
+                    
                     if assigned_company and assigned_company in counts:
                         counts[assigned_company] += 1
             
@@ -424,7 +423,6 @@ def get_driver_leaderboard():
         selected_month = int(request.args.get('month', datetime.now().month))
         selected_year = int(request.args.get('year', datetime.now().year))
         
-        # Calculate strict date boundaries for the selected month
         period_start = datetime(selected_year, selected_month, 1).date().isoformat()
         if selected_month == 12:
             next_month = datetime(selected_year + 1, 1, 1)
@@ -432,7 +430,6 @@ def get_driver_leaderboard():
             next_month = datetime(selected_year, selected_month + 1, 1)
         period_end = next_month.date().isoformat()
 
-        # 1. Fetch Passenger Evaluations strictly for this month
         evals_res = supabase.table('passenger_evaluation')\
             .select('trip_id, safety_score, punctuality_score, professionalism_score')\
             .gte('submit_date', period_start)\
@@ -441,7 +438,6 @@ def get_driver_leaderboard():
         
         raw_evals = evals_res.data or []
 
-        # If no evaluations exist for this month, return zeros cleanly
         if not raw_evals:
             return jsonify({
                 "success": True, 
@@ -450,7 +446,6 @@ def get_driver_leaderboard():
                 "total_rated_drivers": 0
             }), 200
 
-        # 2. Fetch Trips to map trip_id to user_id
         trip_ids = list(set([str(e['trip_id']) for e in raw_evals if e.get('trip_id')]))
         
         if not trip_ids:
@@ -468,7 +463,6 @@ def get_driver_leaderboard():
         
         trip_to_driver = {t['trip_id']: t['user_id'] for t in trips_res.data if t.get('user_id')}
 
-        # 3. Fetch Drivers to get their full names
         driver_ids = list(set(trip_to_driver.values()))
         if not driver_ids:
             return jsonify({
@@ -485,7 +479,6 @@ def get_driver_leaderboard():
         
         driver_names = {d['user_id']: d['full_name'] for d in drivers_res.data}
 
-        # 4. Aggregate scores per driver AND compute true monthly average across all trips
         driver_scores = {}
         all_trip_scores = []
 
@@ -505,7 +498,6 @@ def get_driver_leaderboard():
                         driver_scores[driver_id] = []
                     driver_scores[driver_id].append(eval_avg)
 
-        # 5. Format and Sort Leaderboard
         top_drivers = []
         for d_id, scores in driver_scores.items():
             avg_rating = sum(scores) / len(scores)
@@ -516,10 +508,7 @@ def get_driver_leaderboard():
                 "eval_count": len(scores)
             })
 
-        # Sort by highest rating first, then by most evaluations (tie-breaker)
         top_drivers.sort(key=lambda x: (x['rating'], x['eval_count']), reverse=True)
-
-        # Calculate the actual overall average of all trips on that month/year
         overall_monthly_average = sum(all_trip_scores) / len(all_trip_scores) if all_trip_scores else 0.0
 
         return jsonify({
@@ -678,28 +667,10 @@ def delete_system_user(user_id):
 
 @admin_bp.route('/api/companies', methods=['GET'])
 def get_client_companies():
-    """Fetch all registered client companies and their active user counts."""
+    """Fetch all registered client companies."""
     try:
-        # 1. Fetch all companies
         res = supabase.table('client_company').select('*').order('company_name', desc=False).execute()
-        companies = res.data or []
-
-        # 2. Fetch OIC profiles to count users per company
-        oic_res = supabase.table('oic_profile').select('company_name').execute()
-        oic_data = oic_res.data or []
-
-        # 3. Tally users per company
-        user_counts = {}
-        for oic in oic_data:
-            c_name = oic.get('company_name')
-            if c_name:
-                user_counts[c_name] = user_counts.get(c_name, 0) + 1
-
-        # 4. Attach counts to the company list
-        for comp in companies:
-            comp['user_count'] = user_counts.get(comp['company_name'], 0)
-
-        return jsonify({"success": True, "data": companies}), 200
+        return jsonify({"success": True, "data": res.data or []}), 200
     except Exception as e:
         print(f"❌ Fetch Companies Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
@@ -720,9 +691,10 @@ def add_client_company():
         print(f"❌ Add Company Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
+
 @admin_bp.route('/api/companies/<int:company_id>', methods=['DELETE'])
 def delete_client_company(company_id):
-    """Safely delete a company only if no active users are currently assigned."""
+    """Delete a company and prevent deletion if referenced."""
     try:
         # 1. Fetch company name
         comp_res = supabase.table('client_company').select('company_name').eq('company_id', company_id).execute()
@@ -731,32 +703,17 @@ def delete_client_company(company_id):
 
         comp_name = comp_res.data[0]['company_name']
 
-        # 2. Never allow deleting the primary organization
-        if 'INTERNAL' in comp_name.upper() or 'GT LANTIN' in comp_name.upper():
+        # 2. Check if active OIC accounts are assigned to this company
+        oic_check = supabase.table('oic_profile').select('oic_id').eq('company_name', comp_name).execute()
+        if oic_check.data and len(oic_check.data) > 0:
             return jsonify({
                 "success": False, 
-                "message": "The primary system organization cannot be deleted."
+                "message": f"Cannot delete '{comp_name}' because active Officer-in-Charge profiles are assigned to it."
             }), 400
 
-        # 3. Check for attached users in oic_profile
-        assigned_oics = supabase.table('oic_profile').select('oic_id, user_id').eq('company_name', comp_name).execute()
-        user_count = len(assigned_oics.data or [])
-
-        if user_count > 0:
-            return jsonify({
-                "success": False,
-                "has_assigned_users": True,
-                "assigned_count": user_count,
-                "message": f"Cannot delete '{comp_name}'. There {'is' if user_count == 1 else 'are'} currently {user_count} active user account{'s' if user_count > 1 else ''} assigned to this company. Please reassign or remove them first."
-            }), 400
-
-        # 4. Proceed with safe deletion
+        # 3. Delete from table
         supabase.table('client_company').delete().eq('company_id', company_id).execute()
-        return jsonify({
-            "success": True, 
-            "message": f"'{comp_name}' was successfully deleted."
-        }), 200
-
+        return jsonify({"success": True, "message": f"'{comp_name}' deleted successfully."}), 200
     except Exception as e:
         print(f"❌ Delete Company Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500

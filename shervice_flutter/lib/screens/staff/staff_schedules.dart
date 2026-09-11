@@ -1320,8 +1320,8 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
   Future<void> _fetchAvailability() async {
     try {
       final String tripDate = widget.trip['schedule_date'];
-      final String cacheBuster = DateTime.now().millisecondsSinceEpoch
-          .toString();
+      final String cacheBuster =
+          DateTime.now().millisecondsSinceEpoch.toString();
 
       final res = await http.get(
         Uri.parse(
@@ -1378,10 +1378,19 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final Color bgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final Color fieldColor = isDark
-        ? const Color(0xFF0F172A)
-        : const Color(0xFFF8FAFC);
     final Color textColor = isDark ? Colors.white : Colors.black87;
+
+    dynamic currentDriver;
+    try {
+      currentDriver = _drivers.firstWhere(
+          (d) => d['user_id'] == _selectedDriverUuid);
+    } catch (_) {}
+
+    dynamic currentVehicle;
+    try {
+      currentVehicle = _vehicles.firstWhere(
+          (v) => v['vehicle_id'].toString() == _selectedVehicleId);
+    } catch (_) {}
 
     return AlertDialog(
       backgroundColor: bgColor,
@@ -1437,38 +1446,17 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                       ),
                     )
                   else
-                    DropdownButtonFormField<String>(
-                      decoration: InputDecoration(
-                        labelText: "Select Driver",
-                        labelStyle: TextStyle(
-                          fontSize: 13,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : const Color(0xFF64748B),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        filled: true,
-                        fillColor: fieldColor,
-                      ),
-                      dropdownColor: bgColor,
-                      style: TextStyle(color: textColor, fontSize: 14),
-                      initialValue: _selectedDriverUuid,
-                      items: _drivers
-                          .map(
-                            (d) => DropdownMenuItem<String>(
-                              value: d['user_id'],
-                              child: Text(d['full_name']),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (val) =>
-                          setState(() => _selectedDriverUuid = val),
+                    _SearchableDropdown<dynamic>(
+                      labelText: "Select Driver",
+                      value: currentDriver,
+                      items: _drivers,
+                      itemAsString: (d) => d['full_name']?.toString() ?? 'Unknown',
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedDriverUuid = val['user_id']);
+                        }
+                      },
+                      isDark: isDark,
                     ),
 
                   const SizedBox(height: 16),
@@ -1491,40 +1479,19 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                       ),
                     )
                   else
-                    DropdownButtonFormField<String>(
-                      decoration: InputDecoration(
-                        labelText: "Select Vehicle",
-                        labelStyle: TextStyle(
-                          fontSize: 13,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : const Color(0xFF64748B),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        filled: true,
-                        fillColor: fieldColor,
-                      ),
-                      dropdownColor: bgColor,
-                      style: TextStyle(color: textColor, fontSize: 14),
-                      initialValue: _selectedVehicleId,
-                      items: _vehicles
-                          .map(
-                            (v) => DropdownMenuItem<String>(
-                              value: v['vehicle_id'].toString(),
-                              child: Text(
-                                "${v['plate_number']} (${v['bus_type']})",
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (val) =>
-                          setState(() => _selectedVehicleId = val),
+                    _SearchableDropdown<dynamic>(
+                      labelText: "Select Vehicle",
+                      value: currentVehicle,
+                      items: _vehicles,
+                      itemAsString: (v) =>
+                          "${v['plate_number']} (${v['bus_type']})",
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() =>
+                              _selectedVehicleId = val['vehicle_id'].toString());
+                        }
+                      },
+                      isDark: isDark,
                     ),
                 ],
               ),
@@ -1547,8 +1514,7 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
             ),
             elevation: 0,
           ),
-          onPressed:
-              (_isSubmitting ||
+          onPressed: (_isSubmitting ||
                   _selectedDriverUuid == null ||
                   _selectedVehicleId == null)
               ? null
@@ -1571,6 +1537,214 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                 ),
         ),
       ],
+    );
+  }
+}
+
+// ─── SEARCHABLE DROPDOWN COMPONENTS ───
+class _SearchableDropdown<T> extends StatefulWidget {
+  final String labelText;
+  final T? value;
+  final List<T> items;
+  final String Function(T) itemAsString;
+  final void Function(T?) onChanged;
+  final bool isDark;
+
+  const _SearchableDropdown({
+    required this.labelText,
+    required this.value,
+    required this.items,
+    required this.itemAsString,
+    required this.onChanged,
+    required this.isDark,
+  });
+
+  @override
+  State<_SearchableDropdown<T>> createState() => _SearchableDropdownState<T>();
+}
+
+class _SearchableDropdownState<T> extends State<_SearchableDropdown<T>> {
+  Future<void> _showSearchDialog() async {
+    final T? selected = await showDialog<T>(
+      context: context,
+      builder: (context) {
+        return _SearchDialog<T>(
+          items: widget.items,
+          itemAsString: widget.itemAsString,
+          labelText: widget.labelText,
+          isDark: widget.isDark,
+        );
+      },
+    );
+    if (selected != null) {
+      widget.onChanged(selected);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color fieldColor = widget.isDark
+        ? const Color(0xFF0F172A)
+        : const Color(0xFFF8FAFC);
+    final String displayText =
+        widget.value == null ? '' : widget.itemAsString(widget.value as T);
+
+    return InkWell(
+      onTap: _showSearchDialog,
+      borderRadius: BorderRadius.circular(10),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: widget.labelText,
+          labelStyle: TextStyle(
+            fontSize: 13,
+            color:
+                widget.isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
+          filled: true,
+          fillColor: fieldColor,
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+        ),
+        child: Text(
+          displayText.isEmpty ? "Select..." : displayText,
+          style: TextStyle(
+            fontSize: 14,
+            color: displayText.isEmpty
+                ? Colors.grey.shade500
+                : (widget.isDark ? Colors.white : Colors.black87),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchDialog<T> extends StatefulWidget {
+  final List<T> items;
+  final String Function(T) itemAsString;
+  final String labelText;
+  final bool isDark;
+
+  const _SearchDialog({
+    required this.items,
+    required this.itemAsString,
+    required this.labelText,
+    required this.isDark,
+  });
+
+  @override
+  State<_SearchDialog<T>> createState() => _SearchDialogState<T>();
+}
+
+class _SearchDialogState<T> extends State<_SearchDialog<T>> {
+  late List<T> filteredItems;
+  final TextEditingController searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    filteredItems = widget.items;
+    searchController.addListener(() {
+      setState(() {
+        final query = searchController.text.toLowerCase();
+        filteredItems = widget.items
+            .where(
+                (item) => widget.itemAsString(item).toLowerCase().contains(query))
+            .toList();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = widget.isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = widget.isDark ? Colors.white : Colors.black87;
+
+    return Dialog(
+      backgroundColor: bgColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 400,
+        height: 500,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.labelText,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close, color: textColor),
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                )
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: searchController,
+              autofocus: true,
+              style: TextStyle(color: textColor, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: "Search...",
+                hintStyle: TextStyle(color: Colors.grey.shade500),
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: filteredItems.isEmpty
+                  ? Center(
+                      child: Text(
+                        "No results found.",
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: filteredItems.length,
+                      itemBuilder: (context, index) {
+                        final item = filteredItems[index];
+                        return ListTile(
+                          title: Text(
+                            widget.itemAsString(item),
+                            style: TextStyle(color: textColor, fontSize: 14),
+                          ),
+                          onTap: () {
+                            Navigator.pop(context, item);
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
