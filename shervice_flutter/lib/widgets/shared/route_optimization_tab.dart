@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math'; // Added for pagination math
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:skeletonizer/skeletonizer.dart';
@@ -21,7 +22,7 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
   bool _isLoading = true;
   Map<String, dynamic>? _mlPayload;
 
-  // Filter States: Defaults to 'all' to ensure initial data loads
+  // Filter States
   String _timeFilter = 'all'; // 'all', 'today', 'week', 'month', 'date'
   DateTime? _customDate;
   int _selectedMonth = DateTime.now().month;
@@ -30,6 +31,10 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
   // UI Interactive States
   int? _selectedClusterId;
   String _tripSearchQuery = '';
+
+  // Pagination States
+  int _currentPage = 0;
+  final int _itemsPerPage = 10;
 
   final List<String> _monthNames = [
     'January',
@@ -64,7 +69,6 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
         queryParams += '&month=$_selectedMonth&year=$_selectedYear';
       }
 
-      // Automatically format the base URL correctly
       final baseUrl = widget.backendUrl.endsWith('/')
           ? widget.backendUrl.substring(0, widget.backendUrl.length - 1)
           : widget.backendUrl;
@@ -77,6 +81,7 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
         setState(() {
           _mlPayload = jsonDecode(res.body);
           _selectedClusterId = null;
+          _currentPage = 0; // Reset pagination on new data
           _isLoading = false;
         });
       } else {
@@ -276,12 +281,11 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
           if (_timeFilter == 'month') ...[
             DropdownButton<int>(
               value: _selectedMonth,
-              items: List.generate(12, (i) {
-                return DropdownMenuItem(
-                  value: i + 1,
-                  child: Text(_monthNames[i]),
-                );
-              }),
+              items: List.generate(
+                12,
+                (i) =>
+                    DropdownMenuItem(value: i + 1, child: Text(_monthNames[i])),
+              ),
               onChanged: (val) {
                 if (val != null) {
                   setState(() => _selectedMonth = val);
@@ -344,6 +348,7 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
       onTap: () {
         setState(() {
           _selectedClusterId = isSelected ? null : clusterId;
+          _currentPage = 0; // Reset pagination when filter changes
         });
       },
       borderRadius: BorderRadius.circular(16),
@@ -539,6 +544,14 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
     Color cardBg,
     Color textColor,
   ) {
+    // Math for Pagination
+    int totalPages = max(1, (trips.length / _itemsPerPage).ceil());
+    int startIndex = _currentPage * _itemsPerPage;
+    int endIndex = min(startIndex + _itemsPerPage, trips.length);
+    List<dynamic> paginatedTrips = trips.isEmpty
+        ? []
+        : trips.sublist(startIndex, endIndex);
+
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
@@ -584,7 +597,10 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
                   width: 240,
                   height: 38,
                   child: TextField(
-                    onChanged: (v) => setState(() => _tripSearchQuery = v),
+                    onChanged: (v) => setState(() {
+                      _tripSearchQuery = v;
+                      _currentPage = 0; // Reset pagination on search
+                    }),
                     style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: "Search route, driver, plate...",
@@ -612,6 +628,7 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
             height: 1,
             color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
           ),
+
           if (trips.isEmpty)
             const Padding(
               padding: EdgeInsets.all(32),
@@ -619,17 +636,17 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
                 child: Text("No trips match the current criteria."),
               ),
             )
-          else
+          else ...[
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: trips.length,
+              itemCount: paginatedTrips.length,
               separatorBuilder: (_, __) => Divider(
                 height: 1,
                 color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
               ),
               itemBuilder: (context, idx) {
-                final t = trips[idx];
+                final t = paginatedTrips[idx];
                 final String label = t['cluster_label'] ?? 'Cluster';
                 final Color themeColor = _getClusterColor(label);
 
@@ -729,6 +746,65 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
                 );
               },
             ),
+
+            // --- PAGINATION FOOTER CONTROLS ---
+            Divider(
+              height: 1,
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Showing ${startIndex + 1} - $endIndex of ${trips.length} trips',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left),
+                        splashRadius: 20,
+                        onPressed: _currentPage > 0
+                            ? () => setState(() => _currentPage--)
+                            : null,
+                        color: _currentPage > 0
+                            ? const Color(0xFF3B82F6)
+                            : Theme.of(context).disabledColor,
+                      ),
+                      Text(
+                        'Page ${_currentPage + 1} of $totalPages',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right),
+                        splashRadius: 20,
+                        onPressed: _currentPage < totalPages - 1
+                            ? () => setState(() => _currentPage++)
+                            : null,
+                        color: _currentPage < totalPages - 1
+                            ? const Color(0xFF3B82F6)
+                            : Theme.of(context).disabledColor,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
