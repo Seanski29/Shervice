@@ -696,7 +696,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
   String? _selectedRole;
   String? _selectedCompany;
   List<String> _companyOptions = ['GT LANTIN INTERNAL'];
-
   @override
   void initState() {
     super.initState();
@@ -716,6 +715,11 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
       _selectedCompany = widget.user!['company'] == 'Internal'
           ? 'GT LANTIN INTERNAL'
           : widget.user!['company'];
+    }
+
+    if (_selectedCompany != null &&
+        !_companyOptions.contains(_selectedCompany)) {
+      _companyOptions.add(_selectedCompany!);
     }
 
     _fetchCompanyDropdown();
