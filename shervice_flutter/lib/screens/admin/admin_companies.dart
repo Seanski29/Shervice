@@ -125,17 +125,26 @@ class _AdminCompaniesState extends State<AdminCompanies> {
   }
 
   Future<void> _confirmDeleteCompany(Map<String, dynamic> company) async {
+    final companyName = company['company_name'] ?? '';
+
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Confirm Deletion',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 8),
+            Text(
+              'Confirm Deletion',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
         content: Text(
-          'Are you sure you want to delete "${company['company_name']}"?',
+          'Are you sure you want to delete "$companyName"?\n\nNote: Companies with active assigned accounts cannot be deleted until those users are reassigned.',
+          style: const TextStyle(fontSize: 14),
         ),
         actions: [
           TextButton(
@@ -149,9 +158,9 @@ class _AdminCompaniesState extends State<AdminCompanies> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(ctx);
-              _deleteCompany(company['company_id']);
+              _deleteCompany(company);
             },
             child: const Text(
               'Delete',
@@ -166,26 +175,79 @@ class _AdminCompaniesState extends State<AdminCompanies> {
     );
   }
 
-  Future<void> _deleteCompany(dynamic id) async {
+  Future<void> _deleteCompany(Map<String, dynamic> company) async {
     setState(() => _isLoading = true);
+    final id = company['company_id'];
+
     try {
       final res = await http
           .delete(Uri.parse('$backendUrl/companies/$id'))
           .timeout(const Duration(seconds: 10));
+
       final data = jsonDecode(res.body);
+
       if (res.statusCode == 200 && data['success'] == true) {
-        _showSnackBar("Company deleted successfully.", const Color(0xFFF59E0B));
-      } else {
         _showSnackBar(
-          data['message'] ?? "Cannot delete company.",
-          const Color(0xFFEF4444),
+          data['message'] ?? "Company deleted successfully.",
+          const Color(0xFF10B981),
         );
+      } else {
+        if (data['has_assigned_users'] == true) {
+          _showActionBlockedDialog(
+            company['company_name'] ?? 'Company',
+            data['assigned_count'] ?? 1,
+          );
+        } else {
+          _showSnackBar(
+            data['message'] ?? "Cannot delete company.",
+            const Color(0xFFEF4444),
+          );
+        }
       }
     } catch (e) {
       _showSnackBar("Network error: $e", const Color(0xFFEF4444));
     } finally {
       _fetchCompanies();
     }
+  }
+
+  void _showActionBlockedDialog(String companyName, int count) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_outline, color: Color(0xFFF59E0B)),
+            SizedBox(width: 8),
+            Text(
+              'Deletion Locked',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          'Cannot delete "$companyName" because $count active user account${count > 1 ? 's are' : ' is'} currently assigned to it.\n\nTo delete this company, go to "User Management" and reassign or delete the associated user accounts first.',
+          style: const TextStyle(fontSize: 14),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3B82F6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Understood',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSnackBar(String message, Color color) {
@@ -318,6 +380,7 @@ class _AdminCompaniesState extends State<AdminCompanies> {
                       itemBuilder: (context, index) {
                         final comp = filtered[index];
                         final name = comp['company_name'] ?? 'Unnamed Company';
+                        final int userCount = comp['user_count'] ?? 0;
                         final bool isInternal = name
                             .toString()
                             .toUpperCase()
@@ -356,13 +419,42 @@ class _AdminCompaniesState extends State<AdminCompanies> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      name,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: textColor,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: textColor,
+                                          ),
+                                        ),
+                                        if (userCount > 0) ...[
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isDark
+                                                  ? Colors.grey.shade800
+                                                  : Colors.grey.shade200,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              '$userCount User${userCount > 1 ? 's' : ''}',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: isDark
+                                                    ? Colors.grey.shade400
+                                                    : Colors.grey.shade700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                     Text(
                                       isInternal
@@ -380,12 +472,23 @@ class _AdminCompaniesState extends State<AdminCompanies> {
                               ),
                               if (!isInternal)
                                 IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Color(0xFFEF4444),
+                                  icon: Icon(
+                                    userCount > 0
+                                        ? Icons.lock_outline
+                                        : Icons.delete_outline,
+                                    color: userCount > 0
+                                        ? Colors.grey.shade400
+                                        : const Color(0xFFEF4444),
                                   ),
-                                  tooltip: 'Delete Company',
-                                  onPressed: () => _confirmDeleteCompany(comp),
+                                  tooltip: userCount > 0
+                                      ? 'Locked: $userCount user(s) assigned'
+                                      : 'Delete Company',
+                                  onPressed: userCount > 0
+                                      ? () => _showActionBlockedDialog(
+                                          name,
+                                          userCount,
+                                        )
+                                      : () => _confirmDeleteCompany(comp),
                                 ),
                             ],
                           ),

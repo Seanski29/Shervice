@@ -557,10 +557,28 @@ def delete_system_user(user_id):
 
 @admin_bp.route('/api/companies', methods=['GET'])
 def get_client_companies():
-    """Fetch all registered client companies."""
+    """Fetch all registered client companies and their active user counts."""
     try:
+        # 1. Fetch all companies
         res = supabase.table('client_company').select('*').order('company_name', desc=False).execute()
-        return jsonify({"success": True, "data": res.data or []}), 200
+        companies = res.data or []
+
+        # 2. Fetch OIC profiles to count users per company
+        oic_res = supabase.table('oic_profile').select('company_name').execute()
+        oic_data = oic_res.data or []
+
+        # 3. Tally users per company
+        user_counts = {}
+        for oic in oic_data:
+            c_name = oic.get('company_name')
+            if c_name:
+                user_counts[c_name] = user_counts.get(c_name, 0) + 1
+
+        # 4. Attach counts to the company list
+        for comp in companies:
+            comp['user_count'] = user_counts.get(comp['company_name'], 0)
+
+        return jsonify({"success": True, "data": companies}), 200
     except Exception as e:
         print(f"❌ Fetch Companies Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
@@ -581,10 +599,9 @@ def add_client_company():
         print(f"❌ Add Company Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-
 @admin_bp.route('/api/companies/<int:company_id>', methods=['DELETE'])
 def delete_client_company(company_id):
-    """Delete a company and prevent deletion if referenced."""
+    """Safely delete a company only if no active users are currently assigned."""
     try:
         # 1. Fetch company name
         comp_res = supabase.table('client_company').select('company_name').eq('company_id', company_id).execute()
@@ -593,17 +610,32 @@ def delete_client_company(company_id):
 
         comp_name = comp_res.data[0]['company_name']
 
-        # 2. Check if active OIC accounts are assigned to this company
-        oic_check = supabase.table('oic_profile').select('oic_id').eq('company_name', comp_name).execute()
-        if oic_check.data and len(oic_check.data) > 0:
+        # 2. Never allow deleting the primary organization
+        if 'INTERNAL' in comp_name.upper() or 'GT LANTIN' in comp_name.upper():
             return jsonify({
                 "success": False, 
-                "message": f"Cannot delete '{comp_name}' because active Officer-in-Charge profiles are assigned to it."
+                "message": "The primary system organization cannot be deleted."
             }), 400
 
-        # 3. Delete from table
+        # 3. Check for attached users in oic_profile
+        assigned_oics = supabase.table('oic_profile').select('oic_id, user_id').eq('company_name', comp_name).execute()
+        user_count = len(assigned_oics.data or [])
+
+        if user_count > 0:
+            return jsonify({
+                "success": False,
+                "has_assigned_users": True,
+                "assigned_count": user_count,
+                "message": f"Cannot delete '{comp_name}'. There {'is' if user_count == 1 else 'are'} currently {user_count} active user account{'s' if user_count > 1 else ''} assigned to this company. Please reassign or remove them first."
+            }), 400
+
+        # 4. Proceed with safe deletion
         supabase.table('client_company').delete().eq('company_id', company_id).execute()
-        return jsonify({"success": True, "message": f"'{comp_name}' deleted successfully."}), 200
+        return jsonify({
+            "success": True, 
+            "message": f"'{comp_name}' was successfully deleted."
+        }), 200
+
     except Exception as e:
         print(f"❌ Delete Company Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
