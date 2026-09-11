@@ -339,12 +339,22 @@ def get_dashboard_metrics():
             selected_year = int(request.args.get('year', datetime.now().year))
             if selected_month < 1 or selected_month > 12:
                 raise ValueError('month must be between 1 and 12')
+            
             period_start = datetime(selected_year, selected_month, 1).date().isoformat()
             next_month = datetime(selected_year + (selected_month == 12), (selected_month % 12) + 1, 1)
             period_end = next_month.date().isoformat()
-            companies_fetch = supabase.table('oic_profile').select('company_name').execute()
-            company_list = [c['company_name'] for c in companies_fetch.data if c.get('company_name')] if companies_fetch.data else []
+            
+            # 1. Fetch companies, strictly excluding internal operational tags
+            companies_fetch = supabase.table('client_company').select('company_name').execute()
+            if companies_fetch.data:
+                company_list = [
+                    c['company_name'] for c in companies_fetch.data 
+                    if c.get('company_name') and 'INTERNAL' not in c['company_name'].upper() and 'GT LANTIN' not in c['company_name'].upper()
+                ]
+            else:
+                company_list = ["Bandai", "NX Logistics", "EPSON"]
 
+            # 2. Map OICs to resolve which trips belong to which external client
             oics_fetch = supabase.table('oic_profile').select('oic_id, company_name').execute()
             company_by_oic_id = {
                 row['oic_id']: row.get('company_name')
@@ -352,18 +362,24 @@ def get_dashboard_metrics():
                 if row.get('oic_id') is not None and row.get('company_name')
             }
 
-            if not company_list:
-                company_list = ["Bandai", "NX Logistics", "EPSON", "GT LANTIN"]
-
-            trips_fetch = supabase.table('trip_schedule').select('*').eq('trip_status', 'Completed').gte('schedule_date', period_start).lt('schedule_date', period_end).execute()
+            trips_fetch = supabase.table('trip_schedule')\
+                .select('*')\
+                .eq('trip_status', 'Completed')\
+                .gte('schedule_date', period_start)\
+                .lt('schedule_date', period_end)\
+                .execute()
+            
+            # 3. Track counts strictly for external partner companies
             counts = {name: 0 for name in company_list}
+            
             if trips_fetch.data:
                 for trip in trips_fetch.data:
                     assigned_company = company_by_oic_id.get(trip.get('oic_id'))
-                    if assigned_company:
-                        counts[assigned_company] = counts.get(assigned_company, 0) + 1
+                    # Only increment if it matches an external client company
+                    if assigned_company and assigned_company in counts:
+                        counts[assigned_company] += 1
             
-            max_trips = max(counts.values()) if counts else 1
+            max_trips = max(counts.values()) if counts and max(counts.values()) > 0 else 1
             for idx, (comp, count) in enumerate(counts.items()):
                 company_monthly_metrics.append({
                     "id": idx,
@@ -535,4 +551,59 @@ def delete_system_user(user_id):
         return jsonify({"success": True, "message": "User accounts entirely removed from records."}), 200
     except Exception as e:
         print(f"❌ System User Deletion Crash: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# ─────────── CLIENT COMPANY MANAGEMENT ───────────
+
+@admin_bp.route('/api/companies', methods=['GET'])
+def get_client_companies():
+    """Fetch all registered client companies."""
+    try:
+        res = supabase.table('client_company').select('*').order('company_name', desc=False).execute()
+        return jsonify({"success": True, "data": res.data or []}), 200
+    except Exception as e:
+        print(f"❌ Fetch Companies Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@admin_bp.route('/api/companies', methods=['POST'])
+def add_client_company():
+    """Add a new client company."""
+    try:
+        data = request.get_json() or {}
+        name = (data.get('company_name') or '').strip()
+        if not name:
+            return jsonify({"success": False, "message": "Company name is required."}), 400
+
+        res = supabase.table('client_company').insert({"company_name": name}).execute()
+        return jsonify({"success": True, "message": "Company added successfully!", "data": res.data}), 201
+    except Exception as e:
+        print(f"❌ Add Company Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@admin_bp.route('/api/companies/<int:company_id>', methods=['DELETE'])
+def delete_client_company(company_id):
+    """Delete a company and prevent deletion if referenced."""
+    try:
+        # 1. Fetch company name
+        comp_res = supabase.table('client_company').select('company_name').eq('company_id', company_id).execute()
+        if not comp_res.data:
+            return jsonify({"success": False, "message": "Company not found."}), 404
+
+        comp_name = comp_res.data[0]['company_name']
+
+        # 2. Check if active OIC accounts are assigned to this company
+        oic_check = supabase.table('oic_profile').select('oic_id').eq('company_name', comp_name).execute()
+        if oic_check.data and len(oic_check.data) > 0:
+            return jsonify({
+                "success": False, 
+                "message": f"Cannot delete '{comp_name}' because active Officer-in-Charge profiles are assigned to it."
+            }), 400
+
+        # 3. Delete from table
+        supabase.table('client_company').delete().eq('company_id', company_id).execute()
+        return jsonify({"success": True, "message": f"'{comp_name}' deleted successfully."}), 200
+    except Exception as e:
+        print(f"❌ Delete Company Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
