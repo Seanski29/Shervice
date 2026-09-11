@@ -218,7 +218,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       children: [
                         if (widget.showClientTrips) ...[
                           SizedBox(
-                            height: 290,
+                            height: 360, // Increased height to prevent overflow
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -234,7 +234,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                           ),
                           const SizedBox(height: 16),
                           SizedBox(
-                            height: 290,
+                            height: 360, // Increased height to prevent overflow
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -897,7 +897,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                   )
                 : _companyTrips.isEmpty
                 ? Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12.0),
+                    padding: const EdgeInsets.symmetric(vertical: 12.0),
                     child: Center(
                       child: Text(
                         'No client trips for this month.',
@@ -908,82 +908,87 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       ),
                     ),
                   )
-                : ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _companyTrips.length,
-                    separatorBuilder: (_, _) => Divider(
-                      height: 12,
-                      thickness: 0.5,
-                      color: theme.dividerColor,
-                    ),
-                    itemBuilder: (context, index) {
-                      final item = _companyTrips[index];
-                      final Color color = _proceduralColorAssigner(index);
-                      return Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
+                // Expanded wrapper to prevent the list from overflowing the card height
+                : Expanded(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: _companyTrips.length,
+                      separatorBuilder: (_, _) => Divider(
+                        height: 12,
+                        thickness: 0.5,
+                        color: theme.dividerColor,
+                      ),
+                      itemBuilder: (context, index) {
+                        final item = _companyTrips[index];
+                        final Color color = _proceduralColorAssigner(index);
+                        return Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.business_center,
+                                color: color,
+                                size: 16,
+                              ),
                             ),
-                            child: Icon(
-                              Icons.business_center,
-                              color: color,
-                              size: 16,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.companyName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: _bodyTextSize,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.companyName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: _bodyTextSize,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(2),
-                                        child: LinearProgressIndicator(
-                                          value: item.utilization,
-                                          backgroundColor: theme
-                                              .colorScheme
-                                              .surfaceContainerHighest,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                color,
-                                              ),
-                                          minHeight: 3,
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            2,
+                                          ),
+                                          child: LinearProgressIndicator(
+                                            value: item.utilization,
+                                            backgroundColor: theme
+                                                .colorScheme
+                                                .surfaceContainerHighest,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  color,
+                                                ),
+                                            minHeight: 3,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '${item.tripCount}',
-                                      style: TextStyle(
-                                        fontSize: _captionTextSize,
-                                        fontWeight: FontWeight.bold,
-                                        color: color,
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '${item.tripCount}',
+                                        style: TextStyle(
+                                          fontSize: _captionTextSize,
+                                          fontWeight: FontWeight.bold,
+                                          color: color,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
+                          ],
+                        );
+                      },
+                    ),
                   ),
           ],
         ),

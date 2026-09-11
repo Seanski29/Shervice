@@ -14,6 +14,7 @@ import '../../constant.dart';
 import '../../session_manager.dart';
 import '../../widgets/admin/admin_profile_button.dart';
 import '../../widgets/shared/shared_analytics_hub.dart';
+import '../../screens/admin/admin_companies.dart';
 
 class AdminDesktopLayout extends StatefulWidget {
   final String adminId;
@@ -45,6 +46,7 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
       const AdminDriver(),
       const AdminFleet(),
       const AdminUsers(),
+      const AdminCompanies(),
       const SharedAnalyticsHub(),
       const AdminReportsManager(),
       AdminSettings(adminId: widget.adminId),
@@ -185,13 +187,18 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
                   'User Management',
                   Icons.admin_panel_settings_outlined,
                 ),
-                _buildNavItem(5, 'Analytics', Icons.analytics),
                 _buildNavItem(
-                  6,
+                  5,
+                  'Company Management',
+                  Icons.business_outlined,
+                ), // 👈 NEW
+                _buildNavItem(6, 'Analytics', Icons.analytics),
+                _buildNavItem(
+                  7,
                   'Import & Export',
                   Icons.import_export_outlined,
                 ),
-                _buildNavItem(7, 'Settings', Icons.settings_outlined),
+                _buildNavItem(8, 'Settings', Icons.settings_outlined),
               ],
             ),
           ),
