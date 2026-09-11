@@ -141,26 +141,33 @@ def diagnostic_database_check():
         print(f"❌ Diagnostic database connection failed: {e}")
         return jsonify({"connection_status": "FAILED", "error_details": str(e)}), 500
 
-# ─────────── TRIP SCHEDULES (NOW USING CLIENT_COMPANY JOIN) ───────────
+# ─────────── TRIP SCHEDULES (NOW USING MANUAL CLIENT_COMPANY MERGE) ───────────
 
 @admin_bp.route('/trips', methods=['GET'])
 def get_admin_schedules():
-    """Fetches all trip schedules, fetches actual company, and attaches passenger CSAT ratings."""
+    """Fetches all trip schedules, fetches actual company safely, and attaches passenger CSAT ratings."""
     try:
         _sweep_expired_trips()
-        # 1. Direct join with client_company using the new company_id
+        # 1. Fetch trip schedules directly without relying on Supabase Join cache
         trips_res = supabase.table('trip_schedule').select(
             'trip_id, schedule_date, departure_time, route_name, route_distance, '
             'trip_status, passenger_count, estimated_arrival_time, '
-            'actual_start_time, actual_end_time, '
+            'actual_start_time, actual_end_time, company_id, '
             'vehicle_id, vehicle(plate_number, bus_type), '
-            'user_id, user_account(full_name), '
-            'client_company(company_name)'
+            'user_id, user_account(full_name)'
         ).order('schedule_date', desc=False).execute()
         
         raw_trips = trips_res.data or []
 
-        # 2. Fetch Passenger Evaluations to calculate CSAT per trip
+        # 2. Fetch companies to build a manual mapping index
+        clients_res = supabase.table('client_company').select('company_id, company_name').execute()
+        company_map = {
+            str(c['company_id']): c['company_name'] 
+            for c in (clients_res.data or []) 
+            if c.get('company_id') is not None
+        }
+
+        # 3. Fetch Passenger Evaluations to calculate CSAT per trip
         evals_res = supabase.table('passenger_evaluation').select('trip_id, safety_score, punctuality_score, professionalism_score').execute()
         
         trip_evals = {}
@@ -177,8 +184,20 @@ def get_admin_schedules():
                     trip_evals[t_id_str] = []
                 trip_evals[t_id_str].append(eval_avg)
 
-        # 3. Inject scores
+        # 4. Inject scores and safely map companies
         for trip in raw_trips:
+            # Safely resolve company by matching the ID
+            comp_id = trip.get('company_id')
+            if comp_id is not None and str(comp_id) in company_map:
+                resolved_company = company_map[str(comp_id)]
+            else:
+                resolved_company = "Unassigned Company"
+
+            # Attach to trip under the exact format Flutter expects
+            trip['client_company'] = {
+                "company_name": resolved_company
+            }
+
             t_id_str = str(trip.get('trip_id'))
             if t_id_str in trip_evals and trip_evals[t_id_str]:
                 scores = trip_evals[t_id_str]
@@ -327,19 +346,25 @@ def get_dashboard_metrics():
             period_end = next_month.date().isoformat()
             
             # Fetch valid companies directly
-            companies_fetch = supabase.table('client_company').select('company_name').execute()
+            companies_fetch = supabase.table('client_company').select('company_id, company_name').execute()
+            
+            company_map = {}
+            company_list = []
             if companies_fetch.data:
-                company_list = [
-                    c['company_name'] for c in companies_fetch.data 
-                    if c.get('company_name') and 'INTERNAL' not in c['company_name'].upper() and 'GT LANTIN' not in c['company_name'].upper()
-                ]
-            else:
+                for c in companies_fetch.data:
+                    name = c.get('company_name')
+                    if name and 'INTERNAL' not in name.upper() and 'GT LANTIN' not in name.upper():
+                        company_list.append(name)
+                        company_map[str(c['company_id'])] = name
+            
+            # Fallback just in case
+            if not company_list:
                 company_list = ["Bandai", "NX Logistics", "EPSON"]
 
-            # Fetch trips with joined company name
+            # Fetch trips without relying on foreign key auto-joins
             trips_fetch = supabase.table('trip_schedule')\
-                .select('trip_id, client_company(company_name)')\
-                .eq('trip_status', 'Completed')\
+                .select('trip_id, company_id, trip_status')\
+                .in_('trip_status', ['Completed', 'COMPLETED', 'completed'])\
                 .gte('schedule_date', period_start)\
                 .lt('schedule_date', period_end)\
                 .execute()
@@ -348,9 +373,9 @@ def get_dashboard_metrics():
             
             if trips_fetch.data:
                 for trip in trips_fetch.data:
-                    # Cleanly extract the joined company name
-                    client_comp = trip.get('client_company') or {}
-                    assigned_company = client_comp.get('company_name')
+                    # Manually resolve the company ID to name
+                    comp_id = trip.get('company_id')
+                    assigned_company = company_map.get(str(comp_id))
                     
                     if assigned_company and assigned_company in counts:
                         counts[assigned_company] += 1

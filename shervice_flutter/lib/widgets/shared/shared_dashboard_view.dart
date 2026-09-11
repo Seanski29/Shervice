@@ -42,15 +42,11 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   bool _isRatingLoading = false;
   bool _isMaintenanceLoading = false;
   
-  // Left card variables (Driver Rating)
   double _averageDriverRating = 0;
   int _ratedDriverCount = 0;
-  
-  // Right card variables (Leaderboard)
   List<Map<String, dynamic>> _topDrivers = [];
   List<int> _monthlyMaintenanceTotals = List<int>.filled(12, 0);
 
-  // Month & year filter for top performing drivers
   DateTime _selectedDriverMonth = DateTime.now();
 
   @override
@@ -225,7 +221,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       children: [
                         if (widget.showClientTrips) ...[
                           SizedBox(
-                            height: 360,
+                            height: 380,
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -241,7 +237,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                           ),
                           const SizedBox(height: 16),
                           SizedBox(
-                            height: 360,
+                            height: 380,
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -658,7 +654,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               _buildSmallDriverFilter(isDark),
             ],
           ),
-          SizedBox(height: compact ? 12 : 18),
+          SizedBox(height: compact ? 10 : 14),
           if (_isRatingLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
@@ -683,57 +679,61 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               ),
             )
           else
-            ..._topDrivers.asMap().entries.map((entry) {
-              final rank = entry.key + 1;
-              final driver = entry.value;
-              final name = (driver['full_name'] ?? driver['label'] ?? 'Driver')
-                  .toString();
-              final rating =
-                  double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: entry.key == _topDrivers.length - 1 ? 0 : 10,
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 24,
-                      child: Text(
-                        '$rank',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: rank == 1
-                              ? Colors.amber.shade700
-                              : theme.colorScheme.primary,
+            Expanded(
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: const BouncingScrollPhysics(),
+                itemCount: _topDrivers.length,
+                itemBuilder: (context, index) {
+                  final rank = index + 1;
+                  final driver = _topDrivers[index];
+                  final name = (driver['full_name'] ?? driver['label'] ?? 'Driver').toString();
+                  final rating = double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 22,
+                          child: Text(
+                            '$rank',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: _bodyTextSize,
+                              color: rank == 1
+                                  ? Colors.amber.shade700
+                                  : theme.colorScheme.primary,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontSize: _bodyTextSize,
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontSize: _bodyTextSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                      ),
+                        const Icon(Icons.star, size: 14, color: Colors.amber),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: _bodyTextSize,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    const Icon(Icons.star, size: 16, color: Colors.amber),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating.toStringAsFixed(1),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontSize: _bodyTextSize,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
@@ -765,6 +765,12 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       7,
       (index) => DateTime.now().year - 3 + index,
     );
+
+    final double maxMaintVal = _monthlyMaintenanceTotals.isEmpty
+        ? 5.0
+        : _monthlyMaintenanceTotals.reduce(max).toDouble();
+    final double computedMaintMaxY = maxMaintVal <= 5 ? 5.0 : (maxMaintVal * 1.25).ceilToDouble();
+
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 20),
       decoration: BoxDecoration(
@@ -810,13 +816,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             ],
           ),
           SizedBox(height: compact ? 10 : 20),
-          SizedBox(
-            height: compact ? 150 : 220,
+          Expanded(
             child: _isMaintenanceLoading
                 ? const Center(child: CircularProgressIndicator())
                 : BarChart(
                     BarChartData(
                       minY: 0,
+                      maxY: computedMaintMaxY,
                       gridData: FlGridData(
                         show: true,
                         drawVerticalLine: false,
@@ -831,10 +837,22 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                         rightTitles: const AxisTitles(
                           sideTitles: SideTitles(showTitles: false),
                         ),
-                        leftTitles: const AxisTitles(
+                        leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 40,
+                            reservedSize: 32,
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0 || value == computedMaintMaxY / 2 || value == computedMaintMaxY) {
+                                return Text(
+                                  value.toInt().toString(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
                           ),
                         ),
                         bottomTitles: AxisTitles(
@@ -848,7 +866,10 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                               }
                               return Text(
                                 _monthShortName(month).substring(0, 1),
-                                style: const TextStyle(fontSize: 10),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                                ),
                               );
                             },
                           ),
@@ -863,6 +884,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                                 toY: _monthlyMaintenanceTotals[index].toDouble(),
                                 color: const Color(0xFFEF4444),
                                 width: 10,
+                                borderRadius: BorderRadius.circular(4),
                               ),
                             ],
                           ),
@@ -1156,6 +1178,11 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       (index) => DateTime.now().year - 3 + index,
     );
 
+    final double maxTripVal = _monthlyTripTotals.isEmpty
+        ? 10.0
+        : _monthlyTripTotals.reduce(max).toDouble();
+    final double computedTripMaxY = maxTripVal <= 5 ? 10.0 : (maxTripVal * 1.25).ceilToDouble();
+
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 20),
       decoration: BoxDecoration(
@@ -1201,13 +1228,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             ],
           ),
           SizedBox(height: compact ? 10 : 20),
-          SizedBox(
-            height: compact ? 150 : 220,
+          Expanded(
             child: _isTripsChartLoading
                 ? const Center(child: CircularProgressIndicator())
                 : LineChart(
                     LineChartData(
                       minY: 0,
+                      maxY: computedTripMaxY,
                       gridData: FlGridData(
                         show: true,
                         drawVerticalLine: false,
@@ -1225,16 +1252,19 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 28,
-                            getTitlesWidget: (value, meta) => Text(
-                              value.toInt().toString(),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : const Color(0xFF64748B),
-                              ),
-                            ),
+                            reservedSize: 32,
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0 || value == computedTripMaxY / 2 || value == computedTripMaxY) {
+                                return Text(
+                                  value.toInt().toString(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
                           ),
                         ),
                         bottomTitles: AxisTitles(
