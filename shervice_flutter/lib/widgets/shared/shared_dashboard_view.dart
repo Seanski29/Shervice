@@ -41,10 +41,17 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   int _selectedMaintenanceYear = DateTime.now().year;
   bool _isRatingLoading = false;
   bool _isMaintenanceLoading = false;
+  
+  // Left card variables (Driver Rating)
   double _averageDriverRating = 0;
   int _ratedDriverCount = 0;
+  
+  // Right card variables (Leaderboard)
   List<Map<String, dynamic>> _topDrivers = [];
   List<int> _monthlyMaintenanceTotals = List<int>.filled(12, 0);
+
+  // Month & year filter for top performing drivers
+  DateTime _selectedDriverMonth = DateTime.now();
 
   @override
   void initState() {
@@ -218,7 +225,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       children: [
                         if (widget.showClientTrips) ...[
                           SizedBox(
-                            height: 360, // Increased height to prevent overflow
+                            height: 360,
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -234,7 +241,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                           ),
                           const SizedBox(height: 16),
                           SizedBox(
-                            height: 360, // Increased height to prevent overflow
+                            height: 360,
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -543,8 +550,88 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     );
   }
 
+  Widget _buildSmallDriverFilter(bool isDark) {
+    final theme = Theme.of(context);
+    final years = List<int>.generate(
+      7,
+      (index) => DateTime.now().year - 3 + index,
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: _selectedDriverMonth.month,
+              isDense: true,
+              icon: const Icon(Icons.keyboard_arrow_down, size: 14),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+              items: List.generate(
+                12,
+                (index) => DropdownMenuItem(
+                  value: index + 1,
+                  child: Text(_monthShortName(index + 1)),
+                ),
+              ),
+              onChanged: (month) {
+                if (month != null) {
+                  _changeDriverMonth(month, _selectedDriverMonth.year);
+                }
+              },
+            ),
+          ),
+          Container(
+            height: 12,
+            width: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 5),
+            color: theme.dividerColor,
+          ),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: years.contains(_selectedDriverMonth.year)
+                  ? _selectedDriverMonth.year
+                  : years.last,
+              isDense: true,
+              icon: const Icon(Icons.keyboard_arrow_down, size: 14),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+              items: years
+                  .map(
+                    (year) => DropdownMenuItem(
+                      value: year,
+                      child: Text(year.toString()),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (year) {
+                if (year != null) {
+                  _changeDriverMonth(_selectedDriverMonth.month, year);
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLeaderboardCard({bool compact = false, bool framed = true}) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 20),
       decoration: framed
@@ -557,20 +644,38 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Top Performing Drivers',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontSize: _sectionTitleSize,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Top Performing Drivers',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontSize: _sectionTitleSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              _buildSmallDriverFilter(isDark),
+            ],
           ),
           SizedBox(height: compact ? 12 : 18),
-          if (_topDrivers.isEmpty)
+          if (_isRatingLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_topDrivers.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
                 child: Text(
-                  'No rated drivers yet.',
+                  'No rated drivers for this month/year.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontSize: _captionTextSize,
                   ),
@@ -738,12 +843,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                             reservedSize: 24,
                             getTitlesWidget: (value, meta) {
                               final month = value.toInt();
-                              return month < 1 || month > 12
-                                  ? const SizedBox.shrink()
-                                  : Text(
-                                      _monthName(month).substring(0, 1),
-                                      style: const TextStyle(fontSize: 10),
-                                    );
+                              if (month < 1 || month > 12) {
+                                return const SizedBox.shrink();
+                              }
+                              return Text(
+                                _monthShortName(month).substring(0, 1),
+                                style: const TextStyle(fontSize: 10),
+                              );
                             },
                           ),
                         ),
@@ -754,8 +860,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                             x: index + 1,
                             barRods: [
                               BarChartRodData(
-                                toY: _monthlyMaintenanceTotals[index]
-                                    .toDouble(),
+                                toY: _monthlyMaintenanceTotals[index].toDouble(),
                                 color: const Color(0xFFEF4444),
                                 width: 10,
                               ),
@@ -770,51 +875,44 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     );
   }
 
+  Future<void> _changeDriverMonth(int month, int year) async {
+    setState(() {
+      _selectedDriverMonth = DateTime(year, month);
+    });
+    await _loadDriverRating();
+  }
+
   Future<void> _loadDriverRating() async {
     if (!mounted) return;
     setState(() => _isRatingLoading = true);
+
     try {
-      final response = await http
-          .get(Uri.parse('$backendUrl/test-db'))
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) return;
-      final data = json.decode(response.body);
-      final records = data is Map ? data['sample_data_payload'] : null;
-      if (records is List) {
-        final rankedDrivers =
-            records
-                .whereType<Map>()
-                .map((item) => Map<String, dynamic>.from(item))
-                .where((driver) {
-                  final rating =
-                      double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
-                  return rating > 0;
-                })
-                .toList()
-              ..sort((first, second) {
-                final firstRating =
-                    double.tryParse(first['rating']?.toString() ?? '') ?? 0;
-                final secondRating =
-                    double.tryParse(second['rating']?.toString() ?? '') ?? 0;
-                return secondRating.compareTo(firstRating);
-              });
-        final ratings = records
-            .whereType<Map>()
-            .map(
-              (item) => double.tryParse(item['rating']?.toString() ?? '') ?? 0,
-            )
-            .where((rating) => rating > 0)
-            .toList();
+      final uri = Uri.parse('$backendUrl/dashboard/driver-leaderboard').replace(
+        queryParameters: {
+          'month': _selectedDriverMonth.month.toString(),
+          'year': _selectedDriverMonth.year.toString(),
+        },
+      );
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        final List<dynamic> driversList = decoded['top_drivers'] ?? [];
+        
+        final double overallAvg = (decoded['overall_average'] as num?)?.toDouble() ?? 0.0;
+        final int totalRated = (decoded['total_rated_drivers'] as num?)?.toInt() ?? 0;
+
         if (mounted) {
           setState(() {
-            _ratedDriverCount = ratings.length;
-            _topDrivers = rankedDrivers.take(5).toList();
-            _averageDriverRating = ratings.isEmpty
-                ? 0
-                : ratings.reduce((a, b) => a + b) / ratings.length;
+            _topDrivers = driversList.map((d) => Map<String, dynamic>.from(d)).toList();
+            _averageDriverRating = overallAvg;
+            _ratedDriverCount = totalRated;
           });
         }
       }
+    } catch (e) {
+      debugPrint("Failed to fetch leaderboard: $e");
     } finally {
       if (mounted) setState(() => _isRatingLoading = false);
     }
@@ -842,8 +940,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           final date = DateTime.tryParse(
             (record['incident_date'] ?? record['repair_date'] ?? '').toString(),
           );
-          if (date != null && date.year == _selectedMaintenanceYear)
+          if (date != null && date.year == _selectedMaintenanceYear) {
             totals[date.month - 1]++;
+          }
         }
         if (mounted) setState(() => _monthlyMaintenanceTotals = totals);
       }
@@ -908,7 +1007,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       ),
                     ),
                   )
-                // Expanded wrapper to prevent the list from overflowing the card height
                 : Expanded(
                     child: ListView.separated(
                       shrinkWrap: true,
@@ -1019,8 +1117,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             ),
           ),
           onChanged: (month) {
-            if (month != null)
+            if (month != null) {
               _changeDispatchMonth(month, _selectedDispatchMonth.year);
+            }
           },
         ),
         const SizedBox(width: 8),
@@ -1040,8 +1139,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               )
               .toList(),
           onChanged: (year) {
-            if (year != null)
+            if (year != null) {
               _changeDispatchMonth(_selectedDispatchMonth.month, year);
+            }
           },
         ),
       ],
@@ -1240,6 +1340,24 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       'October',
       'November',
       'December',
+    ];
+    return names[month - 1];
+  }
+
+  String _monthShortName(int month) {
+    const names = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return names[month - 1];
   }
