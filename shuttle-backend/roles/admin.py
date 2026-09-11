@@ -148,7 +148,6 @@ def diagnostic_database_check():
         return jsonify({"connection_status": "FAILED", "error_details": str(e)}), 500
 
 # ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
-# ─────────── TRIP SCHEDULES (RESOLVED IN-MEMORY JOIN) ───────────
 
 @admin_bp.route('/trips', methods=['GET'])
 def get_admin_schedules():
@@ -341,7 +340,10 @@ def get_dashboard_metrics():
                 raise ValueError('month must be between 1 and 12')
             
             period_start = datetime(selected_year, selected_month, 1).date().isoformat()
-            next_month = datetime(selected_year + (selected_month == 12), (selected_month % 12) + 1, 1)
+            if selected_month == 12:
+                next_month = datetime(selected_year + 1, 1, 1)
+            else:
+                next_month = datetime(selected_year, selected_month + 1, 1)
             period_end = next_month.date().isoformat()
             
             # 1. Fetch companies, strictly excluding internal operational tags
@@ -412,6 +414,125 @@ def get_dashboard_metrics():
     except Exception as e:
         print(f"❌ Dashboard Metrics Engine Failure: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+
+# ─────────── NEW: MONTHLY DRIVER LEADERBOARD & OVERALL AVERAGE ───────────
+
+@admin_bp.route('/api/dashboard/driver-leaderboard', methods=['GET'])
+def get_driver_leaderboard():
+    """Fetches top drivers and calculates overall metrics specifically for a given month and year."""
+    try:
+        selected_month = int(request.args.get('month', datetime.now().month))
+        selected_year = int(request.args.get('year', datetime.now().year))
+        
+        # Calculate strict date boundaries for the selected month
+        period_start = datetime(selected_year, selected_month, 1).date().isoformat()
+        if selected_month == 12:
+            next_month = datetime(selected_year + 1, 1, 1)
+        else:
+            next_month = datetime(selected_year, selected_month + 1, 1)
+        period_end = next_month.date().isoformat()
+
+        # 1. Fetch Passenger Evaluations strictly for this month
+        evals_res = supabase.table('passenger_evaluation')\
+            .select('trip_id, safety_score, punctuality_score, professionalism_score')\
+            .gte('submit_date', period_start)\
+            .lt('submit_date', period_end)\
+            .execute()
+        
+        raw_evals = evals_res.data or []
+
+        # If no evaluations exist for this month, return zeros cleanly
+        if not raw_evals:
+            return jsonify({
+                "success": True, 
+                "top_drivers": [],
+                "overall_average": 0.0,
+                "total_rated_drivers": 0
+            }), 200
+
+        # 2. Fetch Trips to map trip_id to user_id
+        trip_ids = list(set([str(e['trip_id']) for e in raw_evals if e.get('trip_id')]))
+        
+        if not trip_ids:
+            return jsonify({
+                "success": True, 
+                "top_drivers": [],
+                "overall_average": 0.0,
+                "total_rated_drivers": 0
+            }), 200
+
+        trips_res = supabase.table('trip_schedule')\
+            .select('trip_id, user_id')\
+            .in_('trip_id', trip_ids)\
+            .execute()
+        
+        trip_to_driver = {t['trip_id']: t['user_id'] for t in trips_res.data if t.get('user_id')}
+
+        # 3. Fetch Drivers to get their full names
+        driver_ids = list(set(trip_to_driver.values()))
+        if not driver_ids:
+            return jsonify({
+                "success": True, 
+                "top_drivers": [],
+                "overall_average": 0.0,
+                "total_rated_drivers": 0
+            }), 200
+            
+        drivers_res = supabase.table('driver_profile')\
+            .select('user_id, full_name')\
+            .in_('user_id', driver_ids)\
+            .execute()
+        
+        driver_names = {d['user_id']: d['full_name'] for d in drivers_res.data}
+
+        # 4. Aggregate scores per driver AND compute true monthly average across all trips
+        driver_scores = {}
+        all_trip_scores = []
+
+        for ev in raw_evals:
+            t_id = ev.get('trip_id')
+            driver_id = trip_to_driver.get(t_id)
+            
+            s = float(ev.get('safety_score') or 0)
+            p = float(ev.get('punctuality_score') or 0)
+            pr = float(ev.get('professionalism_score') or 0)
+            eval_avg = (s + p + pr) / 3.0
+            
+            if eval_avg > 0:
+                all_trip_scores.append(eval_avg)
+                if driver_id:
+                    if driver_id not in driver_scores:
+                        driver_scores[driver_id] = []
+                    driver_scores[driver_id].append(eval_avg)
+
+        # 5. Format and Sort Leaderboard
+        top_drivers = []
+        for d_id, scores in driver_scores.items():
+            avg_rating = sum(scores) / len(scores)
+            top_drivers.append({
+                "user_id": d_id,
+                "full_name": driver_names.get(d_id, "Unknown Driver"),
+                "rating": round(avg_rating, 2),
+                "eval_count": len(scores)
+            })
+
+        # Sort by highest rating first, then by most evaluations (tie-breaker)
+        top_drivers.sort(key=lambda x: (x['rating'], x['eval_count']), reverse=True)
+
+        # Calculate the actual overall average of all trips on that month/year
+        overall_monthly_average = sum(all_trip_scores) / len(all_trip_scores) if all_trip_scores else 0.0
+
+        return jsonify({
+            "success": True,
+            "top_drivers": top_drivers[:5],
+            "overall_average": round(overall_monthly_average, 2),
+            "total_rated_drivers": len(driver_scores)
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Driver Leaderboard Error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 # ─────────── VEHICLE SPECIFICATIONS MANAGEMENT ───────────
 
