@@ -6,7 +6,6 @@ import 'utils/tab_sync_stub.dart'
 
 import 'theme/theme_manager.dart';
 
-
 // Import layouts and login
 import 'layouts/admin/admin_layout.dart';
 import 'layouts/driver/driver_layout.dart';
@@ -15,7 +14,8 @@ import 'layouts/staff/staff_layout.dart';
 import 'login/login.dart';
 
 // Global navigator key for cross-app navigation
-final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> globalNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -68,7 +68,8 @@ class _SherviceAppState extends State<SherviceApp> {
 
     Widget getInitialScreen() {
       if (widget.isLoggedIn) {
-        final role = widget.userData['role'];
+        final rawRole = widget.userData['role'] ?? '';
+        final role = rawRole.trim().toLowerCase();
         final userId = widget.userData['userId'] ?? '';
         final userName = widget.userData['userName'] ?? 'User';
         final company = widget.userData['companyName'] ?? 'GT LANTIN';
@@ -119,7 +120,7 @@ class _SherviceAppState extends State<SherviceApp> {
           navigatorKey: globalNavigatorKey,
           title: 'Shervice Portal',
           debugShowCheckedModeBanner: false,
-          
+
           theme: ThemeData(
             brightness: Brightness.light,
             colorScheme: ColorScheme.fromSeed(
