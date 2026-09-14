@@ -41,7 +41,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   int _selectedMaintenanceYear = DateTime.now().year;
   bool _isRatingLoading = false;
   bool _isMaintenanceLoading = false;
-  
+
   double _averageDriverRating = 0;
   int _ratedDriverCount = 0;
   List<Map<String, dynamic>> _topDrivers = [];
@@ -197,7 +197,23 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             ),
             children: [
               if (_errorMessage != null) _buildErrorBanner(),
-              widget.headerWidget,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: widget.headerWidget),
+                  IconButton(
+                    tooltip: 'Reload dashboard data',
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh),
+                    onPressed: _isLoading ? null : _reloadDashboard,
+                  ),
+                ],
+              ),
               const SizedBox(height: 24),
               _buildKpiGrid(context, dynamicWidth, spacing),
               const SizedBox(height: 20),
@@ -259,6 +275,12 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
         );
       },
     );
+  }
+
+  Future<void> _reloadDashboard() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    await _fetchLiveDashboardData();
   }
 
   Widget _buildErrorBanner() {
@@ -687,8 +709,11 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                 itemBuilder: (context, index) {
                   final rank = index + 1;
                   final driver = _topDrivers[index];
-                  final name = (driver['full_name'] ?? driver['label'] ?? 'Driver').toString();
-                  final rating = double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
+                  final name =
+                      (driver['full_name'] ?? driver['label'] ?? 'Driver')
+                          .toString();
+                  final rating =
+                      double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Row(
@@ -769,7 +794,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     final double maxMaintVal = _monthlyMaintenanceTotals.isEmpty
         ? 5.0
         : _monthlyMaintenanceTotals.reduce(max).toDouble();
-    final double computedMaintMaxY = maxMaintVal <= 5 ? 5.0 : (maxMaintVal * 1.25).ceilToDouble();
+    final double computedMaintMaxY = maxMaintVal <= 5
+        ? 5.0
+        : (maxMaintVal * 1.25).ceilToDouble();
 
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 20),
@@ -842,12 +869,16 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                             showTitles: true,
                             reservedSize: 32,
                             getTitlesWidget: (value, meta) {
-                              if (value == 0 || value == computedMaintMaxY / 2 || value == computedMaintMaxY) {
+                              if (value == 0 ||
+                                  value == computedMaintMaxY / 2 ||
+                                  value == computedMaintMaxY) {
                                 return Text(
                                   value.toInt().toString(),
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : const Color(0xFF64748B),
                                   ),
                                 );
                               }
@@ -868,7 +899,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                                 _monthShortName(month).substring(0, 1),
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : const Color(0xFF64748B),
                                 ),
                               );
                             },
@@ -881,7 +914,8 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                             x: index + 1,
                             barRods: [
                               BarChartRodData(
-                                toY: _monthlyMaintenanceTotals[index].toDouble(),
+                                toY: _monthlyMaintenanceTotals[index]
+                                    .toDouble(),
                                 color: const Color(0xFFEF4444),
                                 width: 10,
                                 borderRadius: BorderRadius.circular(4),
@@ -917,17 +951,21 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       );
 
       final response = await http.get(uri).timeout(const Duration(seconds: 10));
-      
+
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
         final List<dynamic> driversList = decoded['top_drivers'] ?? [];
-        
-        final double overallAvg = (decoded['overall_average'] as num?)?.toDouble() ?? 0.0;
-        final int totalRated = (decoded['total_rated_drivers'] as num?)?.toInt() ?? 0;
+
+        final double overallAvg =
+            (decoded['overall_average'] as num?)?.toDouble() ?? 0.0;
+        final int totalRated =
+            (decoded['total_rated_drivers'] as num?)?.toInt() ?? 0;
 
         if (mounted) {
           setState(() {
-            _topDrivers = driversList.map((d) => Map<String, dynamic>.from(d)).toList();
+            _topDrivers = driversList
+                .map((d) => Map<String, dynamic>.from(d))
+                .toList();
             _averageDriverRating = overallAvg;
             _ratedDriverCount = totalRated;
           });
@@ -1181,7 +1219,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     final double maxTripVal = _monthlyTripTotals.isEmpty
         ? 10.0
         : _monthlyTripTotals.reduce(max).toDouble();
-    final double computedTripMaxY = maxTripVal <= 5 ? 10.0 : (maxTripVal * 1.25).ceilToDouble();
+    final double computedTripMaxY = maxTripVal <= 5
+        ? 10.0
+        : (maxTripVal * 1.25).ceilToDouble();
 
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 20),
@@ -1254,12 +1294,16 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                             showTitles: true,
                             reservedSize: 32,
                             getTitlesWidget: (value, meta) {
-                              if (value == 0 || value == computedTripMaxY / 2 || value == computedTripMaxY) {
+                              if (value == 0 ||
+                                  value == computedTripMaxY / 2 ||
+                                  value == computedTripMaxY) {
                                 return Text(
                                   value.toInt().toString(),
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : const Color(0xFF64748B),
                                   ),
                                 );
                               }

@@ -1,7 +1,7 @@
 import os
 from io import BytesIO
 from datetime import datetime
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, List
 from flask import Blueprint, jsonify, request
 from supabase import create_client
 import xlrd
@@ -247,8 +247,10 @@ def get_dashboard_metrics():
     """Calculates unified fleet parameters, active counts, and monthly completed trip metrics live"""
     try:
         # 1. Count all registered drivers
+        # PERF: Fetch only fields used by this response instead of the full profile row.
         drivers_query = supabase.table('driver_profile').select(
-            '*, user_account(username)'
+            'driver_id, user_id, full_name, license_no, license_expiry, '
+            'employment_status, date_hired, birthday, user_account(username)'
         ).execute()
         all_drivers = drivers_query.data or []
         total_drivers = len(all_drivers)
@@ -281,24 +283,18 @@ def get_dashboard_metrics():
 
         # 4. Fetch recent maintenance log entries stream details
         alerts_log_query = supabase.table('maintenance_log')\
-            .select('maintenance_id, description, vehicle_id')\
+            .select('maintenance_id, description, vehicle_id, vehicle(plate_number)')\
             .order('repair_date', desc=True)\
             .execute()
-
-        all_vehicles = supabase.table('vehicle').select('vehicle_id, plate_number').execute()
-        vehicle_map = {}
-        if all_vehicles.data:
-            for v in all_vehicles.data:
-                v_id = v.get('vehicle_id')
-                if v_id is not None:
-                    vehicle_map[str(v_id)] = v.get('plate_number', 'Unknown Plate')
-                    vehicle_map[int(v_id)] = v.get('plate_number', 'Unknown Plate')
 
         formatted_alerts = []
         if alerts_log_query.data:
             for log in alerts_log_query.data:
                 raw_v_id = log.get('vehicle_id')
-                resolved_plate = vehicle_map.get(raw_v_id, vehicle_map.get(str(raw_v_id), f"Asset {raw_v_id}"))
+                vehicle = log.get('vehicle') or {}
+                if isinstance(vehicle, list):
+                    vehicle = vehicle[0] if vehicle else {}
+                resolved_plate = vehicle.get('plate_number', f"Asset {raw_v_id}")
                 formatted_alerts.append({
                     "id": str(log.get('maintenance_id')),
                     "vehicle_id": resolved_plate,

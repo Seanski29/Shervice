@@ -96,6 +96,27 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
         List<dynamic> rawDrivers =
             jsonDecode(dRes.body)['sample_data_payload'] ?? [];
 
+        // PERF: Aggregate trip ratings once, reducing driver rating lookup from
+        // O(drivers * trips) scans to O(drivers + trips) hash-map lookups.
+        final Map<String, List<double>> ratingTotalsByDriver = {};
+        final Set<String> driversWithTrips = {};
+        for (final trip in trips) {
+          final driverId = (trip['user_id'] ?? '').toString();
+          if (driverId.isEmpty) continue;
+          driversWithTrips.add(driverId);
+          final rating = double.tryParse(
+            (trip['rating'] ?? trip['evaluation_score'] ?? trip['csat'] ?? '')
+                .toString(),
+          );
+          if (rating == null || rating <= 0) continue;
+          final totals = ratingTotalsByDriver.putIfAbsent(
+            driverId,
+            () => [0.0, 0.0],
+          );
+          totals[0] += rating;
+          totals[1] += 1.0;
+        }
+
         for (var d in rawDrivers) {
           final String dUid = (d['user_id'] ?? d['id'] ?? '').toString();
 
@@ -108,30 +129,12 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
 
           // If 0, compute rating from trips linked to this driver
           if (existingRating == 0.0 && trips.isNotEmpty) {
-            final driverTrips = trips
-                .where((t) => (t['user_id'] ?? '').toString() == dUid)
-                .toList();
-            if (driverTrips.isNotEmpty) {
-              double totalScore = 0.0;
-              int count = 0;
-              for (var dt in driverTrips) {
-                var r = dt['rating'] ?? dt['evaluation_score'] ?? dt['csat'];
-                if (r != null) {
-                  double? parsed = double.tryParse(r.toString());
-                  if (parsed != null && parsed > 0) {
-                    totalScore += parsed;
-                    count++;
-                  }
-                }
-              }
-              if (count > 0) {
-                existingRating = totalScore / count;
-              } else {
-                // Fallback to synthetic benchmark (4.5 - 4.9) so evaluation data shows properly
-                existingRating = 4.6;
-              }
+            final totals = ratingTotalsByDriver[dUid];
+            if (totals != null && totals[1] > 0) {
+              existingRating = totals[0] / totals[1];
             } else {
-              existingRating = 4.5;
+              // Preserve the existing fallback distinction for drivers with trips.
+              existingRating = driversWithTrips.contains(dUid) ? 4.6 : 4.5;
             }
           }
 
@@ -351,6 +354,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                             trips: _allTrips,
                             maintenanceLogs: _allMaintenanceLogs,
                             onSyncAction: _handleManualSync,
+                            onReload: _fetchGlobalAnalyticsPayload,
                           ),
                           _visitedTabs.contains(1)
                               ? DriverPerformanceTab(

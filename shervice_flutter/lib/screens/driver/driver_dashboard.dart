@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
 import '../../widgets/driver/driver_rating_badge.dart';
 
@@ -70,15 +69,24 @@ class _DriverDashboardState extends State<DriverDashboard> {
     final status = _activeTrip!['status'];
     final plateNumber = _activeTrip!['plate_number'];
 
-    final hasRouteInfo = routeName != null && routeName.toString().trim().isNotEmpty;
-    final hasScheduleInfo = departureTime != null && departureTime.toString().trim().isNotEmpty;
-    final hasEtaInfo = estimatedArrival != null && estimatedArrival.toString().trim().isNotEmpty;
+    final hasRouteInfo =
+        routeName != null && routeName.toString().trim().isNotEmpty;
+    final hasScheduleInfo =
+        departureTime != null && departureTime.toString().trim().isNotEmpty;
+    final hasEtaInfo =
+        estimatedArrival != null &&
+        estimatedArrival.toString().trim().isNotEmpty;
     final hasStatusInfo = status != null && status.toString().trim().isNotEmpty;
-    final hasVehicleInfo = plateNumber != null &&
+    final hasVehicleInfo =
+        plateNumber != null &&
         plateNumber.toString().trim().isNotEmpty &&
         plateNumber.toString().trim() != 'No Plate Assigned';
 
-    return hasRouteInfo || hasScheduleInfo || hasEtaInfo || hasStatusInfo || hasVehicleInfo;
+    return hasRouteInfo ||
+        hasScheduleInfo ||
+        hasEtaInfo ||
+        hasStatusInfo ||
+        hasVehicleInfo;
   }
 
   // --- MODALS ---
@@ -92,7 +100,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
         backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.transparent),
+          side: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.transparent,
+          ),
         ),
         child: Container(
           padding: const EdgeInsets.all(24),
@@ -112,7 +122,12 @@ class _DriverDashboardState extends State<DriverDashboard> {
               Text(
                 'Ask passengers to scan this code as they exit to submit a review.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontSize: 13),
+                style: TextStyle(
+                  color: isDark
+                      ? Colors.grey.shade400
+                      : const Color(0xFF64748B),
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 24),
               // QR Must ALWAYS be on a white background for scanner reliability
@@ -128,8 +143,14 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   version: QrVersions.auto,
                   backgroundColor: Colors.white,
                   size: 200,
-                  eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
-                  dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Colors.black,
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Colors.black,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -138,11 +159,21 @@ class _DriverDashboardState extends State<DriverDashboard> {
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
-                    backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: isDark
+                        ? Colors.grey.shade800
+                        : Colors.grey.shade100,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: Text('Close', style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    'Close',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -184,7 +215,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFFF8FAFC),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+        ),
       );
     }
 
@@ -194,7 +227,10 @@ class _DriverDashboardState extends State<DriverDashboard> {
         onRefresh: _fetchAssignedTripData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16.0),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: 16.0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -211,7 +247,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
                           style: TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.w900,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -221,7 +259,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
-                            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -230,11 +270,20 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   const SizedBox(width: 12),
                   // Rating Badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.amber.withOpacity(0.15) : Colors.amber.shade50,
+                      color: isDark
+                          ? Colors.amber.withOpacity(0.15)
+                          : Colors.amber.shade50,
                       borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: isDark ? Colors.amber.withOpacity(0.3) : Colors.amber.shade200),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.amber.withOpacity(0.3)
+                            : Colors.amber.shade200,
+                      ),
                     ),
                     child: DriverRatingBadge(
                       key: UniqueKey(),
@@ -250,11 +299,17 @@ class _DriverDashboardState extends State<DriverDashboard> {
               if (isMobile) ...[
                 _buildSectionHeader('CURRENT DISPATCH'),
                 const SizedBox(height: 12),
-                if (_hasAssignedTripData()) _buildActiveTripCard(isDark) else _buildEmptyTripPlaceholder(isDark),
+                if (_hasAssignedTripData())
+                  _buildActiveTripCard(isDark)
+                else
+                  _buildEmptyTripPlaceholder(isDark),
                 const SizedBox(height: 24),
                 _buildSectionHeader('ASSIGNED VEHICLE'),
                 const SizedBox(height: 12),
-                if (_hasAssignedTripData()) _buildVehicleDetailsCard(isDark) else _buildEmptyVehiclePlaceholder(isDark),
+                if (_hasAssignedTripData())
+                  _buildVehicleDetailsCard(isDark)
+                else
+                  _buildEmptyVehiclePlaceholder(isDark),
               ] else ...[
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,7 +321,10 @@ class _DriverDashboardState extends State<DriverDashboard> {
                         children: [
                           _buildSectionHeader('CURRENT DISPATCH'),
                           const SizedBox(height: 12),
-                          if (_hasAssignedTripData()) _buildActiveTripCard(isDark) else _buildEmptyTripPlaceholder(isDark),
+                          if (_hasAssignedTripData())
+                            _buildActiveTripCard(isDark)
+                          else
+                            _buildEmptyTripPlaceholder(isDark),
                         ],
                       ),
                     ),
@@ -278,13 +336,16 @@ class _DriverDashboardState extends State<DriverDashboard> {
                         children: [
                           _buildSectionHeader('ASSIGNED VEHICLE'),
                           const SizedBox(height: 12),
-                          if (_hasAssignedTripData()) _buildVehicleDetailsCard(isDark) else _buildEmptyVehiclePlaceholder(isDark),
+                          if (_hasAssignedTripData())
+                            _buildVehicleDetailsCard(isDark)
+                          else
+                            _buildEmptyVehiclePlaceholder(isDark),
                         ],
                       ),
                     ),
                   ],
                 ),
-              ]
+              ],
             ],
           ),
         ),
@@ -312,26 +373,46 @@ class _DriverDashboardState extends State<DriverDashboard> {
     final estimatedArrival = _activeTrip!['estimated_arrival_time']?.toString();
 
     final details = [
-      {'icon': Icons.people_alt_outlined, 'label': 'Passengers', 'value': '${_activeTrip!['passenger_count'] ?? 0}'},
-      {'icon': Icons.straighten, 'label': 'Distance', 'value': '${_activeTrip!['route_distance'] ?? 0} km'},
-      {'icon': Icons.access_time, 'label': 'Schedule', 'value': _formatDepartureEta(departureTime, estimatedArrival)},
-      {'icon': Icons.pin_drop_outlined, 'label': 'Status', 'value': isOngoing ? 'In Transit' : 'Pending'},
+      {
+        'icon': Icons.people_alt_outlined,
+        'label': 'Passengers',
+        'value': '${_activeTrip!['passenger_count'] ?? 0}',
+      },
+      {
+        'icon': Icons.straighten,
+        'label': 'Distance',
+        'value': '${_activeTrip!['route_distance'] ?? 0} km',
+      },
+      {
+        'icon': Icons.access_time,
+        'label': 'Schedule',
+        'value': _formatDepartureEta(departureTime, estimatedArrival),
+      },
+      {
+        'icon': Icons.pin_drop_outlined,
+        'label': 'Status',
+        'value': isOngoing ? 'In Transit' : 'Pending',
+      },
     ];
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isDark 
-            ? [const Color(0xFF1E3A8A), const Color(0xFF172554)] 
-            : [Colors.blue.shade700, Colors.blue.shade900],
+          colors: isDark
+              ? [const Color(0xFF1E3A8A), const Color(0xFF172554)]
+              : [Colors.blue.shade700, Colors.blue.shade900],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           if (!isDark)
-            BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 8)),
+            BoxShadow(
+              color: Colors.blue.withOpacity(0.2),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
         ],
       ),
       child: Column(
@@ -341,25 +422,42 @@ class _DriverDashboardState extends State<DriverDashboard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   'TRP-${_activeTrip!['trip_id'] ?? 'TBD'}',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: isOngoing ? Colors.green.shade400 : Colors.orange.shade400,
+                  color: isOngoing
+                      ? Colors.green.shade400
+                      : Colors.orange.shade400,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   status.toString().toUpperCase(),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.5),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
@@ -374,7 +472,14 @@ class _DriverDashboardState extends State<DriverDashboard> {
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.only(top: 16),
-            decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.white.withOpacity(0.15), width: 1))),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: Colors.white.withOpacity(0.15),
+                  width: 1,
+                ),
+              ),
+            ),
             child: Column(
               children: [
                 Row(
@@ -400,15 +505,26 @@ class _DriverDashboardState extends State<DriverDashboard> {
             width: double.infinity,
             height: 48,
             child: ElevatedButton.icon(
-              onPressed: () => _showPassengerQR(_activeTrip!['trip_id'].toString(), isDark),
-              icon: const Icon(Icons.qr_code, color: Color(0xFF1E3A8A), size: 20),
+              onPressed: () =>
+                  _showPassengerQR(_activeTrip!['trip_id'].toString(), isDark),
+              icon: const Icon(
+                Icons.qr_code,
+                color: Color(0xFF1E3A8A),
+                size: 20,
+              ),
               label: const Text(
                 'Show Passenger QR',
-                style: TextStyle(color: Color(0xFF1E3A8A), fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(
+                  color: Color(0xFF1E3A8A),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 elevation: 0,
               ),
             ),
@@ -428,14 +544,22 @@ class _DriverDashboardState extends State<DriverDashboard> {
             const SizedBox(width: 6),
             Text(
               detail['label'],
-              style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           detail['value'],
-          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -443,7 +567,12 @@ class _DriverDashboardState extends State<DriverDashboard> {
     );
   }
 
-  Widget _buildTimelineRow(IconData icon, String label, String location, String time) {
+  Widget _buildTimelineRow(
+    IconData icon,
+    String label,
+    String location,
+    String time,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -462,12 +591,21 @@ class _DriverDashboardState extends State<DriverDashboard> {
             children: [
               Text(
                 label,
-                style: const TextStyle(color: Colors.white70, fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10,
+                  letterSpacing: 0.8,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
                 location,
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -476,7 +614,11 @@ class _DriverDashboardState extends State<DriverDashboard> {
         ),
         Text(
           time,
-          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -488,21 +630,34 @@ class _DriverDashboardState extends State<DriverDashboard> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.directions_bus_outlined, size: 48, color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            Icon(
+              Icons.directions_bus_outlined,
+              size: 48,
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
             const SizedBox(height: 12),
             Text(
               'No active assignment',
-              style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.grey.shade800, fontSize: 16),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.grey.shade800,
+                fontSize: 16,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
               'Pull down to refresh when dispatch assigns a trip.',
-              style: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade500, fontSize: 13),
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+                fontSize: 13,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -522,7 +677,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Row(
         children: [
@@ -532,7 +689,11 @@ class _DriverDashboardState extends State<DriverDashboard> {
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(Icons.directions_car, size: 28, color: isDark ? Colors.blue.shade400 : const Color(0xFF0F172A)),
+            child: Icon(
+              Icons.directions_car,
+              size: 28,
+              color: isDark ? Colors.blue.shade400 : const Color(0xFF0F172A),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -559,7 +720,10 @@ class _DriverDashboardState extends State<DriverDashboard> {
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.qr_code_scanner, color: Color.fromARGB(255, 240, 241, 244)),
+            icon: const Icon(
+              Icons.qr_code_scanner,
+              color: Color.fromARGB(255, 240, 241, 244),
+            ),
             tooltip: 'Scan QR',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -575,16 +739,26 @@ class _DriverDashboardState extends State<DriverDashboard> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.key_off, color: isDark ? Colors.grey.shade700 : Colors.grey.shade400, size: 28),
+          Icon(
+            Icons.key_off,
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
+            size: 28,
+          ),
           const SizedBox(width: 12),
           Text(
             'No vehicle assigned.',
-            style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontWeight: FontWeight.w600, fontSize: 14),
+            style: TextStyle(
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
           ),
         ],
       ),

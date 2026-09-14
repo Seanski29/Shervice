@@ -227,14 +227,6 @@ class _OicSchedulesState extends State<OicSchedules> {
         ),
       )
       .length;
-  int get _expiredTrips => _myTrips
-      .where(
-        (t) => (t['trip_status'] ?? '').toString().toLowerCase().contains(
-          'expired',
-        ),
-      )
-      .length;
-
   Color _getStatusColor(String statusStr) {
     String lower = statusStr.toLowerCase();
     if (lower.contains('completed')) return const Color(0xFF10B981); // Green
@@ -1166,9 +1158,7 @@ class _OicSchedulesState extends State<OicSchedules> {
         onNextPage: _currentPage < _totalPages - 1
             ? () => _goToPage(_currentPage + 1)
             : null,
-        onPrevPage: _currentPage > 0
-            ? () => _goToPage(_currentPage - 1)
-            : null,
+        onPrevPage: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
       ),
     );
   }

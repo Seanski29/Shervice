@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../../screens/staff/staff_dashboard.dart';
 import '../../screens/staff/staff_vehicle.dart';
 import '../../screens/staff/staff_schedules.dart';
@@ -58,18 +57,6 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
         companyName: widget.companyName,
       ),
     ];
-
-    // 👇 Triggers the silent ML sweep in the background as soon as the layout loads
-    _runSilentFleetMlSweep();
-  }
-
-  Future<void> _runSilentFleetMlSweep() async {
-    try {
-      // Hits the new Python endpoint to calculate risks and auto-lock vehicles
-      await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
-    } catch (e) {
-      debugPrint("ML Sweep skipped or failed: $e");
-    }
   }
 
   void _toggleSidebar() {
@@ -199,7 +186,11 @@ class _StaffLayoutDesktopState extends State<StaffLayoutDesktop> {
                   Icons.directions_car_outlined,
                 ),
                 _buildNavItem(4, 'Driver Records', Icons.people_outline),
-                _buildNavItem(5, 'Import & Export', Icons.import_export_outlined),
+                _buildNavItem(
+                  5,
+                  'Import & Export',
+                  Icons.import_export_outlined,
+                ),
                 _buildNavItem(6, 'Analytics', Icons.analytics),
                 _buildNavItem(7, 'Settings', Icons.settings_outlined),
               ],
