@@ -4,7 +4,6 @@ import '../../screens/admin/admin_schedules.dart';
 import '../../screens/admin/admin_drivers.dart';
 import '../../screens/admin/admin_vehicles.dart';
 import '../../screens/admin/admin_users.dart';
-import '../../screens/admin/admin_reports_manager.dart';
 import '../../screens/admin/admin_settings.dart';
 import '../../login/login.dart';
 import '../../widgets/shared/notification_bell.dart';
@@ -40,7 +39,6 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     const AdminUsers(),
     const AdminCompanies(),
     const SharedAnalyticsHub(),
-    const AdminReportsManager(),
     AdminSettings(adminId: widget.adminId),
   ];
 
@@ -52,7 +50,6 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     'Users',
     'Companies',
     'Analytics',
-    'Import',
     'Settings',
   ];
 
@@ -64,7 +61,6 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     Icons.admin_panel_settings_outlined,
     Icons.business_outlined,
     Icons.analytics_outlined,
-    Icons.import_export_outlined,
     Icons.settings_outlined,
   ];
 

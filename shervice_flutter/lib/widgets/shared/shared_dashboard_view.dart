@@ -68,6 +68,11 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   }
 
   Future<void> _fetchLiveDashboardData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       final response = await http
           .get(Uri.parse('$backendUrl/dashboard/metrics'))
@@ -159,10 +164,39 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (_isLoading && _metrics.isEmpty) {
       return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+        ),
+      );
+    }
+
+    if (!_isLoading && _metrics.isEmpty) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.sync_problem_outlined, size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  'Dashboard could not sync.',
+                  style: Theme.of(context).textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _reloadDashboard,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -701,63 +735,61 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               ),
             )
           else
-            Expanded(
-              child: ListView.builder(
-                shrinkWrap: true,
-                physics: const BouncingScrollPhysics(),
-                itemCount: _topDrivers.length,
-                itemBuilder: (context, index) {
-                  final rank = index + 1;
-                  final driver = _topDrivers[index];
-                  final name =
-                      (driver['full_name'] ?? driver['label'] ?? 'Driver')
-                          .toString();
-                  final rating =
-                      double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 22,
-                          child: Text(
-                            '$rank',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: _bodyTextSize,
-                              color: rank == 1
-                                  ? Colors.amber.shade700
-                                  : theme.colorScheme.primary,
-                            ),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _topDrivers.length,
+              itemBuilder: (context, index) {
+                final rank = index + 1;
+                final driver = _topDrivers[index];
+                final name =
+                    (driver['full_name'] ?? driver['label'] ?? 'Driver')
+                        .toString();
+                final rating =
+                    double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 22,
+                        child: Text(
+                          '$rank',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: _bodyTextSize,
+                            color: rank == 1
+                                ? Colors.amber.shade700
+                                : theme.colorScheme.primary,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontSize: _bodyTextSize,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const Icon(Icons.star, size: 14, color: Colors.amber),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating.toStringAsFixed(1),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontSize: _bodyTextSize,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                      ),
+                      const Icon(Icons.star, size: 14, color: Colors.amber),
+                      const SizedBox(width: 4),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: _bodyTextSize,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
         ],
       ),
@@ -843,7 +875,8 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             ],
           ),
           SizedBox(height: compact ? 10 : 20),
-          Expanded(
+          SizedBox(
+            height: 220,
             child: _isMaintenanceLoading
                 ? const Center(child: CircularProgressIndicator())
                 : BarChart(
@@ -1067,10 +1100,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       ),
                     ),
                   )
-                : Expanded(
+                : SizedBox(
+                    height: compact ? 280 : null,
                     child: ListView.separated(
                       shrinkWrap: true,
-                      physics: const BouncingScrollPhysics(),
+                      physics: compact
+                          ? const BouncingScrollPhysics()
+                          : const NeverScrollableScrollPhysics(),
                       itemCount: _companyTrips.length,
                       separatorBuilder: (_, _) => Divider(
                         height: 12,
@@ -1268,7 +1304,8 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             ],
           ),
           SizedBox(height: compact ? 10 : 20),
-          Expanded(
+          SizedBox(
+            height: 220,
             child: _isTripsChartLoading
                 ? const Center(child: CircularProgressIndicator())
                 : LineChart(

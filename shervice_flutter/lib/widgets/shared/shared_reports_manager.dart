@@ -293,6 +293,62 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
     return normalized;
   }
 
+  Widget _buildReportTitle(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Import & Export',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'View system reports and manage timecards.',
+          style: TextStyle(
+            fontSize: 14,
+            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImportButton() {
+    return FilledButton.icon(
+      onPressed: _isImporting || !_canImportCurrentReport
+          ? null
+          : _pickExcelFile,
+      icon: _isImporting
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.upload_file_outlined),
+      label: Text(
+        _isImporting
+            ? 'Importing...'
+            : _canImportCurrentReport
+            ? 'Import Excel'
+            : 'Import Locked',
+      ),
+    );
+  }
+
+  Widget _buildExportButton() {
+    return OutlinedButton.icon(
+      onPressed: _showExportDialog,
+      icon: const Icon(Icons.download_outlined),
+      label: const Text('Export Report'),
+    );
+  }
+
   Future<void> _pickExcelFile() async {
     setState(() => _isImporting = true);
 
@@ -544,6 +600,7 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = MediaQuery.of(context).size.width < 700;
 
     final activeData = _processedRows;
     final startIndex = _currentPage * _rowsPerPage;
@@ -572,71 +629,39 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(isMobile ? 12 : 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // ==========================================
               // TOP HEADER
               // ==========================================
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              isMobile
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          'Import & Export',
-                          style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
-                            color: isDark
-                                ? Colors.white
-                                : const Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'View system reports and manage timecards.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : const Color(0xFF64748B),
-                          ),
+                        _buildReportTitle(isDark),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _buildImportButton(),
+                            _buildExportButton(),
+                          ],
                         ),
                       ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(child: _buildReportTitle(isDark)),
+                        const SizedBox(width: 16),
+                        _buildImportButton(),
+                        const SizedBox(width: 12),
+                        _buildExportButton(),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  FilledButton.icon(
-                    onPressed: _isImporting || !_canImportCurrentReport
-                        ? null
-                        : _pickExcelFile,
-                    icon: _isImporting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.upload_file_outlined),
-                    label: Text(
-                      _isImporting
-                          ? 'Importing...'
-                          : _canImportCurrentReport
-                          ? 'Import Excel'
-                          : 'Import Locked',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton.icon(
-                    onPressed: _showExportDialog,
-                    icon: const Icon(Icons.download_outlined),
-                    label: const Text('Export Report'),
-                  ),
-                ],
-              ),
               const SizedBox(height: 20),
 
               // ==========================================
@@ -694,10 +719,12 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
               // ==========================================
               // CONTROLS ROW (Chips, Search, Filter, Sort)
               // ==========================================
-              Row(
+              Flex(
+                direction: isMobile ? Axis.vertical : Axis.horizontal,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Expanded(
+                  Flexible(
+                    fit: isMobile ? FlexFit.loose : FlexFit.tight,
                     child: Wrap(
                       spacing: 12,
                       runSpacing: 12,
@@ -735,7 +762,7 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
                   if (_columns.isNotEmpty && _rows.isNotEmpty) ...[
                     // Search Bar
                     SizedBox(
-                      width: 200,
+                      width: isMobile ? double.infinity : 200,
                       height: 42,
                       child: TextField(
                         controller: _searchController,

@@ -53,10 +53,14 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
           // Retain Dark Blue in Light Mode, shift to deep slate in Dark Mode
-          backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFF1E3A8A),
-          foregroundColor: Colors.white, // Forces all icons/text in AppBar to white
+          backgroundColor: isDark
+              ? const Color(0xFF0F172A)
+              : const Color(0xFF1E3A8A),
+          foregroundColor:
+              Colors.white, // Forces all icons/text in AppBar to white
           elevation: 0,
           centerTitle: true,
+          titleSpacing: 0,
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -70,11 +74,13 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
                 clipBehavior: Clip.antiAlias,
                 child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
               ),
-              const SizedBox(width: 10),
-              Image.asset(
-                'assets/shervice - white.jpg',
-                height: 20,
-                fit: BoxFit.contain,
+              const SizedBox(width: 6),
+              Flexible(
+                child: Image.asset(
+                  'assets/shervice - white.jpg',
+                  height: 20,
+                  fit: BoxFit.contain,
+                ),
               ),
             ],
           ),
@@ -84,19 +90,17 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
               userId: widget.driverId,
               userName: widget.driverName,
               companyName: widget.companyName,
-              iconSize: 26,
+              iconSize: 24,
             ),
             IconButton(
-              icon: const Icon(Icons.logout, size: 22),
+              icon: const Icon(Icons.logout, size: 20),
               tooltip: 'Logout',
               onPressed: () => _confirmLogout(context, isDark),
             ),
             const SizedBox(width: 4),
           ],
         ),
-        body: SafeArea(
-          child: _screens[_selectedIndex],
-        ),
+        body: SafeArea(child: _screens[_selectedIndex]),
         bottomNavigationBar: _buildBottomNav(isDark),
       ),
     );
@@ -106,7 +110,12 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        border: Border(top: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, width: 1)),
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            width: 1,
+          ),
+        ),
         boxShadow: [
           if (!isDark)
             BoxShadow(
@@ -118,12 +127,16 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
       ),
       child: SafeArea(
         child: SizedBox(
-          height: 64,
+          height: 68,
           child: Row(
             children: List.generate(_titles.length, (index) {
               final isSelected = _selectedIndex == index;
-              final selectedColor = isDark ? Colors.blue.shade400 : Colors.blue.shade700;
-              final unselectedColor = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
+              final selectedColor = isDark
+                  ? Colors.blue.shade400
+                  : Colors.blue.shade700;
+              final unselectedColor = isDark
+                  ? Colors.grey.shade500
+                  : Colors.grey.shade400;
 
               return Expanded(
                 child: InkWell(
@@ -136,15 +149,22 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
                       Icon(
                         _icons[index],
                         color: isSelected ? selectedColor : unselectedColor,
-                        size: 24,
+                        size: 22,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _titles[index],
-                        style: TextStyle(
-                          color: isSelected ? selectedColor : unselectedColor,
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                      const SizedBox(height: 2),
+                      Flexible(
+                        child: Text(
+                          _titles[index],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isSelected ? selectedColor : unselectedColor,
+                            fontSize: 10,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -165,7 +185,9 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
         backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.transparent),
+          side: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.transparent,
+          ),
         ),
         title: Text(
           'Confirm Logout',
@@ -202,10 +224,10 @@ class _DriverLayoutMobileState extends State<DriverLayoutMobile> {
             ),
             onPressed: () async {
               await SessionManager.clearSession();
-              if (!mounted) return;
-              Navigator.pop(ctx);
-              Navigator.pushReplacement(
-                context,
+              if (!mounted || !ctx.mounted) return;
+              final navigator = Navigator.of(ctx);
+              navigator.pop();
+              navigator.pushReplacement(
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
               );
             },

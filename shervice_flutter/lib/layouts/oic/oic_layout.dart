@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'oic_layout_desktop.dart';
+import '../mobile_access_unavailable.dart';
 
 class OicLayout extends StatelessWidget {
   final String oicId;
@@ -24,8 +25,8 @@ class OicLayout extends StatelessWidget {
             companyName: companyName,
           );
         }
-        
-        return const SizedBox.shrink();
+
+        return const MobileAccessUnavailable(role: 'OIC');
       },
     );
   }

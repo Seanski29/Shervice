@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'staff_layout_desktop.dart';
+import '../mobile_access_unavailable.dart';
 
 class StaffLayout extends StatelessWidget {
   final String staffId;
@@ -17,6 +18,7 @@ class StaffLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        // 2. Add the mobile path
         if (constraints.maxWidth > 800) {
           return StaffLayoutDesktop(
             staffId: staffId,
@@ -24,8 +26,7 @@ class StaffLayout extends StatelessWidget {
             companyName: companyName,
           );
         }
-
-        return const SizedBox.shrink();
+        return const MobileAccessUnavailable(role: 'Staff');
       },
     );
   }

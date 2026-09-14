@@ -241,73 +241,29 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
+              isMobile
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildAnalyticsHeader(textColor, subtitleColor),
+                        const SizedBox(height: 12),
+                        _buildSweepButton(),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Analytics Hub',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: textColor,
-                            letterSpacing: -0.5,
+                        Expanded(
+                          child: _buildAnalyticsHeader(
+                            textColor,
+                            subtitleColor,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Evaluate granular driver feedback logs, monitor live fleet metrics, and execute predictive ML diagnostics.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                            color: subtitleColor,
-                          ),
-                        ),
+                        const SizedBox(width: 16),
+                        _buildSweepButton(),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _handleManualSync,
-                    icon: _isLoading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(
-                            Icons.memory,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                    label: const Text(
-                      "Run AI Sweep",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 0,
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 24),
 
               Container(
@@ -321,23 +277,21 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                       ? Border.all(color: Colors.grey.shade800)
                       : null,
                 ),
-                child: Row(
-                  children: [
-                    _buildNavTab(0, 'Fleet Overview', Icons.dashboard, isDark),
-                    _buildNavTab(1, 'Driver Performance', Icons.person, isDark),
-                    _buildNavTab(
-                      2,
-                      'Vehicle Predictive ML',
-                      Icons.directions_bus,
-                      isDark,
-                    ),
-                    _buildNavTab(
-                      3,
-                      'Route Clustering',
-                      Icons.alt_route,
-                      isDark,
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildNavTab(0, 'Fleet', Icons.dashboard, isDark),
+                      _buildNavTab(1, 'Drivers', Icons.person, isDark),
+                      _buildNavTab(
+                        2,
+                        'Vehicle ML',
+                        Icons.directions_bus,
+                        isDark,
+                      ),
+                      _buildNavTab(3, 'Routes', Icons.alt_route, isDark),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -386,6 +340,49 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
     );
   }
 
+  Widget _buildAnalyticsHeader(Color textColor, Color subtitleColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Analytics Hub',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: textColor,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Evaluate driver feedback, fleet metrics, and predictive diagnostics.',
+          style: TextStyle(fontSize: 14, color: subtitleColor),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSweepButton() {
+    return ElevatedButton.icon(
+      onPressed: _isLoading ? null : _handleManualSync,
+      icon: _isLoading
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.memory, size: 18),
+      label: const Text('Run AI Sweep'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF3B82F6),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
   Widget _buildNavTab(int index, String label, IconData icon, bool isDark) {
     final bool isActive = _activeTab == index;
     final Color activeBg = isDark ? const Color(0xFF1E293B) : Colors.white;
@@ -393,7 +390,8 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
         ? Colors.grey.shade500
         : const Color(0xFF64748B);
 
-    return Expanded(
+    return SizedBox(
+      width: 124,
       child: InkWell(
         onTap: () {
           setState(() {
@@ -425,7 +423,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                 size: 16,
                 color: isActive ? const Color(0xFF3B82F6) : inactiveText,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 5),
               Flexible(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
