@@ -7,6 +7,7 @@ class FleetOverviewTab extends StatefulWidget {
   final List<dynamic> trips;
   final List<dynamic> maintenanceLogs;
   final VoidCallback onSyncAction;
+  final VoidCallback? onReload;
 
   const FleetOverviewTab({
     super.key,
@@ -15,6 +16,7 @@ class FleetOverviewTab extends StatefulWidget {
     required this.trips,
     required this.maintenanceLogs,
     required this.onSyncAction,
+    this.onReload,
   });
 
   @override
@@ -194,6 +196,11 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
                   color: textColor,
                   fontSize: 16,
                 ),
+              ),
+              IconButton(
+                tooltip: 'Reload fleet data',
+                icon: const Icon(Icons.refresh),
+                onPressed: widget.onReload ?? widget.onSyncAction,
               ),
               // --- INLINE DROPDOWN FILTERS ---
               Container(

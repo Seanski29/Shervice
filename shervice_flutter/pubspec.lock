@@ -681,7 +681,7 @@ packages:
     source: hosted
     version: "2.4.1"
   skeletonizer:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: skeletonizer
       sha256: "9f38f9b47ec3cf2235a6a4f154a88a95432bc55ba98b3e2eb6ced5c1974bc122"

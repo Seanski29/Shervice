@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../../screens/admin/admin_dashboard.dart';
 import '../../screens/admin/admin_schedules.dart';
 import '../../screens/admin/admin_drivers.dart';
@@ -52,17 +51,6 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
       AdminSettings(adminId: widget.adminId),
       // Note: You can add AdminFeedbacks() here if you want it mapped to a sidebar index!
     ];
-
-    _runSilentFleetMlSweep();
-  }
-
-  Future<void> _runSilentFleetMlSweep() async {
-    try {
-      // Hits the new Python endpoint to calculate risks and auto-lock vehicles
-      await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
-    } catch (e) {
-      debugPrint("ML Sweep skipped or failed: $e");
-    }
   }
 
   void _toggleSidebar() {

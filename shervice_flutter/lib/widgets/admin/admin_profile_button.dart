@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class AdminProfileButton extends StatelessWidget {
   final String adminId;
   final String adminName;
+  final bool compact;
 
   const AdminProfileButton({
     super.key,
     required this.adminId,
     required this.adminName,
+    this.compact = false,
   });
 
   @override
@@ -15,6 +17,24 @@ class AdminProfileButton extends StatelessWidget {
     final theme = Theme.of(context);
     final displayName = adminName.trim().isEmpty ? 'Admin' : adminName.trim();
     final initials = displayName.substring(0, 1).toUpperCase();
+
+    if (compact) {
+      return IconButton(
+        tooltip: 'Profile',
+        onPressed: () => _showProfileDialog(context, displayName),
+        icon: CircleAvatar(
+          radius: 16,
+          backgroundColor: theme.colorScheme.primary,
+          child: Text(
+            initials,
+            style: TextStyle(
+              color: theme.colorScheme.onPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+    }
 
     return Material(
       color: theme.colorScheme.surfaceContainerHighest,

@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Make sure this points to your active Admin wrapper or SharedReportsManager
-import 'package:shervice_flutter/screens/admin/admin_reports_manager.dart'; 
+import 'package:shervice_flutter/screens/admin/admin_reports_manager.dart';
 import 'package:shervice_flutter/session_manager.dart';
 import 'package:shervice_flutter/theme/theme_manager.dart';
 
@@ -17,9 +17,9 @@ void main() {
     expect(find.text('Trips'), findsOneWidget);
     expect(find.text('Maintenance'), findsOneWidget);
     expect(find.text('Timecard'), findsOneWidget);
-    
+
     // Verify Attendance was completely removed
-    expect(find.text('Attendance'), findsNothing); 
+    expect(find.text('Attendance'), findsNothing);
 
     // 1. Timecard is now the default, so the button should be active immediately
     final timecardImportButton = tester.widget<FilledButton>(
@@ -51,5 +51,20 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('darkMode'), isTrue);
     expect(prefs.getBool('isLoggedIn'), isNull);
+  });
+
+  test('session expires after one week', () async {
+    SharedPreferences.setMockInitialValues({
+      'isLoggedIn': true,
+      'sessionCreatedAt': DateTime.now()
+          .subtract(const Duration(days: 7))
+          .millisecondsSinceEpoch,
+    });
+
+    expect(await SessionManager.isLoggedIn(), isFalse);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('isLoggedIn'), isNull);
+    expect(prefs.getInt('sessionCreatedAt'), isNull);
   });
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../../screens/admin/admin_dashboard.dart';
 import '../../screens/admin/admin_schedules.dart';
 import '../../screens/admin/admin_drivers.dart';
@@ -47,16 +46,6 @@ class _AdminDesktopLayoutState extends State<AdminDesktopLayout> {
       SharedAnalyticsHub(),
       AdminSettings(adminId: widget.adminId),
     ];
-
-    _runSilentFleetMlSweep();
-  }
-
-  Future<void> _runSilentFleetMlSweep() async {
-    try {
-      await http.post(Uri.parse('$backendUrl/vehicles/predict/fleet-sweep'));
-    } catch (e) {
-      debugPrint("ML Sweep skipped or failed: $e");
-    }
   }
 
   void _toggleSidebar() {

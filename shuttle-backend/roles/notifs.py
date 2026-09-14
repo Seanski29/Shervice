@@ -1,12 +1,12 @@
 import os
 import time
-import socket
 import traceback
 from dotenv import load_dotenv
 from flask import Blueprint, request, jsonify
 from supabase import create_client
 
 notifs_bp = Blueprint('notifs', __name__)
+supabase = None
 
 def _create_supabase_client():
     load_dotenv()
@@ -53,19 +53,15 @@ def get_notifications():
         if not user_id:
             return jsonify({"success": False, "message": "Missing user_id parameter"}), 400
 
-        supabase_client = _create_supabase_client()
-        try:
-            response = _execute_supabase(
-                lambda: supabase_client.table('app_notification')
-                .select('*')
-                .order('created_at', desc=True)
-                .execute()
-            )
-        finally:
-            try:
-                supabase_client.postgrest.session.close()
-            except Exception:
-                pass
+        # PERF: Reuse app.py's process-scoped client to avoid constructing and
+        # tearing down an HTTP session for every notification request.
+        supabase_client = supabase or _create_supabase_client()
+        response = _execute_supabase(
+            lambda: supabase_client.table('app_notification')
+            .select('*')
+            .order('created_at', desc=True)
+            .execute()
+        )
 
         raw_notifs = response.data or []
         filtered_notifications = []
@@ -127,19 +123,14 @@ def get_notifications():
 @notifs_bp.route('/api/notifications/<int:notif_id>/read', methods=['PUT'])
 def mark_as_read(notif_id):
     try:
-        supabase_client = _create_supabase_client()
-        try:
-            response = _execute_supabase(
-                lambda: supabase_client.table('app_notification')
-                .update({'is_read': True})
-                .eq('notification_id', notif_id)
-                .execute()
-            )
-        finally:
-            try:
-                supabase_client.postgrest.session.close()
-            except Exception:
-                pass
+        # PERF: Reuse the shared HTTP session instead of allocating one per update.
+        supabase_client = supabase or _create_supabase_client()
+        response = _execute_supabase(
+            lambda: supabase_client.table('app_notification')
+            .update({'is_read': True})
+            .eq('notification_id', notif_id)
+            .execute()
+        )
 
         if response.data:
             return jsonify({"success": True, "message": "Notification marked as read."}), 200
@@ -159,28 +150,23 @@ def trigger_notification(title, message, target_user_id=None, target_role=None, 
     Call this function from anywhere in your backend to generate a notification.
     """
     try:
-        supabase_client = _create_supabase_client()
-        try:
-            payload = {
-                'title': title,
-                'message': message,
-                'source_tag': source_tag
-            }
-            if target_user_id: payload['target_user_id'] = target_user_id
-            if target_role: payload['target_role'] = target_role
-            if target_company: payload['target_company'] = target_company
-            if related_trip_id: payload['related_trip_id'] = related_trip_id
+        # PERF: Keep inserts on the shared connection pool for lower latency under burst load.
+        supabase_client = supabase or _create_supabase_client()
+        payload = {
+            'title': title,
+            'message': message,
+            'source_tag': source_tag
+        }
+        if target_user_id: payload['target_user_id'] = target_user_id
+        if target_role: payload['target_role'] = target_role
+        if target_company: payload['target_company'] = target_company
+        if related_trip_id: payload['related_trip_id'] = related_trip_id
 
-            _execute_supabase(
-                lambda: supabase_client.table('app_notification').insert(payload).execute()
-            )
-            print(f"✅ Notification triggered successfully: {title}")
-            return True
-        finally:
-            try:
-                supabase_client.postgrest.session.close()
-            except Exception:
-                pass
+        _execute_supabase(
+            lambda: supabase_client.table('app_notification').insert(payload).execute()
+        )
+        print(f'✅ Notification triggered successfully: {title}')
+        return True
     except Exception as e:
         print(f"❌ Failed to trigger notification: {e}")
         return False
