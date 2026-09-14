@@ -113,6 +113,7 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 700;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
@@ -140,39 +141,32 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "K-Means Route Delay Clusters",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
+            isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildRouteHeader(textColor, isDark),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton.filledTonal(
+                          onPressed: _fetchClusterData,
+                          icon: const Icon(Icons.sync, size: 20),
+                          tooltip: 'Recalculate Model',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Unsupervised ML grouping of historical schedule variances and route anomalies.",
-                      style: TextStyle(
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : const Color(0xFF64748B),
-                        fontSize: 13,
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(child: _buildRouteHeader(textColor, isDark)),
+                      IconButton.filledTonal(
+                        onPressed: _fetchClusterData,
+                        icon: const Icon(Icons.sync, size: 20),
+                        tooltip: 'Recalculate Model',
                       ),
-                    ),
-                  ],
-                ),
-                IconButton.filledTonal(
-                  onPressed: _fetchClusterData,
-                  icon: const Icon(Icons.sync, size: 20),
-                  tooltip: 'Recalculate Model',
-                ),
-              ],
-            ),
+                    ],
+                  ),
             const SizedBox(height: 20),
 
             _buildFilterToolbar(isDark, cardBg),
@@ -240,6 +234,34 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
     );
   }
 
+  Widget _buildRouteHeader(Color textColor, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'K-Means Route Delay Clusters',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Unsupervised grouping of schedule variances and route anomalies.',
+          style: TextStyle(
+            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+            fontSize: 13,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
   Widget _buildFilterToolbar(bool isDark, Color cardBg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -260,23 +282,26 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
             size: 20,
             color: Color(0xFF64748B),
           ),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'all', label: Text('All Time')),
-              ButtonSegment(value: 'today', label: Text('Today')),
-              ButtonSegment(value: 'week', label: Text('This Week')),
-              ButtonSegment(value: 'month', label: Text('Month')),
-              ButtonSegment(value: 'date', label: Text('Specific Day')),
-            ],
-            selected: {_timeFilter},
-            onSelectionChanged: (val) {
-              setState(() => _timeFilter = val.first);
-              if (_timeFilter == 'date' && _customDate == null) {
-                _pickCustomDate();
-              } else {
-                _fetchClusterData();
-              }
-            },
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'all', label: Text('All Time')),
+                ButtonSegment(value: 'today', label: Text('Today')),
+                ButtonSegment(value: 'week', label: Text('This Week')),
+                ButtonSegment(value: 'month', label: Text('Month')),
+                ButtonSegment(value: 'date', label: Text('Specific Day')),
+              ],
+              selected: {_timeFilter},
+              onSelectionChanged: (val) {
+                setState(() => _timeFilter = val.first);
+                if (_timeFilter == 'date' && _customDate == null) {
+                  _pickCustomDate();
+                } else {
+                  _fetchClusterData();
+                }
+              },
+            ),
           ),
           if (_timeFilter == 'month') ...[
             DropdownButton<int>(
@@ -488,9 +513,15 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
         ),
         child: const Row(
           children: [
-            Icon(Icons.check_circle, color: Color(0xFF10B981)),
-            SizedBox(width: 12),
-            Text("All routes operating within optimal schedule thresholds."),
+            const Icon(Icons.check_circle, color: Color(0xFF10B981)),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'All routes operating within optimal schedule thresholds.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       );
@@ -552,6 +583,7 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
         ? []
         : trips.sublist(startIndex, endIndex);
 
+    final isMobile = MediaQuery.of(context).size.width < 700;
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
@@ -565,64 +597,27 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        "Classified Trip Breakdown (${trips.length})",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
+                      _buildTripBreakdownTitle(trips, isDark, textColor),
+                      const SizedBox(height: 12),
+                      _buildTripSearchField(isDark),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: _buildTripBreakdownTitle(
+                          trips,
+                          isDark,
+                          textColor,
                         ),
                       ),
-                      Text(
-                        _selectedClusterId != null
-                            ? "Showing isolated cluster trips"
-                            : "Showing all trips across all delay clusters",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : const Color(0xFF64748B),
-                        ),
-                      ),
+                      _buildTripSearchField(isDark),
                     ],
                   ),
-                ),
-                SizedBox(
-                  width: 240,
-                  height: 38,
-                  child: TextField(
-                    onChanged: (v) => setState(() {
-                      _tripSearchQuery = v;
-                      _currentPage = 0; // Reset pagination on search
-                    }),
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: "Search route, driver, plate...",
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      contentPadding: EdgeInsets.zero,
-                      filled: true,
-                      fillColor: isDark
-                          ? const Color(0xFF0F172A)
-                          : const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                          color: isDark
-                              ? Colors.grey.shade700
-                              : Colors.grey.shade300,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
           Divider(
             height: 1,
@@ -806,6 +801,61 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildTripBreakdownTitle(
+    List<dynamic> trips,
+    bool isDark,
+    Color textColor,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Classified Trip Breakdown (${trips.length})',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        Text(
+          _selectedClusterId != null
+              ? 'Showing isolated cluster trips'
+              : 'Showing all trips across all delay clusters',
+          style: TextStyle(
+            fontSize: 12,
+            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTripSearchField(bool isDark) {
+    return SizedBox(
+      width: MediaQuery.of(context).size.width < 700 ? double.infinity : 240,
+      height: 38,
+      child: TextField(
+        onChanged: (v) => setState(() {
+          _tripSearchQuery = v;
+          _currentPage = 0;
+        }),
+        style: const TextStyle(fontSize: 13),
+        decoration: InputDecoration(
+          hintText: 'Search route, driver, plate...',
+          prefixIcon: const Icon(Icons.search, size: 18),
+          contentPadding: EdgeInsets.zero,
+          filled: true,
+          fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
     );
   }

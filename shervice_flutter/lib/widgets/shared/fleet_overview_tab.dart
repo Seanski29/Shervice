@@ -186,8 +186,10 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 "Executive Operations Dashboard",
@@ -427,8 +429,9 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     Color color,
     bool isDark,
   ) {
+    final bool isMobile = MediaQuery.of(context).size.width < 700;
     return Container(
-      width: 200,
+      width: isMobile ? (MediaQuery.of(context).size.width - 36) / 2 : 200,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
