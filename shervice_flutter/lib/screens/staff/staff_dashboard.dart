@@ -14,18 +14,34 @@ class StaffDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SharedDashboardView(
-      showClientTrips: true, // 👈 Now shows client weekly dispatches
+      showClientTrips: false, // Staff only tracks general vehicle operations
       headerWidget: Row(
         children: [
           Text(
-            'Staff Dashboard',
+            'Welcome, $staffName',
             style: const TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Color(0xFF0F172A),
             ),
           ),
           const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Text(
+              companyName,
+              style: TextStyle(
+                color: Colors.green.shade700,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
         ],
       ),
     );
