@@ -14,7 +14,7 @@ class StaffDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SharedDashboardView(
-      showClientTrips: false, // Staff only tracks general vehicle operations
+      showClientTrips: true,
       headerWidget: Row(
         children: [
           Text(

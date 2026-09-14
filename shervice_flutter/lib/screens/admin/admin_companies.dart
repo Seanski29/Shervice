@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../constant.dart';
@@ -11,9 +12,11 @@ class AdminCompanies extends StatefulWidget {
 }
 
 class _AdminCompaniesState extends State<AdminCompanies> {
+  static const int _itemsPerPage = 10;
   bool _isLoading = true;
   List<dynamic> _companies = [];
   String _searchQuery = '';
+  int _currentPage = 0;
 
   @override
   void initState() {
@@ -30,7 +33,10 @@ class _AdminCompaniesState extends State<AdminCompanies> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data['success'] == true) {
-          setState(() => _companies = data['data'] ?? []);
+          setState(() {
+            _companies = data['data'] ?? [];
+            _currentPage = 0;
+          });
         }
       }
     } catch (e) {
@@ -261,6 +267,86 @@ class _AdminCompaniesState extends State<AdminCompanies> {
     );
   }
 
+  Widget _buildTitle(Color textColor, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Company Management',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: textColor,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Manage partner client accounts and dispatch destinations.',
+          style: TextStyle(
+            fontSize: 14,
+            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddCompanyButton() {
+    return ElevatedButton.icon(
+      onPressed: _addCompanyDialog,
+      icon: const Icon(Icons.add, color: Colors.white, size: 18),
+      label: const Text(
+        'Add Company',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF3B82F6),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  List<dynamic> _pageItems(List<dynamic> filtered) {
+    final start = _currentPage * _itemsPerPage;
+    if (start >= filtered.length) return const [];
+    final end = (start + _itemsPerPage).clamp(0, filtered.length);
+    return filtered.sublist(start, end);
+  }
+
+  Widget _buildPaginationFooter(int totalItems, bool isDark) {
+    final totalPages = max(1, (totalItems / _itemsPerPage).ceil());
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          tooltip: 'Previous page',
+          onPressed: _currentPage == 0
+              ? null
+              : () => setState(() => _currentPage--),
+          icon: const Icon(Icons.chevron_left),
+        ),
+        Text(
+          '${_currentPage + 1} / $totalPages',
+          style: TextStyle(
+            color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        IconButton(
+          tooltip: 'Next page',
+          onPressed: _currentPage >= totalPages - 1
+              ? null
+              : () => setState(() => _currentPage++),
+          icon: const Icon(Icons.chevron_right),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 950;
@@ -279,62 +365,32 @@ class _AdminCompaniesState extends State<AdminCompanies> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Company Management",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Manage scalable partner client accounts and dispatch destinations.",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : const Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-                ElevatedButton.icon(
-                  onPressed: _addCompanyDialog,
-                  icon: const Icon(Icons.add, color: Colors.white, size: 18),
-                  label: const Text(
-                    "Add Company",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+            isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildTitle(textColor, isDark),
+                      const SizedBox(height: 12),
+                      _buildAddCompanyButton(),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildTitle(textColor, isDark),
+                      _buildAddCompanyButton(),
+                    ],
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 20),
 
             // Search Bar
             SizedBox(
               height: 42,
               child: TextField(
-                onChanged: (v) => setState(() => _searchQuery = v),
+                onChanged: (v) => setState(() {
+                  _searchQuery = v;
+                  _currentPage = 0;
+                }),
                 style: TextStyle(color: textColor, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Search companies...',
@@ -375,10 +431,16 @@ class _AdminCompaniesState extends State<AdminCompanies> {
                       ),
                     )
                   : ListView.separated(
-                      itemCount: filtered.length,
+                      itemCount: _pageItems(filtered).length + 1,
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
-                        final comp = filtered[index];
+                        if (index == _pageItems(filtered).length) {
+                          return _buildPaginationFooter(
+                            filtered.length,
+                            isDark,
+                          );
+                        }
+                        final comp = _pageItems(filtered)[index];
                         final name = comp['company_name'] ?? 'Unnamed Company';
                         final int userCount = comp['user_count'] ?? 0;
                         final bool isInternal = name

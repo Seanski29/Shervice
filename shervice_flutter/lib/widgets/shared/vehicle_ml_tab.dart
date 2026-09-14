@@ -327,11 +327,16 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                                           color: Color(0xFF64748B),
                                         ),
                                         const SizedBox(width: 4),
-                                        Text(
-                                          vehicle['bus_type'] ?? 'Unknown Type',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xFF64748B),
+                                        Flexible(
+                                          child: Text(
+                                            vehicle['bus_type'] ??
+                                                'Unknown Type',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Color(0xFF64748B),
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -339,61 +344,57 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                                   ],
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: mlColor.withOpacity(0.5),
-                                  ),
-                                  borderRadius: BorderRadius.circular(6),
-                                  color: mlColor.withOpacity(0.08),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                              Flexible(
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  alignment: WrapAlignment.end,
                                   children: [
-                                    Icon(
-                                      Icons.calendar_month,
-                                      size: 12,
-                                      color: mlColor,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${daysRemaining.toStringAsFixed(0)} Days',
-                                      style: TextStyle(
-                                        color: mlColor,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
                                       ),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: mlColor.withOpacity(0.5),
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                        color: mlColor.withOpacity(0.08),
+                                      ),
+                                      child: Text(
+                                        '${daysRemaining.toStringAsFixed(0)} Days',
+                                        style: TextStyle(
+                                          color: mlColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        statusLabel,
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      color: Colors.grey,
                                     ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  statusLabel,
-                                  style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Icon(
-                                Icons.chevron_right,
-                                color: Colors.grey,
                               ),
                             ],
                           ),
