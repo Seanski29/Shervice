@@ -130,7 +130,8 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
           q.isEmpty ||
           (t['route_name'] ?? '').toString().toLowerCase().contains(q) ||
           (t['driver_name'] ?? '').toString().toLowerCase().contains(q) ||
-          (t['plate_number'] ?? '').toString().toLowerCase().contains(q);
+          (t['plate_number'] ?? '').toString().toLowerCase().contains(q) ||
+          (t['trip_id'] ?? '').toString().toLowerCase().contains(q);
       return matchesCluster && matchesQuery;
     }).toList();
 
@@ -680,7 +681,7 @@ class _RouteOptimizationTabState extends State<RouteOptimizationTab> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              t['route_name'] ?? 'Route',
+                              'TRIP-${t['trip_id'] ?? 'N/A'} • ${t['route_name'] ?? 'Route'}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: textColor,

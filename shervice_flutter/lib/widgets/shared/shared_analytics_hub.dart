@@ -9,6 +9,7 @@ import '../../../constant.dart';
 import 'fleet_overview_tab.dart';
 import 'driver_performance_tab.dart';
 import 'vehicle_ml_tab.dart';
+import 'company_analytics_tab.dart';
 
 class SharedAnalyticsHub extends StatefulWidget {
   const SharedAnalyticsHub({super.key});
@@ -55,13 +56,15 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
         http
             .get(Uri.parse('$cleanBaseUrl/vehicles'))
             .timeout(const Duration(seconds: 10)),
+        http
+            .get(Uri.parse('$cleanBaseUrl/dashboard/metrics'))
+            .timeout(const Duration(seconds: 10)),
       ]);
 
       final dRes = results[0];
       final tRes = results[1];
       final mRes = results[2];
       final vRes = results[3];
-
       // 2. Parse Trips
       List<dynamic> trips = [];
       if (tRes.statusCode == 200) {
@@ -227,11 +230,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 768;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final Color subtitleColor = isDark
-        ? Colors.grey.shade400
-        : const Color(0xFF64748B);
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Skeletonizer(
@@ -241,60 +239,15 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              isMobile
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildAnalyticsHeader(textColor, subtitleColor),
-                        const SizedBox(height: 12),
-                        _buildSweepButton(),
-                      ],
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _buildAnalyticsHeader(
-                            textColor,
-                            subtitleColor,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        _buildSweepButton(),
-                      ],
-                    ),
-              const SizedBox(height: 24),
-
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF0F172A)
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(10),
-                  border: isDark
-                      ? Border.all(color: Colors.grey.shade800)
-                      : null,
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildNavTab(0, 'Fleet', Icons.dashboard, isDark),
-                      _buildNavTab(1, 'Drivers', Icons.person, isDark),
-                      _buildNavTab(
-                        2,
-                        'Vehicle ML',
-                        Icons.directions_bus,
-                        isDark,
-                      ),
-                      _buildNavTab(3, 'Routes', Icons.alt_route, isDark),
-                    ],
-                  ),
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: _buildNavigationTabs(isDark)),
+                  const SizedBox(width: 12),
+                  _buildSweepButton(),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
 
               Expanded(
                 child: _isLoading && _allVehicles.isEmpty
@@ -330,6 +283,12 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                                   onSyncAction: _handleManualSync,
                                 )
                               : const SizedBox.shrink(),
+                          _visitedTabs.contains(4)
+                              ? CompanyAnalyticsTab(
+                                  trips: _allTrips,
+                                  drivers: _allDrivers,
+                                )
+                              : const SizedBox.shrink(),
                         ],
                       ),
               ),
@@ -340,26 +299,26 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
     );
   }
 
-  Widget _buildAnalyticsHeader(Color textColor, Color subtitleColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Analytics Hub',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: textColor,
-          ),
+  Widget _buildNavigationTabs(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(10),
+        border: isDark ? Border.all(color: Colors.grey.shade800) : null,
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildNavTab(0, 'Fleet', Icons.dashboard, isDark),
+            _buildNavTab(1, 'Drivers', Icons.person, isDark),
+            _buildNavTab(2, 'Vehicle ML', Icons.directions_bus, isDark),
+            _buildNavTab(3, 'Routes', Icons.alt_route, isDark),
+            _buildNavTab(4, 'Company', Icons.business, isDark),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Evaluate driver feedback, fleet metrics, and predictive diagnostics.',
-          style: TextStyle(fontSize: 14, color: subtitleColor),
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+      ),
     );
   }
 

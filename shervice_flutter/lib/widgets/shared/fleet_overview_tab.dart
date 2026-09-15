@@ -25,8 +25,8 @@ class FleetOverviewTab extends StatefulWidget {
 
 class _FleetOverviewTabState extends State<FleetOverviewTab> {
   // --- Clean Inline Filter State ---
-  int? _selectedYear;
-  int? _selectedMonth;
+  int _selectedYear = DateTime.now().year;
+  int _selectedMonth = DateTime.now().month;
 
   final List<String> _monthNames = [
     'January',
@@ -49,9 +49,7 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
   void initState() {
     super.initState();
     _extractAvailableYears();
-    // Default to the current month and year for immediate relevance
-    _selectedYear = DateTime.now().year;
-    _selectedMonth = DateTime.now().month;
+    // Default to the current month and year for immediate relevance.
   }
 
   void _extractAvailableYears() {
@@ -78,21 +76,21 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
 
     // --- Filter Data based on Dropdowns ---
     List<dynamic> fTrips = widget.trips.where((t) {
-      if (_selectedYear == null) return true; // All Time
+      if (_selectedYear == 0) return true; // All Time
       DateTime? d = DateTime.tryParse((t['schedule_date'] ?? '').toString());
       if (d == null) return false;
-      if (_selectedMonth == null) return d.year == _selectedYear; // Entire Year
+      if (_selectedMonth == 0) return d.year == _selectedYear; // All Months
       return d.year == _selectedYear &&
           d.month == _selectedMonth; // Specific Month
     }).toList();
 
     List<dynamic> fMaint = widget.maintenanceLogs.where((m) {
-      if (_selectedYear == null) return true;
+      if (_selectedYear == 0) return true;
       DateTime? d = DateTime.tryParse(
         (m['incident_date'] ?? m['repair_date'] ?? '').toString(),
       );
       if (d == null) return false;
-      if (_selectedMonth == null) return d.year == _selectedYear;
+      if (_selectedMonth == 0) return d.year == _selectedYear;
       return d.year == _selectedYear && d.month == _selectedMonth;
     }).toList();
 
@@ -142,8 +140,7 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     }
 
     // --- CHART DATA GROUPING ---
-    bool isLongTerm =
-        _selectedMonth == null; // Group by month if looking at a year/all-time
+    bool isLongTerm = _selectedMonth == 0;
     Map<String, int> timeBuckets = {};
 
     for (var t in fTrips) {
@@ -220,49 +217,50 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (_selectedYear != null) ...[
-                      DropdownButtonHideUnderline(
-                        child: DropdownButton<int?>(
-                          value: _selectedMonth,
-                          dropdownColor: cardBg,
-                          icon: Icon(
-                            Icons.keyboard_arrow_down,
-                            size: 16,
-                            color: textColor,
-                          ),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: textColor,
-                          ),
-                          items: [
-                            const DropdownMenuItem(
-                              value: null,
-                              child: Text("All Months"),
-                            ),
-                            ...List.generate(
-                              12,
-                              (i) => DropdownMenuItem(
-                                value: i + 1,
-                                child: Text(_monthNames[i]),
-                              ),
-                            ),
-                          ],
-                          onChanged: (val) =>
-                              setState(() => _selectedMonth = val),
-                        ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 16,
-                        color: isDark
-                            ? Colors.grey.shade700
-                            : Colors.grey.shade300,
-                        margin: const EdgeInsets.symmetric(horizontal: 10),
-                      ),
-                    ],
                     DropdownButtonHideUnderline(
-                      child: DropdownButton<int?>(
+                      child: DropdownButton<int>(
+                        value: _selectedMonth,
+                        dropdownColor: cardBg,
+                        icon: Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 16,
+                          color: textColor,
+                        ),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: 0,
+                            child: Text('All months'),
+                          ),
+                          ...List.generate(
+                            12,
+                            (i) => DropdownMenuItem(
+                              value: i + 1,
+                              child: Text(_monthNames[i]),
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedMonth = val);
+                          }
+                        },
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 16,
+                      color: isDark
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade300,
+                      margin: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
                         value: _selectedYear,
                         dropdownColor: cardBg,
                         icon: Icon(
@@ -277,8 +275,8 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
                         ),
                         items: [
                           const DropdownMenuItem(
-                            value: null,
-                            child: Text("All Time"),
+                            value: 0,
+                            child: Text('All time'),
                           ),
                           ..._availableYears.map(
                             (y) => DropdownMenuItem(
@@ -289,8 +287,7 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
                         ],
                         onChanged: (val) {
                           setState(() {
-                            _selectedYear = val;
-                            if (val == null) _selectedMonth = null;
+                            if (val != null) _selectedYear = val;
                           });
                         },
                       ),
@@ -302,39 +299,61 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
           ),
           const SizedBox(height: 16),
 
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _buildKpiCard(
-                'Total Distance',
-                '${totalDist.toStringAsFixed(0)} km',
-                Icons.route,
-                const Color(0xFF3B82F6),
-                isDark,
-              ),
-              _buildKpiCard(
-                'Passengers Received',
-                totalPax.toString(),
-                Icons.people,
-                const Color(0xFF8B5CF6),
-                isDark,
-              ),
-              _buildKpiCard(
-                'Fleet Readiness',
-                '$readyV / ${widget.vehicles.length}',
-                Icons.check_circle,
-                const Color(0xFF10B981),
-                isDark,
-              ),
-              _buildKpiCard(
-                'Average CSAT',
-                '${csat.toStringAsFixed(1)} ★',
-                Icons.star,
-                const Color(0xFFF59E0B),
-                isDark,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, kpiConstraints) {
+              final cards = [
+                _buildKpiCard(
+                  'Total Distance',
+                  '${totalDist.toStringAsFixed(0)} km',
+                  Icons.route,
+                  const Color(0xFF3B82F6),
+                  isDark,
+                ),
+                _buildKpiCard(
+                  'Passengers Received',
+                  totalPax.toString(),
+                  Icons.people,
+                  const Color(0xFF8B5CF6),
+                  isDark,
+                ),
+                _buildKpiCard(
+                  'Fleet Readiness',
+                  '$readyV / ${widget.vehicles.length}',
+                  Icons.check_circle,
+                  const Color(0xFF10B981),
+                  isDark,
+                ),
+                _buildKpiCard(
+                  'Average CSAT',
+                  '${csat.toStringAsFixed(1)} ★',
+                  Icons.star,
+                  const Color(0xFFF59E0B),
+                  isDark,
+                ),
+              ];
+              if (kpiConstraints.maxWidth < 700) {
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: cards
+                      .map(
+                        (card) => SizedBox(
+                          width: (kpiConstraints.maxWidth - 12) / 2,
+                          child: card,
+                        ),
+                      )
+                      .toList(),
+                );
+              }
+              return Row(
+                children: [
+                  for (var index = 0; index < cards.length; index++) ...[
+                    if (index > 0) const SizedBox(width: 12),
+                    Expanded(child: cards[index]),
+                  ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
 
@@ -390,27 +409,29 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _buildHorizontalBarChart(
-                            'High-Demand Routes',
-                            topRoutesData,
-                            const Color(0xFF8B5CF6),
-                            isDark,
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _buildHorizontalBarChart(
+                              'High-Demand Routes',
+                              topRoutesData,
+                              const Color(0xFF8B5CF6),
+                              isDark,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildHorizontalBarChart(
-                            'Maintenance by Category',
-                            maintData,
-                            const Color(0xFFEF4444),
-                            isDark,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildHorizontalBarChart(
+                              'Maintenance by Category',
+                              maintData,
+                              const Color(0xFFEF4444),
+                              isDark,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ],
@@ -429,9 +450,7 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     Color color,
     bool isDark,
   ) {
-    final bool isMobile = MediaQuery.of(context).size.width < 700;
     return Container(
-      width: isMobile ? (MediaQuery.of(context).size.width - 36) / 2 : 200,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
