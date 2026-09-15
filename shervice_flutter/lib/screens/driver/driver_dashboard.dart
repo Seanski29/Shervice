@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../constant.dart';
 import '../../widgets/driver/driver_rating_badge.dart';
 
@@ -22,7 +23,9 @@ class DriverDashboard extends StatefulWidget {
 class _DriverDashboardState extends State<DriverDashboard> {
   // --- STATE ---
   bool _isLoading = true;
+  bool _isUpdatingTrip = false;
   Map<String, dynamic>? _activeTrip;
+  double _tripActionProgress = 0;
 
   @override
   void initState() {
@@ -56,6 +59,73 @@ class _DriverDashboardState extends State<DriverDashboard> {
     } catch (e) {
       debugPrint("❌ Driver Dashboard Sync Failure: $e");
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _slideTripStatus() async {
+    if (_activeTrip == null || _isUpdatingTrip) return;
+    final tripId = _activeTrip!['trip_id'];
+    if (tripId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This trip has no valid trip ID.')),
+      );
+      return;
+    }
+    final status = (_activeTrip!['status'] ?? _activeTrip!['trip_status'])
+        ?.toString()
+        .toUpperCase();
+    final nextStatus = status == 'ONGOING' ? 'Completed' : 'Ongoing';
+    setState(() => _isUpdatingTrip = true);
+    late http.Response response;
+    try {
+      response = await http.post(
+        Uri.parse('$backendUrl/schedules/update-status'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'trip_id': tripId, 'status': nextStatus}),
+      );
+    } catch (error) {
+      debugPrint('Trip status update failed: $error');
+      if (mounted) {
+        setState(() {
+          _isUpdatingTrip = false;
+          _tripActionProgress = 0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to update trip status.')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (response.statusCode == 200) {
+      setState(() {
+        _tripActionProgress = 0;
+        _isUpdatingTrip = false;
+      });
+      await _fetchAssignedTripData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            nextStatus == 'Completed'
+                ? 'Trip finished successfully.'
+                : 'Trip started. Drive safely.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+    } else {
+      setState(() {
+        _tripActionProgress = 0;
+        _isUpdatingTrip = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Trip status could not be updated.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -213,10 +283,29 @@ class _DriverDashboardState extends State<DriverDashboard> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF8FAFC),
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Skeletonizer(
+          enabled: true,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Bone.text(words: 3),
+                const SizedBox(height: 8),
+                const Bone.text(words: 2),
+                const SizedBox(height: 28),
+                Bone(
+                  width: double.infinity,
+                  height: 420,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                const SizedBox(height: 18),
+                const Bone.text(words: 3),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -255,15 +344,16 @@ class _DriverDashboardState extends State<DriverDashboard> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Your current dispatch and vehicle assignment overview.',
+                          _currentTimeLabel(),
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
                             color: isDark
-                                ? Colors.grey.shade400
-                                : const Color(0xFF64748B),
+                                ? Colors.blue.shade200
+                                : const Color(0xFF2563EB),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
+                        const SizedBox(height: 4),
                       ],
                     ),
                   ),
@@ -276,12 +366,12 @@ class _DriverDashboardState extends State<DriverDashboard> {
                     ),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? Colors.amber.withOpacity(0.15)
+                          ? Colors.amber.withValues(alpha: 0.15)
                           : Colors.amber.shade50,
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
                         color: isDark
-                            ? Colors.amber.withOpacity(0.3)
+                            ? Colors.amber.withValues(alpha: 0.3)
                             : Colors.amber.shade200,
                       ),
                     ),
@@ -295,57 +385,37 @@ class _DriverDashboardState extends State<DriverDashboard> {
               ),
               const SizedBox(height: 32),
 
-              // ----- MAIN CONTENT AREA -----
-              if (isMobile) ...[
-                _buildSectionHeader('CURRENT DISPATCH'),
-                const SizedBox(height: 12),
-                if (_hasAssignedTripData())
-                  _buildActiveTripCard(isDark)
-                else
-                  _buildEmptyTripPlaceholder(isDark),
-                const SizedBox(height: 24),
-                _buildSectionHeader('ASSIGNED VEHICLE'),
-                const SizedBox(height: 12),
-                if (_hasAssignedTripData())
-                  _buildVehicleDetailsCard(isDark)
-                else
-                  _buildEmptyVehiclePlaceholder(isDark),
-              ] else ...[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionHeader('CURRENT DISPATCH'),
-                          const SizedBox(height: 12),
-                          if (_hasAssignedTripData())
-                            _buildActiveTripCard(isDark)
-                          else
-                            _buildEmptyTripPlaceholder(isDark),
-                        ],
-                      ),
+              // ----- NEXT DISPATCH -----
+              if (_hasAssignedTripData())
+                _buildActiveTripCard(isDark)
+              else
+                _buildEmptyTripPlaceholder(isDark),
+              const SizedBox(height: 18),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _showIncidentDialog,
+                  icon: const Icon(Icons.report_problem_outlined, size: 18),
+                  label: const Text('Report Incident / Delay'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark
+                        ? Colors.orange.shade200
+                        : const Color(0xFFB45309),
+                    side: BorderSide(
+                      color: isDark
+                          ? Colors.orange.shade700
+                          : const Color(0xFFF59E0B),
                     ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionHeader('ASSIGNED VEHICLE'),
-                          const SizedBox(height: 12),
-                          if (_hasAssignedTripData())
-                            _buildVehicleDetailsCard(isDark)
-                          else
-                            _buildEmptyVehiclePlaceholder(isDark),
-                        ],
-                      ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
                     ),
-                  ],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
-              ],
+              ),
             ],
           ),
         ),
@@ -353,21 +423,40 @@ class _DriverDashboardState extends State<DriverDashboard> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF64748B),
-        letterSpacing: 1.0,
+  String _currentTimeLabel() {
+    final now = DateTime.now();
+    final hour = now.hour == 0
+        ? 12
+        : (now.hour > 12 ? now.hour - 12 : now.hour);
+    final minute = now.minute.toString().padLeft(2, '0');
+    final suffix = now.hour >= 12 ? 'PM' : 'AM';
+    return '${now.month}/${now.day}/${now.year}  $hour:$minute $suffix';
+  }
+
+  void _showIncidentDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Report Incident / Delay'),
+        content: const Text(
+          'Please contact your dispatcher to report an incident or delay.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
 
   // --- TRIP CARD (Maintains the vibrant gradient for primary focus) ---
   Widget _buildActiveTripCard(bool isDark) {
-    final status = _activeTrip!['status'] ?? 'SCHEDULED';
+    final status =
+        (_activeTrip!['status'] ?? _activeTrip!['trip_status'] ?? 'SCHEDULED')
+            .toString()
+            .toUpperCase();
     final isOngoing = status == 'ONGOING';
     final departureTime = _activeTrip!['departure_time']?.toString();
     final estimatedArrival = _activeTrip!['estimated_arrival_time']?.toString();
@@ -409,7 +498,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.blue.withOpacity(0.2),
+              color: Colors.blue.withValues(alpha: 0.2),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -427,7 +516,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -463,10 +552,9 @@ class _DriverDashboardState extends State<DriverDashboard> {
             ],
           ),
           const SizedBox(height: 20),
-          _buildTimelineRow(
-            Icons.my_location,
-            'ROUTE / DESTINATION',
+          _buildRouteAndVehicleRow(
             _activeTrip!['route_name']?.toString() ?? 'Pending Assignment',
+            _activeTrip!['plate_number']?.toString() ?? 'Unassigned',
             _formatDepartureEta(departureTime, estimatedArrival),
           ),
           const SizedBox(height: 20),
@@ -475,7 +563,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   width: 1,
                 ),
               ),
@@ -513,7 +601,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
                 size: 20,
               ),
               label: const Text(
-                'Show Passenger QR',
+                'SHOW BOARDING QR CODE',
                 style: TextStyle(
                   color: Color(0xFF1E3A8A),
                   fontWeight: FontWeight.bold,
@@ -529,8 +617,102 @@ class _DriverDashboardState extends State<DriverDashboard> {
               ),
             ),
           ),
+          if (!isOngoing) ...[
+            const SizedBox(height: 14),
+            _buildTripSlider(
+              label: 'Swipe to start trip',
+              icon: Icons.play_arrow_rounded,
+            ),
+          ] else ...[
+            const SizedBox(height: 14),
+            _buildTripSlider(
+              label: 'Swipe to finish trip',
+              icon: Icons.flag_rounded,
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildTripSlider({required String label, required IconData icon}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final trackWidth = constraints.maxWidth;
+        final thumbSize = 58.0;
+        final travelWidth = trackWidth - thumbSize - 12;
+        final left = travelWidth * _tripActionProgress;
+        
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragUpdate: _isUpdatingTrip
+              ? null
+              : (details) {
+                  setState(() {
+                    _tripActionProgress =
+                        (_tripActionProgress +
+                                details.primaryDelta! / travelWidth)
+                            .clamp(0.0, 1.0);
+                  });
+                },
+          onHorizontalDragEnd: _isUpdatingTrip
+              ? null
+              : (_) {
+                  if (_tripActionProgress > .82) {
+                    _slideTripStatus();
+                  } else {
+                    setState(() => _tripActionProgress = 0);
+                  }
+                },
+          child: Container(
+            width: double.infinity, // THIS FIXES THE SHRINK-WRAPPING BUG
+            height: 68,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .13),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .8,
+                  ),
+                ),
+                Positioned(
+                  left: 6 + left,
+                  child: Container(
+                    width: thumbSize,
+                    height: thumbSize,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: .2),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: _isUpdatingTrip
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 3),
+                          )
+                        : Icon(icon, color: const Color(0xFF2563EB)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -567,59 +749,64 @@ class _DriverDashboardState extends State<DriverDashboard> {
     );
   }
 
-  Widget _buildTimelineRow(
-    IconData icon,
-    String label,
-    String location,
-    String time,
-  ) {
+  Widget _buildRouteAndVehicleRow(String route, String vehicle, String time) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
+            color: Colors.white.withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: Colors.white, size: 20),
+          child: const Icon(Icons.route, color: Colors.white, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 10,
-                  letterSpacing: 0.8,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                location,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Expanded(flex: 3, child: _routeValue('ROUTE', route, time)),
+              const SizedBox(width: 10),
+              Expanded(flex: 2, child: _routeValue('VEHICLE', vehicle, '')),
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _routeValue(String label, String value, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Text(
-          time,
+          label,
           style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+            color: Colors.white70,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: .6,
           ),
         ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        if (subtitle.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+        ],
       ],
     );
   }
@@ -662,105 +849,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // --- VEHICLE CARD ---
-  Widget _buildVehicleDetailsCard(bool isDark) {
-    final plate = _activeTrip!['plate_number']?.toString() ?? 'UNASSIGNED';
-    final model =
-        _activeTrip!['model']?.toString() ?? 'Contact Staff Dispatcher';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.directions_car,
-              size: 28,
-              color: isDark ? Colors.blue.shade400 : const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  plate,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                Text(
-                  model,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.qr_code_scanner,
-              color: Color.fromARGB(255, 240, 241, 244),
-            ),
-            tooltip: 'Scan QR',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyVehiclePlaceholder(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.key_off,
-            color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
-            size: 28,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'No vehicle assigned.',
-            style: TextStyle(
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-        ],
       ),
     );
   }
