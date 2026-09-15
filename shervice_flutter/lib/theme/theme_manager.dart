@@ -6,7 +6,7 @@ class ThemeManager {
   ThemeManager._();
 
   static final ValueNotifier<ThemeMode> themeNotifier =
-      ValueNotifier<ThemeMode>(ThemeMode.light);
+      ValueNotifier<ThemeMode>(ThemeMode.dark);
 
   static ThemeMode get themeMode => themeNotifier.value;
 
@@ -14,7 +14,7 @@ class ThemeManager {
 
   static Future<void> loadSavedTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedMode = prefs.getBool('darkMode') ?? false;
+    final savedMode = prefs.getBool('darkMode') ?? true;
     themeNotifier.value = savedMode ? ThemeMode.dark : ThemeMode.light;
   }
 

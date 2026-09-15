@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../screens/driver/driver_dashboard.dart';
-import '../../screens/driver/driver_schedules.dart';
-import '../../screens/driver/driver_profile.dart';
+import '../../constant.dart';
 import '../../login/login.dart';
+import '../../screens/driver/driver_dashboard.dart';
+import '../../screens/driver/driver_profile.dart';
+import '../../screens/driver/driver_schedules.dart';
+import '../../session_manager.dart';
 import '../../widgets/shared/notification_bell.dart';
 import '../../widgets/shared/shervice_floating_stack.dart';
-import '../../constant.dart';
-import '../../session_manager.dart';
 import '../../widgets/shared/user_profile_button.dart';
 
 class DriverLayoutDesktop extends StatefulWidget {
@@ -27,222 +27,134 @@ class DriverLayoutDesktop extends StatefulWidget {
 
 class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
   int _selectedIndex = 0;
-  bool _isSidebarExpanded = true;
-
-  void _toggleSidebar() {
-    setState(() => _isSidebarExpanded = !_isSidebarExpanded);
-  }
 
   late final List<Widget> _screens = [
-        DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
-        DriverSchedules(driverId: widget.driverId),
-        DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
-      ];
+    DriverDashboard(driverName: widget.driverName, driverId: widget.driverId),
+    DriverSchedules(driverId: widget.driverId),
+    DriverProfile(driverName: widget.driverName, driverId: widget.driverId),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SherviceFloatingStack(
       userRole: 'Driver',
       userName: widget.driverName,
       localIp: localIp,
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        body: Row(
-          children: [
-            // Sidebar
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: _isSidebarExpanded ? 260 : 76,
-              color: const Color(0xFF1E293B),
-              child: Column(
-                children: [
-                  // Branding Header (with toggle button when expanded)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 24,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: Image.asset(
-                            'assets/logo.jpg',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        if (_isSidebarExpanded) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Image.asset(
-                                  'assets/shervice - white.jpg',
-                                  height: 25,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (c, e, s) => const Text(
-                                    'SHERVICE',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const Text(
-                                  'Driver Portal',
-                                  style: TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // ─── TOGGLE BUTTON (inside sidebar when expanded) ───
-                          IconButton(
-                            icon: const Icon(Icons.menu, color: Colors.white70),
-                            onPressed: _toggleSidebar,
-                            tooltip: 'Collapse',
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const Divider(color: Colors.white10, thickness: 1, height: 1),
-                  const SizedBox(height: 16),
-
-                  // Navigation Items
-                  Expanded(
-                    child: ListView(
-                      padding: EdgeInsets.zero,
-                      children: [
-                        _buildSidebarItem(
-                          Icons.dashboard_outlined,
-                          'Dashboard',
-                          0,
-                        ),
-                        _buildSidebarItem(
-                          Icons.calendar_month_outlined,
-                          'My Schedule',
-                          1,
-                        ),
-                        _buildSidebarItem(Icons.person_outline, 'Profile', 2),
-                      ],
-                    ),
-                  ),
-
-                  // Footer Logout
-                  const Divider(color: Colors.white10, thickness: 1, height: 1),
-                  _buildSidebarItem(
-                    Icons.logout,
-                    'Log Out',
-                    99,
-                    isLogout: true,
-                  ),
-                  const SizedBox(height: 20),
-                ],
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: theme.scaffoldBackgroundColor,
+          surfaceTintColor: Colors.transparent,
+          titleSpacing: 28,
+          title: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withValues(alpha: .14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Image.asset('assets/logo.jpg', fit: BoxFit.contain),
               ),
-            ),
-
-            // Main Content Area
-            Expanded(
-              child: Column(
-                children: [
-                  // ─── HEADER (white, contains toggle when sidebar collapsed) ───
-                  Container(
-                    height: 70,
-                    color: theme.cardColor,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        // ─── TOGGLE BUTTON (only when sidebar is collapsed) ───
-                        if (!_isSidebarExpanded)
-                          IconButton(
-                            icon: const Icon(Icons.menu, color: Colors.black87),
-                            onPressed: _toggleSidebar,
-                            tooltip: 'Expand',
-                          ),
-                        if (!_isSidebarExpanded) const SizedBox(width: 4),
-                        const Spacer(),
-                        NotificationBell(
-                          role: 'Driver',
-                          userId: widget.driverId,
-                          userName: widget.driverName,
-                          companyName: widget.companyName,
-                          iconSize: 28,
-                        ),
-                        const SizedBox(width: 16),
-                        UserProfileButton(name: widget.driverName, role: 'Driver', company: widget.companyName),
-                      ],
-                    ),
-                  ),
-                  Expanded(child: _screens[_selectedIndex]),
-                ],
+              const SizedBox(width: 12),
+              Text(
+                'Mission Control',
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -.3,
+                ),
               ),
+            ],
+          ),
+          actions: [
+            NotificationBell(
+              role: 'Driver',
+              userId: widget.driverId,
+              userName: widget.driverName,
+              companyName: widget.companyName,
+              iconSize: 25,
             ),
+            const SizedBox(width: 12),
+            UserProfileButton(
+              name: widget.driverName,
+              role: 'Driver',
+              company: widget.companyName,
+            ),
+            IconButton(
+              tooltip: 'Logout',
+              onPressed: () => _confirmLogout(context),
+              icon: const Icon(Icons.logout_rounded),
+            ),
+            const SizedBox(width: 28),
           ],
         ),
+        body: SafeArea(
+          top: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1180),
+              child: _screens[_selectedIndex],
+            ),
+          ),
+        ),
+        bottomNavigationBar: _buildBottomNavigationBar(isDark),
       ),
     );
   }
 
-  Widget _buildSidebarItem(
-    IconData icon,
-    String title,
-    int index, {
-    bool isLogout = false,
-  }) {
-    final isSelected = _selectedIndex == index && !isLogout;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: InkWell(
-        onTap: () => isLogout
-            ? _confirmLogout(context)
-            : setState(() => _selectedIndex = index),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withAlpha(20) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+  Widget _buildBottomNavigationBar(bool isDark) {
+    final selected = const Color(0xFF2563EB);
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
           ),
-          child: Row(
-            mainAxisAlignment: _isSidebarExpanded
-                ? MainAxisAlignment.start
-                : MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? Colors.white : Colors.grey.shade400,
-                size: 20,
-              ),
-              if (_isSidebarExpanded) ...[
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    title,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.grey.shade300,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? .22 : .06),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: NavigationBar(
+          height: 72,
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          indicatorColor: selected.withValues(alpha: .16),
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: (index) {
+            setState(() => _selectedIndex = index);
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.space_dashboard_outlined),
+              selectedIcon: Icon(Icons.space_dashboard),
+              label: 'Dashboard',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.calendar_month_outlined),
+              selectedIcon: Icon(Icons.calendar_month),
+              label: 'Schedule',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Profile',
+            ),
+          ],
         ),
       ),
     );
@@ -252,27 +164,25 @@ class _DriverLayoutDesktopState extends State<DriverLayoutDesktop> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Confirm Logout'),
-        content: const Text('Are you sure you want to log out?'),
+        content: const Text('Are you sure you want to log out of your account?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-            ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade600),
             onPressed: () async {
               await SessionManager.clearSession();
+              if (!mounted || !ctx.mounted) return;
               Navigator.pop(ctx);
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
               );
             },
-            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+            child: const Text('Logout'),
           ),
         ],
       ),
