@@ -25,6 +25,7 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
   List<dynamic> _allVehicles = [];
   List<dynamic> _allTrips = [];
   List<dynamic> _allMaintenanceLogs = [];
+  Map<String, dynamic> _analytics = {};
 
   final Set<int> _visitedTabs = {0};
 
@@ -55,12 +56,20 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
         http
             .get(Uri.parse('$cleanBaseUrl/vehicles'))
             .timeout(const Duration(seconds: 10)),
+        http
+            .get(Uri.parse('$cleanBaseUrl/dashboard/metrics'))
+            .timeout(const Duration(seconds: 10)),
       ]);
 
       final dRes = results[0];
       final tRes = results[1];
       final mRes = results[2];
       final vRes = results[3];
+      final analyticsRes = results[4];
+      if (analyticsRes.statusCode == 200) {
+        final payload = jsonDecode(analyticsRes.body);
+        _analytics = Map<String, dynamic>.from(payload['analytics'] ?? {});
+      }
 
       // 2. Parse Trips
       List<dynamic> trips = [];
@@ -265,6 +274,8 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                       ],
                     ),
               const SizedBox(height: 24),
+              _buildSummaryPanel(isDark, textColor),
+              const SizedBox(height: 16),
 
               Container(
                 padding: const EdgeInsets.all(4),
@@ -359,7 +370,81 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
         ),
+        Text(
+          'Showing data for ${_analytics['timeframe'] ?? 'the current month'}',
+          style: const TextStyle(
+            color: Color(0xFF3B82F6),
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildSummaryPanel(bool isDark, Color textColor) {
+    final participation = Map<String, dynamic>.from(
+      _analytics['evaluation_participation'] ?? {},
+    );
+    final companies = (_analytics['companies'] as List<dynamic>?) ?? [];
+    final summaryText =
+        participation['label'] ?? 'No evaluation data for this month';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Wrap(
+        spacing: 24,
+        runSpacing: 12,
+        children: [
+          _summaryMetric('Evaluation participation', summaryText, textColor),
+          _summaryMetric(
+            'Top performing driver',
+            _analytics['top_driver'] is Map
+                ? '${_analytics['top_driver']['full_name']} (${_analytics['top_driver']['rating']}/5)'
+                : 'No rated driver for this period',
+            textColor,
+          ),
+          if (companies.isNotEmpty)
+            _summaryMetric(
+              'Per-company statistics',
+              companies
+                  .take(3)
+                  .map((company) {
+                    final item = Map<String, dynamic>.from(company as Map);
+                    return '${item['company_name']}: ${item['participation_label']}';
+                  })
+                  .join(' | '),
+              textColor,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryMetric(String label, String value, Color textColor) {
+    return SizedBox(
+      width: 280,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(color: textColor, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: textColor, fontSize: 12),
+          ),
+        ],
+      ),
     );
   }
 

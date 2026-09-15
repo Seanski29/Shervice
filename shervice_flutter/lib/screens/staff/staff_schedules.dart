@@ -37,6 +37,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
   bool _isLoading = true;
   bool _isRefreshing = false;
   List<dynamic> _assignedTrips = [];
+  List<dynamic> _blackouts = [];
 
   // Calendar State
   DateTime _selectedMonth = DateTime.now();
@@ -78,6 +79,14 @@ class _StaffSchedulesState extends State<StaffSchedules> {
           _assignedTrips = tripsData['data'] ?? [];
         });
       }
+      final blackoutResponse = await http.get(
+        Uri.parse('$backendUrl/schedules/blackouts'),
+      );
+      if (blackoutResponse.statusCode == 200 && mounted) {
+        setState(
+          () => _blackouts = jsonDecode(blackoutResponse.body)['data'] ?? [],
+        );
+      }
     } catch (e) {
       debugPrint("Error fetching staff schedules: $e");
     } finally {
@@ -97,6 +106,68 @@ class _StaffSchedulesState extends State<StaffSchedules> {
     return _assignedTrips
         .where((trip) => trip['schedule_date'] == dateStr)
         .toList();
+  }
+
+  dynamic _blackoutForDate(DateTime date) {
+    final dateString =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    for (final blackout in _blackouts) {
+      if (blackout['blackout_date'] == dateString) return blackout;
+    }
+    return null;
+  }
+
+  Future<void> _toggleBlackout(DateTime date) async {
+    final existing = _blackoutForDate(date);
+    if (existing != null) {
+      final response = await http.delete(
+        Uri.parse('$backendUrl/schedules/blackouts/${existing['blackout_id']}'),
+      );
+      if (response.statusCode == 200) _fetchStaffDashboardData();
+      return;
+    }
+
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Block ${_formatDateOnly(date)}'),
+        content: TextField(
+          controller: reasonController,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Reason *',
+            hintText: 'e.g. GT LANTIN unavailable',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = reasonController.text.trim();
+              if (value.isNotEmpty) Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Block Date'),
+          ),
+        ],
+      ),
+    );
+    reasonController.dispose();
+    if (reason == null) return;
+
+    final dateString =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final response = await http.post(
+      Uri.parse('$backendUrl/schedules/blackouts'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'blackout_date': dateString, 'reason': reason}),
+    );
+    if (response.statusCode == 201) _fetchStaffDashboardData();
   }
 
   List<dynamic> _getFilteredTrips() {
@@ -403,6 +474,21 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _toggleBlackout(_selectedDate!),
+            icon: Icon(
+              _blackoutForDate(_selectedDate!) == null
+                  ? Icons.block_outlined
+                  : Icons.lock_open_outlined,
+              size: 15,
+            ),
+            label: Text(
+              _blackoutForDate(_selectedDate!) == null
+                  ? 'Block Date'
+                  : 'Unblock Date',
             ),
           ),
         ],
@@ -770,6 +856,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                     );
                     final trips = _getTripsForDate(date);
                     final hasTrips = trips.isNotEmpty;
+                    final blackout = _blackoutForDate(date);
 
                     final isSelected =
                         _selectedDate != null &&
@@ -791,13 +878,17 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? const Color(0xFF3B82F6)
-                              : (hasTrips
-                                    ? (isDark
-                                          ? Colors.blue.withValues(alpha: 0.2)
-                                          : const Color(0xFFEFF6FF))
-                                    : (isDark
-                                          ? const Color(0xFF1E293B)
-                                          : Colors.white)),
+                              : (blackout != null
+                                    ? const Color(0xFFFEE2E2)
+                                    : (hasTrips
+                                          ? (isDark
+                                                ? Colors.blue.withValues(
+                                                    alpha: 0.2,
+                                                  )
+                                                : const Color(0xFFEFF6FF))
+                                          : (isDark
+                                                ? const Color(0xFF1E293B)
+                                                : Colors.white))),
                           border: Border.all(
                             color: isToday
                                 ? const Color(0xFFF59E0B)
@@ -1057,7 +1148,7 @@ class TripCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      routeName,
+                      'TRIP-${trip['trip_id'] ?? 'N/A'} • $routeName',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -1226,8 +1317,9 @@ class TripCard extends StatelessWidget {
 
   Future<void> _rejectTrip(BuildContext context) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final reasonController = TextEditingController();
 
-    final confirm = await showDialog<bool>(
+    final reason = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1236,10 +1328,13 @@ class TripCard extends StatelessWidget {
           "Reject Request?",
           style: TextStyle(color: isDark ? Colors.white : Colors.black),
         ),
-        content: Text(
-          "Are you sure you want to reject this trip request?",
-          style: TextStyle(
-            color: isDark ? Colors.grey.shade300 : Colors.black87,
+        content: TextField(
+          controller: reasonController,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Reason for cancellation/rejection *',
+            border: OutlineInputBorder(),
           ),
         ),
         actions: [
@@ -1253,7 +1348,10 @@ class TripCard extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () {
+              final value = reasonController.text.trim();
+              if (value.isNotEmpty) Navigator.pop(ctx, value);
+            },
             child: const Text(
               "Reject",
               style: TextStyle(
@@ -1265,14 +1363,18 @@ class TripCard extends StatelessWidget {
         ],
       ),
     );
+    reasonController.dispose();
 
-    if (confirm != true) return;
+    if (reason == null) return;
 
     try {
       final res = await http.post(
         Uri.parse('$backendUrl/schedules/reject'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({"trip_id": trip['trip_id']}),
+        body: jsonEncode({
+          "trip_id": trip['trip_id'],
+          "rejection_reason": reason,
+        }),
       );
       if (res.statusCode == 200 && context.mounted) {
         if (isModal) Navigator.pop(context);
@@ -1307,6 +1409,8 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
 
   List<dynamic> _drivers = [];
   List<dynamic> _vehicles = [];
+  bool _isBlockedDate = false;
+  String? _availabilityMessage;
 
   String? _selectedDriverUuid;
   String? _selectedVehicleId;
@@ -1320,8 +1424,8 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
   Future<void> _fetchAvailability() async {
     try {
       final String tripDate = widget.trip['schedule_date'];
-      final String cacheBuster =
-          DateTime.now().millisecondsSinceEpoch.toString();
+      final String cacheBuster = DateTime.now().millisecondsSinceEpoch
+          .toString();
 
       final res = await http.get(
         Uri.parse(
@@ -1334,6 +1438,14 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
         setState(() {
           _drivers = data['drivers'] ?? [];
           _vehicles = data['vehicles'] ?? [];
+          _isBlockedDate = data['blocked'] == true;
+          _availabilityMessage =
+              data['block_reason'] ??
+              (data['availability_message']?['drivers'] == null &&
+                      data['availability_message']?['vehicles'] == null
+                  ? null
+                  : '${data['availability_message']?['drivers'] ?? ''} ${data['availability_message']?['vehicles'] ?? ''}'
+                        .trim());
           _isLoadingOptions = false;
         });
       }
@@ -1343,7 +1455,10 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
   }
 
   Future<void> _submitAssignment() async {
-    if (_selectedDriverUuid == null || _selectedVehicleId == null) return;
+    if (_isBlockedDate ||
+        _selectedDriverUuid == null ||
+        _selectedVehicleId == null)
+      return;
     setState(() => _isSubmitting = true);
 
     try {
@@ -1366,6 +1481,15 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
             behavior: SnackBarBehavior.floating,
           ),
         );
+      } else if (mounted) {
+        final responseData = jsonDecode(res.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(responseData['message'] ?? 'Assignment blocked.'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+        setState(() => _isSubmitting = false);
       }
     } catch (e) {
       if (mounted) setState(() => _isSubmitting = false);
@@ -1383,13 +1507,15 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
     dynamic currentDriver;
     try {
       currentDriver = _drivers.firstWhere(
-          (d) => d['user_id'] == _selectedDriverUuid);
+        (d) => d['user_id'] == _selectedDriverUuid,
+      );
     } catch (_) {}
 
     dynamic currentVehicle;
     try {
       currentVehicle = _vehicles.firstWhere(
-          (v) => v['vehicle_id'].toString() == _selectedVehicleId);
+        (v) => v['vehicle_id'].toString() == _selectedVehicleId,
+      );
     } catch (_) {}
 
     return AlertDialog(
@@ -1428,6 +1554,29 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                   ),
                   const SizedBox(height: 20),
 
+                  if (_isBlockedDate || _availabilityMessage != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF450A0A)
+                            : const Color(0xFFFEF2F2),
+                        border: Border.all(color: const Color(0xFFEF4444)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _availabilityMessage ??
+                            'Assignment blocked for this date.',
+                        style: const TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+
                   if (_drivers.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -1450,7 +1599,8 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                       labelText: "Select Driver",
                       value: currentDriver,
                       items: _drivers,
-                      itemAsString: (d) => d['full_name']?.toString() ?? 'Unknown',
+                      itemAsString: (d) =>
+                          d['full_name']?.toString() ?? 'Unknown',
                       onChanged: (val) {
                         if (val != null) {
                           setState(() => _selectedDriverUuid = val['user_id']);
@@ -1487,8 +1637,10 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
                           "${v['plate_number']} (${v['bus_type']})",
                       onChanged: (val) {
                         if (val != null) {
-                          setState(() =>
-                              _selectedVehicleId = val['vehicle_id'].toString());
+                          setState(
+                            () => _selectedVehicleId = val['vehicle_id']
+                                .toString(),
+                          );
                         }
                       },
                       isDark: isDark,
@@ -1514,7 +1666,9 @@ class _AssignTripDialogState extends State<AssignTripDialog> {
             ),
             elevation: 0,
           ),
-          onPressed: (_isSubmitting ||
+          onPressed:
+              (_isSubmitting ||
+                  _isBlockedDate ||
                   _selectedDriverUuid == null ||
                   _selectedVehicleId == null)
               ? null
@@ -1586,8 +1740,9 @@ class _SearchableDropdownState<T> extends State<_SearchableDropdown<T>> {
     final Color fieldColor = widget.isDark
         ? const Color(0xFF0F172A)
         : const Color(0xFFF8FAFC);
-    final String displayText =
-        widget.value == null ? '' : widget.itemAsString(widget.value as T);
+    final String displayText = widget.value == null
+        ? ''
+        : widget.itemAsString(widget.value as T);
 
     return InkWell(
       onTap: _showSearchDialog,
@@ -1597,12 +1752,11 @@ class _SearchableDropdownState<T> extends State<_SearchableDropdown<T>> {
           labelText: widget.labelText,
           labelStyle: TextStyle(
             fontSize: 13,
-            color:
-                widget.isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+            color: widget.isDark
+                ? Colors.grey.shade400
+                : const Color(0xFF64748B),
           ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
             vertical: 12,
@@ -1657,7 +1811,8 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
         final query = searchController.text.toLowerCase();
         filteredItems = widget.items
             .where(
-                (item) => widget.itemAsString(item).toLowerCase().contains(query))
+              (item) => widget.itemAsString(item).toLowerCase().contains(query),
+            )
             .toList();
       });
     });
@@ -1699,7 +1854,7 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
                   onPressed: () => Navigator.pop(context),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                )
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -1712,9 +1867,12 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
                 hintStyle: TextStyle(color: Colors.grey.shade500),
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
             ),
             const SizedBox(height: 12),

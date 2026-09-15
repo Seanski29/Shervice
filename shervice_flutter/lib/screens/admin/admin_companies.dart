@@ -491,31 +491,30 @@ class _AdminCompaniesState extends State<AdminCompanies> {
                                             color: textColor,
                                           ),
                                         ),
-                                        if (userCount > 0) ...[
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: isDark
-                                                  ? Colors.grey.shade800
-                                                  : Colors.grey.shade200,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              '$userCount User${userCount > 1 ? 's' : ''}',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: isDark
-                                                    ? Colors.grey.shade400
-                                                    : Colors.grey.shade700,
-                                              ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isDark
+                                                ? Colors.grey.shade800
+                                                : Colors.grey.shade200,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
                                             ),
                                           ),
-                                        ],
+                                          child: Text(
+                                            '$userCount Assigned User${userCount == 1 ? '' : 's'}',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: isDark
+                                                  ? Colors.grey.shade400
+                                                  : Colors.grey.shade700,
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     Text(

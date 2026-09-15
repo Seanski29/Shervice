@@ -35,10 +35,11 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
           (v['live_risk_score'] as num?)?.toDouble() ?? 0.0;
 
       String dynamicStatus = 'Excellent';
-      if (dbStatus.toLowerCase().contains('maintenance') ||
+      if (v['needs_attention'] == true ||
+          dbStatus.toLowerCase().contains('maintenance') ||
           dbStatus.toLowerCase().contains('repair') ||
           daysRemaining <= 7.0) {
-        dynamicStatus = 'Needs Maintenance';
+        dynamicStatus = 'Needs Attention';
       } else if (daysRemaining <= 30.0) {
         dynamicStatus = 'Fair';
       } else if (daysRemaining <= 90.0) {
@@ -59,6 +60,9 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
     }).toList();
 
     tempV.sort((a, b) {
+      final attentionA = a['needs_attention'] == true ? 0 : 1;
+      final attentionB = b['needs_attention'] == true ? 0 : 1;
+      if (attentionA != attentionB) return attentionA.compareTo(attentionB);
       final pA = (a['plate_number'] ?? '').toString().toLowerCase();
       final pB = (b['plate_number'] ?? '').toString().toLowerCase();
       return _currentSort == 'Z to A' ? pB.compareTo(pA) : pA.compareTo(pB);
@@ -171,7 +175,7 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                                 'Condition: Excellent',
                                 'Condition: Good',
                                 'Condition: Fair',
-                                'Condition: Needs Maintenance',
+                                'Condition: Needs Attention',
                               ]
                               .map(
                                 (String value) => DropdownMenuItem(
@@ -244,10 +248,11 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
 
                     String statusLabel = 'Excellent';
                     Color statusColor = const Color(0xFF10B981);
-                    if (dbStatus.toLowerCase().contains('maintenance') ||
+                    if (vehicle['needs_attention'] == true ||
+                        dbStatus.toLowerCase().contains('maintenance') ||
                         dbStatus.toLowerCase().contains('repair') ||
                         daysRemaining <= 7.0) {
-                      statusLabel = 'Needs Maint.';
+                      statusLabel = 'Needs Attention';
                       statusColor = const Color(0xFFEF4444);
                     } else if (daysRemaining <= 30.0) {
                       statusLabel = 'Fair';
@@ -389,6 +394,16 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                                         ),
                                       ),
                                     ),
+                                    if (vehicle['maintenance_target_date'] !=
+                                        null)
+                                      Text(
+                                        'Target: ${vehicle['maintenance_target_date']}',
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     const Icon(
                                       Icons.chevron_right,
                                       color: Colors.grey,

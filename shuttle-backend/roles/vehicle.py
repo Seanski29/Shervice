@@ -46,7 +46,22 @@ def handle_vehicles():
             return jsonify({"success": True, "message": "Vehicle registered securely!", "data": query.data}), 201
 
         query = supabase.table('vehicle').select('*').order('plate_number').execute()
-        return jsonify({"success": True, "data": query.data}), 200
+        vehicles = query.data or []
+        logs = supabase.table('maintenance_log').select(
+            'vehicle_id, incident_date, repair_date, is_resolved'
+        ).order('repair_date', desc=True).execute().data or []
+        target_dates = {}
+        for log in logs:
+            if log.get('is_resolved') is False and log.get('vehicle_id') not in target_dates:
+                target_dates[log.get('vehicle_id')] = log.get('incident_date') or log.get('repair_date')
+        for vehicle in vehicles:
+            vehicle['needs_attention'] = (
+                not vehicle.get('is_available', True) or
+                'maintenance' in str(vehicle.get('health_status', '')).lower() or
+                'repair' in str(vehicle.get('health_status', '')).lower()
+            )
+            vehicle['maintenance_target_date'] = target_dates.get(vehicle.get('vehicle_id'))
+        return jsonify({"success": True, "data": vehicles}), 200
     except Exception as e:
         print(f"❌ Exception: {e}")
         return jsonify({"success": False, "message": str(e)}), 500

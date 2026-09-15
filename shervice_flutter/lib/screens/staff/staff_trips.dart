@@ -1009,7 +1009,7 @@ class _StaffTripsState extends State<StaffTrips> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  routeName,
+                  'TRIP-${trip['trip_id'] ?? 'N/A'} • $routeName',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

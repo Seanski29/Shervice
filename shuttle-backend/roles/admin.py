@@ -197,6 +197,7 @@ def get_admin_schedules():
             trip['client_company'] = {
                 "company_name": resolved_company
             }
+            trip['client_name'] = resolved_company
 
             t_id_str = str(trip.get('trip_id'))
             if t_id_str in trip_evals and trip_evals[t_id_str]:
@@ -328,9 +329,9 @@ def get_dashboard_metrics():
 
         # 7. Fetch Company Monthly Utilization Metrics Live
         company_monthly_metrics = []
+        selected_month = int(request.args.get('month', datetime.now().month))
+        selected_year = int(request.args.get('year', datetime.now().year))
         try:
-            selected_month = int(request.args.get('month', datetime.now().month))
-            selected_year = int(request.args.get('year', datetime.now().year))
             if selected_month < 1 or selected_month > 12:
                 raise ValueError('month must be between 1 and 12')
             
@@ -387,6 +388,81 @@ def get_dashboard_metrics():
         except Exception as table_err:
             print(f"⚠️ Monthly trips completed filter failed: {table_err}")
 
+        analytics = {
+            "timeframe": datetime(selected_year, selected_month, 1).strftime('%B %Y'),
+            "companies": [],
+            "evaluation_participation": {
+                "evaluated": 0,
+                "passengers": 0,
+                "label": "0 out of 0 passengers evaluated"
+            },
+            "top_driver": None
+        }
+        try:
+            period_trips = supabase.table('trip_schedule').select(
+                'trip_id, company_id, passenger_count, user_id'
+            ).gte('schedule_date', period_start).lt('schedule_date', period_end).execute().data or []
+            trip_ids = [trip['trip_id'] for trip in period_trips if trip.get('trip_id') is not None]
+            evaluations = supabase.table('passenger_evaluation').select(
+                'trip_id, safety_score, punctuality_score, professionalism_score'
+            ).in_('trip_id', trip_ids).execute().data if trip_ids else []
+            evaluations = evaluations or []
+
+            company_stats = {}
+            for trip in period_trips:
+                name = company_map.get(str(trip.get('company_id')), 'Unassigned Company')
+                stats = company_stats.setdefault(name, {
+                    'company_name': name,
+                    'trip_count': 0,
+                    'passengers': 0,
+                    'evaluated': 0
+                })
+                stats['trip_count'] += 1
+                stats['passengers'] += int(trip.get('passenger_count') or 0)
+                stats['evaluated'] += sum(1 for evaluation in evaluations if evaluation.get('trip_id') == trip.get('trip_id'))
+
+            for stats in company_stats.values():
+                stats['participation_rate'] = round(
+                    stats['evaluated'] / stats['passengers'] * 100, 2
+                ) if stats['passengers'] else 0
+                stats['participation_label'] = f"{stats['evaluated']} out of {stats['passengers']} passengers evaluated"
+            analytics['companies'] = sorted(company_stats.values(), key=lambda item: item['company_name'])
+            analytics['evaluation_participation'] = {
+                'evaluated': len(evaluations),
+                'passengers': sum(int(trip.get('passenger_count') or 0) for trip in period_trips),
+                'label': f"{len(evaluations)} out of {sum(int(trip.get('passenger_count') or 0) for trip in period_trips)} passengers evaluated"
+            }
+            scores_by_driver = {}
+            for trip in period_trips:
+                driver_id = trip.get('user_id')
+                if not driver_id:
+                    continue
+                for evaluation in evaluations:
+                    if evaluation.get('trip_id') != trip.get('trip_id'):
+                        continue
+                    score = sum(float(evaluation.get(field) or 0) for field in (
+                        'safety_score', 'punctuality_score', 'professionalism_score'
+                    )) / 3
+                    scores_by_driver.setdefault(driver_id, []).append(score)
+            if scores_by_driver:
+                driver_ids = list(scores_by_driver.keys())
+                driver_rows = supabase.table('driver_profile').select(
+                    'user_id, full_name'
+                ).in_('user_id', driver_ids).execute().data or []
+                names = {row.get('user_id'): row.get('full_name') for row in driver_rows}
+                leader_id, leader_scores = max(
+                    scores_by_driver.items(),
+                    key=lambda item: sum(item[1]) / len(item[1])
+                )
+                analytics['top_driver'] = {
+                    'user_id': leader_id,
+                    'full_name': names.get(leader_id, 'Unknown Driver'),
+                    'rating': round(sum(leader_scores) / len(leader_scores), 2),
+                    'evaluation_count': len(leader_scores)
+                }
+        except Exception as analytics_error:
+            print(f"⚠️ Analytics summary failed: {analytics_error}")
+
         return jsonify({
             "success": True,
             "metrics": {
@@ -404,7 +480,8 @@ def get_dashboard_metrics():
                 "Maintenance Alerts": formatted_alerts
             },
             "alerts": formatted_alerts,
-            "company_monthly_metrics": company_monthly_metrics
+            "company_monthly_metrics": company_monthly_metrics,
+            "analytics": analytics
         }), 200
     except Exception as e:
         print(f"❌ Dashboard Metrics Engine Failure: {e}")
@@ -416,15 +493,20 @@ def get_dashboard_metrics():
 def get_driver_leaderboard():
     """Fetches top drivers and calculates overall metrics specifically for a given month and year."""
     try:
-        selected_month = int(request.args.get('month', datetime.now().month))
         selected_year = int(request.args.get('year', datetime.now().year))
-        
-        period_start = datetime(selected_year, selected_month, 1).date().isoformat()
-        if selected_month == 12:
-            next_month = datetime(selected_year + 1, 1, 1)
+        period = request.args.get('period', 'month')
+        selected_month = int(request.args.get('month', datetime.now().month))
+
+        if period == 'year':
+            period_start = datetime(selected_year, 1, 1).date().isoformat()
+            period_end = datetime(selected_year + 1, 1, 1).date().isoformat()
         else:
-            next_month = datetime(selected_year, selected_month + 1, 1)
-        period_end = next_month.date().isoformat()
+            period_start = datetime(selected_year, selected_month, 1).date().isoformat()
+            if selected_month == 12:
+                next_month = datetime(selected_year + 1, 1, 1)
+            else:
+                next_month = datetime(selected_year, selected_month + 1, 1)
+            period_end = next_month.date().isoformat()
 
         evals_res = supabase.table('passenger_evaluation')\
             .select('trip_id, safety_score, punctuality_score, professionalism_score')\
@@ -663,10 +745,19 @@ def delete_system_user(user_id):
 
 @admin_bp.route('/api/companies', methods=['GET'])
 def get_client_companies():
-    """Fetch all registered client companies."""
+    """Fetch all registered client companies with assigned-user totals."""
     try:
         res = supabase.table('client_company').select('*').order('company_name', desc=False).execute()
-        return jsonify({"success": True, "data": res.data or []}), 200
+        profiles = supabase.table('oic_profile').select('company_name').execute().data or []
+        counts = {}
+        for profile in profiles:
+            name = profile.get('company_name')
+            if name:
+                counts[name] = counts.get(name, 0) + 1
+        companies = res.data or []
+        for company in companies:
+            company['user_count'] = counts.get(company.get('company_name'), 0)
+        return jsonify({"success": True, "data": companies}), 200
     except Exception as e:
         print(f"❌ Fetch Companies Error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500

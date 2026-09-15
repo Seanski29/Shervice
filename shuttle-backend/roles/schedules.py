@@ -12,6 +12,49 @@ def _create_notification(payload):
         print(f"❌ Notification Create Error: {e}")
 
 
+def _blackout_for_date(target_date):
+    try:
+        result = supabase.table('schedule_blackout').select(
+            'blackout_date, reason'
+        ).eq('blackout_date', target_date).limit(1).execute()
+        return result.data[0] if result.data else None
+    except Exception:
+        # Older deployments may not have the optional table until migration.
+        return None
+
+
+@schedules_bp.route('/api/schedules/blackouts', methods=['GET', 'POST'])
+def manage_schedule_blackouts():
+    try:
+        if request.method == 'POST':
+            data = request.get_json() or {}
+            blackout_date = data.get('blackout_date')
+            reason = str(data.get('reason') or '').strip()
+            if not blackout_date or not reason:
+                return jsonify({"success": False, "message": "Date and reason are required."}), 400
+            result = supabase.table('schedule_blackout').upsert({
+                'blackout_date': blackout_date,
+                'reason': reason
+            }, on_conflict='blackout_date').execute()
+            return jsonify({"success": True, "data": result.data or []}), 201
+
+        result = supabase.table('schedule_blackout').select(
+            'blackout_id, blackout_date, reason'
+        ).order('blackout_date').execute()
+        return jsonify({"success": True, "data": result.data or []}), 200
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
+@schedules_bp.route('/api/schedules/blackouts/<int:blackout_id>', methods=['DELETE'])
+def delete_schedule_blackout(blackout_id):
+    try:
+        supabase.table('schedule_blackout').delete().eq('blackout_id', blackout_id).execute()
+        return jsonify({"success": True}), 200
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
 @schedules_bp.route('/api/schedules/request', methods=['POST'])
 def create_trip_request():
     try:
@@ -39,6 +82,13 @@ def create_trip_request():
         company_name = oic_lookup.data[0].get('company_name')
         final_route = data.get('destination', 'Unspecified Route')
         final_date = data.get('departure_date')
+
+        blackout = _blackout_for_date(final_date)
+        if blackout:
+            return jsonify({
+                "success": False,
+                "message": f"Trip requests are blocked on {final_date}: {blackout.get('reason', 'GT LANTIN unavailable.')}"
+            }), 409
 
         response = (
             supabase.table('trip_schedule')
@@ -79,7 +129,8 @@ def _sweep_expired_trips():
         
         # 1. Mark unassigned or unstarted trips older than today as Expired
         supabase.table('trip_schedule').update({
-            "trip_status": "Expired"
+            "trip_status": "Expired",
+            "expiry_reason": "No driver or vehicle assignment before the scheduled date."
         }).lt('schedule_date', today_str).in_(
             'trip_status', ['Pending Staff Assignment', 'Scheduled']
         ).execute()
@@ -153,6 +204,16 @@ def get_dispatch_options():
         if not target_date:
             return jsonify({"success": True, "vehicles": all_vehicles.data, "drivers": active_drivers}), 200
 
+        blackout = _blackout_for_date(target_date)
+        if blackout:
+            return jsonify({
+                "success": True,
+                "vehicles": [],
+                "drivers": [],
+                "blocked": True,
+                "block_reason": blackout.get('reason', 'GT LANTIN unavailable.')
+            }), 200
+
         busy_query = (
             supabase.table('trip_schedule')
             .select('vehicle_id, user_id')
@@ -167,7 +228,16 @@ def get_dispatch_options():
         available_vehicles = [v for v in all_vehicles.data if v['vehicle_id'] not in busy_vehicle_ids]
         available_drivers = [d for d in active_drivers if d['user_id'] not in busy_driver_uuids]
 
-        return jsonify({"success": True, "vehicles": available_vehicles, "drivers": available_drivers}), 200
+        return jsonify({
+            "success": True,
+            "vehicles": available_vehicles,
+            "drivers": available_drivers,
+            "blocked": False,
+            "availability_message": {
+                "drivers": "No driver available for this date." if not available_drivers else None,
+                "vehicles": "No vehicle available for this date." if not available_vehicles else None
+            }
+        }), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -351,8 +421,15 @@ def reject_trip_request():
     try:
         data = request.get_json() or {}
         trip_id = data.get('trip_id')
+        rejection_reason = str(data.get('rejection_reason') or '').strip()
 
-        supabase.table('trip_schedule').update({"trip_status": "Rejected"}).eq('trip_id', trip_id).execute()
+        if not rejection_reason:
+            return jsonify({"success": False, "message": "A reason is required when rejecting a trip request."}), 400
+
+        supabase.table('trip_schedule').update({
+            "trip_status": "Rejected",
+            "rejection_reason": rejection_reason
+        }).eq('trip_id', trip_id).execute()
 
         trip_info = supabase.table('trip_schedule').select('route_name, oic_id').eq('trip_id', trip_id).execute()
         if trip_info.data:
@@ -363,7 +440,7 @@ def reject_trip_request():
             if oic_profile.data:
                 _create_notification({
                     "title": "Trip Request Rejected",
-                    "message": f"Your request for {route_name} was rejected by dispatch staff. Please edit and resubmit.",
+                    "message": f"Your request for {route_name} was rejected: {rejection_reason}. Please edit and resubmit.",
                     "target_user_id": oic_profile.data[0].get('user_id'),
                     "target_role": "oic",
                     "target_company": oic_profile.data[0].get('company_name'),
@@ -381,10 +458,43 @@ def assign_trip_assets():
         data = request.get_json() or {}
         trip_id = data.get('trip_id')
         driver_uuid = data.get('driver_uuid')
-        
+
+        trip_result = supabase.table('trip_schedule').select(
+            'schedule_date, trip_status'
+        ).eq('trip_id', trip_id).limit(1).execute()
+        if not trip_result.data:
+            return jsonify({"success": False, "message": "Trip not found."}), 404
+        trip = trip_result.data[0]
+        target_date = trip.get('schedule_date')
+
+        blackout = _blackout_for_date(target_date)
+        if blackout:
+            return jsonify({"success": False, "message": f"Assignment blocked: {blackout.get('reason', 'GT LANTIN unavailable.')}"}), 409
+
+        vehicle_id = data.get('vehicle_id')
+        vehicle_result = supabase.table('vehicle').select('vehicle_id, is_available').eq(
+            'vehicle_id', vehicle_id
+        ).limit(1).execute()
+        if not vehicle_result.data or not vehicle_result.data[0].get('is_available', False):
+            return jsonify({"success": False, "message": "No vehicle available for this assignment."}), 409
+
+        driver_result = supabase.table('driver_profile').select(
+            'user_id, employment_status'
+        ).eq('user_id', driver_uuid).limit(1).execute()
+        if not driver_result.data or str(driver_result.data[0].get('employment_status', '')).lower() != 'active':
+            return jsonify({"success": False, "message": "No driver available for this assignment."}), 409
+
+        conflicts = supabase.table('trip_schedule').select('trip_id').eq(
+            'schedule_date', target_date
+        ).in_('trip_status', ['Scheduled', 'In Progress', 'Ongoing']).or_(
+            f'user_id.eq.{driver_uuid},vehicle_id.eq.{vehicle_id}'
+        ).neq('trip_id', trip_id).execute()
+        if conflicts.data:
+            return jsonify({"success": False, "message": "The selected driver or vehicle is already assigned on this date."}), 409
+
         supabase.table('trip_schedule').update({
             "user_id": driver_uuid,  
-            "vehicle_id": data.get('vehicle_id'), 
+            "vehicle_id": vehicle_id,
             "trip_status": "Scheduled"
         }).eq('trip_id', trip_id).execute()
 

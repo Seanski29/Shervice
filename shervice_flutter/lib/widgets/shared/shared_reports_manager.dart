@@ -50,6 +50,30 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
     'note',
   ];
 
+  final Map<String, List<String>> _reportColumns = const {
+    'Trips': [
+      'client_name',
+      'company_id',
+      'departure_time',
+      'trip_id',
+      'route_name',
+      'schedule_date',
+      'trip_status',
+      'driver_name',
+      'plate_number',
+    ],
+    'Maintenance': [
+      'vehicle_id',
+      'plate_number',
+      'target_date',
+      'incident_date',
+      'repair_date',
+      'description',
+      'is_resolved',
+      'status',
+    ],
+  };
+
   List<String> _columns = [];
   List<Map<String, String>> _rows = [];
 
@@ -213,15 +237,16 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
 
       final columns = _selectedReportType == 'Timecard'
           ? _timecardColumns
-          : (normalized.isNotEmpty
-                ? _buildColumns(normalized.first.keys.toList())
-                : ['report_type', 'status', 'generated_at']);
+          : (_reportColumns[_selectedReportType] ??
+                (normalized.isNotEmpty
+                    ? _buildColumns(normalized.first.keys.toList())
+                    : const ['status']));
 
       if (!mounted) return;
       setState(() {
         _sourceFileName = 'System $_selectedReportType records';
         _columns = columns;
-        _rows = normalized.isNotEmpty ? normalized : _getEmptyRow();
+        _rows = normalized;
       });
     } catch (error) {
       _setEmptyState();
@@ -234,19 +259,11 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
     if (!mounted) return;
     setState(() {
       _sourceFileName = 'System data unavailable';
-      _columns = ['report_type', 'status', 'generated_at'];
-      _rows = _getEmptyRow();
+      _columns = _selectedReportType == 'Timecard'
+          ? _timecardColumns
+          : (_reportColumns[_selectedReportType] ?? const ['status']);
+      _rows = [];
     });
-  }
-
-  List<Map<String, String>> _getEmptyRow() {
-    return [
-      {
-        'report_type': _selectedReportType,
-        'status': 'No records found',
-        'generated_at': DateTime.now().toIso8601String(),
-      },
-    ];
   }
 
   List<Map<String, String>> _normalizeSystemRows(List<dynamic> rawList) {
@@ -286,7 +303,37 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
           continue;
         }
 
+        if (key == 'client_company' && value is Map) {
+          flat['client_name'] = _normalizeCellValue(value['company_name']);
+          continue;
+        }
+
+        if (key == 'client_company') {
+          flat['client_name'] = _normalizeCellValue(value);
+          continue;
+        }
+
         flat[key] = _normalizeCellValue(value);
+      }
+      if (_selectedReportType == 'Trips') {
+        flat['client_name'] =
+            flat['client_name'] ??
+            flat['company_name'] ??
+            flat['client'] ??
+            'Unassigned Client';
+        flat['company_id'] = flat['company_id'] ?? 'N/A';
+        flat['departure_time'] = flat['departure_time'] ?? '--:--';
+        flat['trip_id'] = flat['trip_id'] ?? 'N/A';
+        flat['status'] = _normalizeCellValue(
+          flat['trip_status'] ?? flat['status'] ?? 'Scheduled',
+        );
+      } else if (_selectedReportType == 'Maintenance') {
+        flat['status'] = _normalizeCellValue(
+          flat['status'] ??
+              (flat['is_resolved']?.toLowerCase() == 'true'
+                  ? 'Resolved'
+                  : 'Needs Attention'),
+        );
       }
       if (flat.isNotEmpty) normalized.add(flat);
     }
@@ -488,9 +535,7 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
 
   Future<void> _showExportDialog() async {
     final activeRows = _processedRows;
-    if (activeRows.isEmpty ||
-        (activeRows.length == 1 &&
-            activeRows.first['status'] == 'No records found')) {
+    if (activeRows.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No data available to export.')),
       );
@@ -537,7 +582,7 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
     final filteredRows = _processedRows;
     final exportColumns = _selectedReportType == 'Timecard'
         ? _timecardColumns
-        : _columns;
+        : (_reportColumns[_selectedReportType] ?? _columns);
 
     String baseName;
     if (_sourceFileName != 'No file selected' &&
@@ -1010,18 +1055,50 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
                                                   col,
                                                   row[col] ?? '',
                                                 );
+                                            final isStatus =
+                                                col == 'status' ||
+                                                col == 'trip_status';
+                                            final statusColor = _statusColor(
+                                              displayValue,
+                                              isDark,
+                                            );
                                             return DataCell(
-                                              ConstrainedBox(
-                                                constraints:
-                                                    const BoxConstraints(
-                                                      minWidth: 80,
-                                                      maxWidth: 200,
-                                                    ),
-                                                child: Text(
-                                                  displayValue,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  maxLines: 2,
+                                              Container(
+                                                padding: isStatus
+                                                    ? const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      )
+                                                    : EdgeInsets.zero,
+                                                decoration: isStatus
+                                                    ? BoxDecoration(
+                                                        color: statusColor
+                                                            .withOpacity(0.12),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              6,
+                                                            ),
+                                                      )
+                                                    : null,
+                                                child: ConstrainedBox(
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                        minWidth: 80,
+                                                        maxWidth: 200,
+                                                      ),
+                                                  child: Text(
+                                                    displayValue,
+                                                    style: isStatus
+                                                        ? TextStyle(
+                                                            color: statusColor,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                          )
+                                                        : null,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    maxLines: 2,
+                                                  ),
                                                 ),
                                               ),
                                             );
@@ -1263,6 +1340,25 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
           return lowerWord[0].toUpperCase() + lowerWord.substring(1);
         })
         .join(' ');
+  }
+
+  Color _statusColor(String status, bool isDark) {
+    final normalized = status.toLowerCase();
+    if (normalized.contains('completed') ||
+        normalized.contains('resolved') ||
+        normalized.contains('scheduled')) {
+      return const Color(0xFF10B981);
+    }
+    if (normalized.contains('rejected') ||
+        normalized.contains('expired') ||
+        normalized.contains('attention') ||
+        normalized.contains('maintenance')) {
+      return const Color(0xFFEF4444);
+    }
+    if (normalized.contains('ongoing') || normalized.contains('progress')) {
+      return const Color(0xFF3B82F6);
+    }
+    return isDark ? Colors.grey.shade300 : const Color(0xFF64748B);
   }
 
   String _normalizeCellValue(dynamic value) {

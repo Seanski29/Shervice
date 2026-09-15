@@ -1,5 +1,7 @@
 import 'dart:math';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 // Note: Adjust the import depth to target your widgets folder accurately!
 import '../../../../widgets/driver/driver_evaluation_view.dart';
 
@@ -25,6 +27,56 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
   String _currentSort = 'A to Z';
   int _currentPage = 0;
   final int _itemsPerPage = 6;
+  int _selectedMonth = DateTime.now().month;
+  int _selectedYear = DateTime.now().year;
+  bool _wholeYear = false;
+  List<dynamic> _leaderboard = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLeaderboard();
+  }
+
+  Future<void> _fetchLeaderboard() async {
+    try {
+      final query = _wholeYear
+          ? 'year=$_selectedYear&period=year'
+          : 'month=$_selectedMonth&year=$_selectedYear';
+      final response = await http.get(
+        Uri.parse('${widget.backendUrl}/dashboard/driver-leaderboard?$query'),
+      );
+      if (response.statusCode == 200 && mounted) {
+        final data = jsonDecode(response.body);
+        setState(() => _leaderboard = data['top_drivers'] ?? []);
+      }
+    } catch (_) {}
+  }
+
+  dynamic _leaderboardFor(String userId) {
+    for (final entry in _leaderboard) {
+      if (entry['user_id']?.toString() == userId) return entry;
+    }
+    return null;
+  }
+
+  String _monthName(int month) {
+    const names = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return names[month - 1];
+  }
 
   List<dynamic> get _processedDrivers {
     List<dynamic> tempD = widget.drivers.where((d) {
@@ -80,6 +132,46 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
           runSpacing: 12,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            DropdownButton<int>(
+              value: _selectedMonth,
+              items: List.generate(
+                12,
+                (index) => DropdownMenuItem(
+                  value: index + 1,
+                  child: Text(_monthName(index + 1)),
+                ),
+              ),
+              onChanged: _wholeYear
+                  ? null
+                  : (value) {
+                      if (value == null) return;
+                      setState(() => _selectedMonth = value);
+                      _fetchLeaderboard();
+                    },
+            ),
+            DropdownButton<int>(
+              value: _selectedYear,
+              items: List.generate(
+                5,
+                (index) => DropdownMenuItem(
+                  value: DateTime.now().year - index,
+                  child: Text('${DateTime.now().year - index}'),
+                ),
+              ),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedYear = value);
+                _fetchLeaderboard();
+              },
+            ),
+            FilterChip(
+              label: const Text('Whole year'),
+              selected: _wholeYear,
+              onSelected: (selected) {
+                setState(() => _wholeYear = selected);
+                _fetchLeaderboard();
+              },
+            ),
             ConstrainedBox(
               constraints: BoxConstraints(
                 maxWidth: isMobile ? double.infinity : 350,
@@ -238,6 +330,13 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
                     }
                     final String driverId =
                         (driver['user_id'] ?? driver['id'] ?? '').toString();
+                    final leaderboardEntry = _leaderboardFor(driverId);
+                    final evaluationCount =
+                        leaderboardEntry?['eval_count'] ??
+                        leaderboardEntry?['evaluation_count'] ??
+                        driver['evaluation_count'] ??
+                        driver['eval_count'] ??
+                        0;
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -346,6 +445,13 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,
                                                 color: textColor,
+                                              ),
+                                            ),
+                                            Text(
+                                              '$evaluationCount evaluations',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey.shade500,
                                               ),
                                             ),
                                           ],
