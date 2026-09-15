@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:skeletonizer/skeletonizer.dart';
 import '../driver/driver_profile_model.dart';
 import '../../constant.dart';
 import '../driver/driver_rating_badge.dart';
@@ -38,7 +37,7 @@ class SharedDriversViewState extends State<SharedDriversView> {
   String _searchQuery = '';
   String _currentSort = 'A to Z';
   String _selectedStatusFilter = 'All';
-  
+
   final List<String> _sortOptions = [
     'A to Z',
     'Z to A',
@@ -101,8 +100,10 @@ class SharedDriversViewState extends State<SharedDriversView> {
   void _applyFiltersAndSort() {
     List<DriverProfileModel> temp = _allDrivers.where((driver) {
       // 1. Search Query Match
-      final matchesSearch = driver.name.toLowerCase().contains(_searchQuery.toLowerCase());
-      
+      final matchesSearch = driver.name.toLowerCase().contains(
+        _searchQuery.toLowerCase(),
+      );
+
       // 2. Status Card Match
       bool matchesStatus = true;
       if (_selectedStatusFilter == 'Active') {
@@ -424,15 +425,15 @@ class SharedDriversViewState extends State<SharedDriversView> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected 
-                  ? statColor.withValues(alpha: 0.1) 
+              color: isSelected
+                  ? statColor.withValues(alpha: 0.1)
                   : (isDark ? const Color(0xFF1E293B) : Colors.white),
               borderRadius: BorderRadius.circular(40),
               border: Border.all(
-                color: isSelected 
-                    ? statColor 
+                color: isSelected
+                    ? statColor
                     : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                width: isSelected ? 2.0 : 1.0, 
+                width: isSelected ? 2.0 : 1.0,
               ),
             ),
             child: Row(

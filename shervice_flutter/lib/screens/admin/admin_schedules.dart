@@ -239,7 +239,15 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   void _showTripDetails(Map<String, dynamic> trip) {
     final userAccount = trip['user_account'] as Map<String, dynamic>?;
     final vehicle = trip['vehicle'] as Map<String, dynamic>?;
-    final oicProfile = trip['oic_profile'] as Map<String, dynamic>?;
+    
+    // Type-safe dynamic fallback for the company value
+    final dynamic rawCompany = trip['client_company'] ?? trip['oic_profile'];
+    String company = 'Unassigned Company';
+    if (rawCompany is String) {
+      company = rawCompany;
+    } else if (rawCompany is Map) {
+      company = rawCompany['company_name']?.toString() ?? 'Unassigned Company';
+    }
 
     final String driver = userAccount != null
         ? (userAccount['full_name'] ?? 'Not Assigned')
@@ -253,9 +261,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     final String type = vehicle != null
         ? (vehicle['bus_type'] ?? 'Standard')
         : 'Standard';
-    final String company = oicProfile != null
-        ? (oicProfile['company_name'] ?? 'GT LANTIN')
-        : 'GT LANTIN';
+        
     final String route = trip['route_name'] ?? 'Unassigned Route';
     final String status = trip['trip_status'] ?? 'Scheduled';
     final String date = trip['schedule_date'] ?? 'TBD';
@@ -961,7 +967,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                 'plate_number': 'SKL 123',
                 'bus_type': 'Skeleton Type',
               },
-              'oic_profile': {'company_name': 'Skeleton Company Name'},
+              'client_company': {'company_name': 'Skeleton Company Name'},
             },
           )
         : (() {
@@ -1117,7 +1123,15 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   ) {
     final userAccount = trip['user_account'] as Map<String, dynamic>?;
     final vehicle = trip['vehicle'] as Map<String, dynamic>?;
-    final oicProfile = trip['oic_profile'] as Map<String, dynamic>?;
+
+    // Type-safe dynamic fallback for the company value
+    final dynamic rawCompany = trip['client_company'] ?? trip['oic_profile'];
+    String company = 'Unassigned Company';
+    if (rawCompany is String) {
+      company = rawCompany;
+    } else if (rawCompany is Map) {
+      company = rawCompany['company_name']?.toString() ?? 'Unassigned Company';
+    }
 
     final String driver = userAccount != null
         ? (userAccount['full_name'] ?? 'No Assigned Driver')
@@ -1128,9 +1142,6 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     final String type = vehicle != null
         ? (vehicle['bus_type'] ?? 'Standard Shuttle')
         : 'Standard Shuttle';
-    final String company = oicProfile != null
-        ? (oicProfile['company_name'] ?? 'GT LANTIN')
-        : 'GT LANTIN';
 
     final String dateStr = trip['schedule_date'] ?? '';
     final String timeStr = trip['departure_time'] ?? 'TBD';

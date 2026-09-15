@@ -82,19 +82,6 @@ class _StaffTripsState extends State<StaffTrips> {
     }
   }
 
-  String _formatTimestamp(dynamic timestamp) {
-    if (timestamp == null || timestamp.toString().trim().isEmpty)
-      return '--:--';
-    try {
-      final dt = DateTime.parse(timestamp.toString()).toLocal();
-      final hour = dt.hour.toString().padLeft(2, '0');
-      final minute = dt.minute.toString().padLeft(2, '0');
-      return '$hour:$minute';
-    } catch (_) {
-      return '--:--';
-    }
-  }
-
   List<dynamic> get _filteredAndSortedTrips {
     List<dynamic> filtered = _trips.where((trip) {
       if (_filterDate != null) {

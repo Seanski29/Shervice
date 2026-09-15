@@ -23,12 +23,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _showPassword = false;
   bool _isDarkMode = false;
   bool _isThemeLoaded = false;
-  
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   // ValueNotifier drastically improves performance by avoiding full widget rebuilds on hover
-  final ValueNotifier<Alignment> _mouseAlignment = ValueNotifier(Alignment.center);
+  final ValueNotifier<Alignment> _mouseAlignment = ValueNotifier(
+    Alignment.center,
+  );
 
   @override
   void initState() {
@@ -86,65 +88,117 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response.statusCode == 200 && responseData['success'] == true) {
         final userData = responseData['data'];
-        final String role = userData['role'];
+        final String rawRole = (userData['role'] ?? '').toString();
+        final String role = rawRole.trim().toLowerCase();
 
         if (role == 'admin') {
-          final String realAdminId = (userData['user_id'] ?? userData['id'] ?? '').toString();
-          final String adminDisplayName = (userData['name'] ?? userData['full_name'] ?? 'Admin').toString();
+          final String realAdminId =
+              (userData['user_id'] ?? userData['id'] ?? '').toString();
+          final String adminDisplayName =
+              (userData['name'] ?? userData['full_name'] ?? 'Admin').toString();
 
           await SessionManager.saveUserSession(
-            'admin', realAdminId, adminDisplayName, 'GT LANTIN',
+            'admin',
+            realAdminId,
+            adminDisplayName,
+            'GT LANTIN',
           );
 
           if (mounted) {
-            navigator.pushReplacement(MaterialPageRoute(
-              builder: (context) => AdminLayout(adminId: realAdminId, adminName: adminDisplayName),
-            ));
+            navigator.pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => AdminLayout(
+                  adminId: realAdminId,
+                  adminName: adminDisplayName,
+                ),
+              ),
+            );
           }
         } else if (role == 'oic') {
-          final String realUserId = (userData['user_id'] ?? userData['id'] ?? '').toString();
-          final String oicDisplayName = (userData['name'] ?? userData['full_name'] ?? 'OIC').toString();
-          final String oicCompany = (userData['company'] ?? 'Internal').toString();
+          final String realUserId =
+              (userData['user_id'] ?? userData['id'] ?? '').toString();
+          final String oicDisplayName =
+              (userData['name'] ?? userData['full_name'] ?? 'OIC').toString();
+          final String oicCompany = (userData['company'] ?? 'Internal')
+              .toString();
 
           await SessionManager.saveUserSession(
-            'oic', realUserId, oicDisplayName, oicCompany,
+            'oic',
+            realUserId,
+            oicDisplayName,
+            oicCompany,
           );
 
           if (mounted) {
-            navigator.pushReplacement(MaterialPageRoute(
-              builder: (context) => OicLayout(oicId: realUserId, oicName: oicDisplayName, companyName: oicCompany),
-            ));
+            navigator.pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => OicLayout(
+                  oicId: realUserId,
+                  oicName: oicDisplayName,
+                  companyName: oicCompany,
+                ),
+              ),
+            );
           }
         } else if (role == 'staff') {
-          final String realUserId = (userData['user_id'] ?? userData['id'] ?? '').toString();
-          final String staffDisplayName = (userData['name'] ?? userData['full_name'] ?? 'Staff Member').toString();
-          final String staffCompany = (userData['company'] ?? 'Internal').toString();
+          final String realUserId =
+              (userData['user_id'] ?? userData['id'] ?? '').toString();
+          final String staffDisplayName =
+              (userData['name'] ?? userData['full_name'] ?? 'Staff Member')
+                  .toString();
+          final String staffCompany = (userData['company'] ?? 'Internal')
+              .toString();
 
           await SessionManager.saveUserSession(
-            'staff', realUserId, staffDisplayName, staffCompany,
+            'staff',
+            realUserId,
+            staffDisplayName,
+            staffCompany,
           );
 
           if (mounted) {
-            navigator.pushReplacement(MaterialPageRoute(
-              builder: (context) => StaffLayout(staffId: realUserId, staffName: staffDisplayName, companyName: staffCompany),
-            ));
+            navigator.pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => StaffLayout(
+                  staffId: realUserId,
+                  staffName: staffDisplayName,
+                  companyName: staffCompany,
+                ),
+              ),
+            );
           }
         } else if (role == 'driver') {
-          final String realUserId = (userData['user_id'] ?? userData['id'] ?? '').toString();
-          final String driverDisplayName = (userData['name'] ?? userData['full_name'] ?? 'Driver').toString();
-          final String driverCompany = (userData['company'] ?? 'Internal').toString();
+          final String realUserId =
+              (userData['user_id'] ?? userData['id'] ?? '').toString();
+          final String driverDisplayName =
+              (userData['name'] ?? userData['full_name'] ?? 'Driver')
+                  .toString();
+          final String driverCompany = (userData['company'] ?? 'Internal')
+              .toString();
 
           await SessionManager.saveUserSession(
-            'driver', realUserId, driverDisplayName, driverCompany,
+            'driver',
+            realUserId,
+            driverDisplayName,
+            driverCompany,
           );
 
           if (mounted) {
-            navigator.pushReplacement(MaterialPageRoute(
-              builder: (context) => DriverLayout(driverId: realUserId, driverName: driverDisplayName, companyName: driverCompany),
-            ));
+            navigator.pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => DriverLayout(
+                  driverId: realUserId,
+                  driverName: driverDisplayName,
+                  companyName: driverCompany,
+                ),
+              ),
+            );
           }
         } else {
-          _showSnackBar('Unrecognized user role assigned.', Colors.red.shade600);
+          _showSnackBar(
+            'Unrecognized user role assigned.',
+            Colors.red.shade600,
+          );
         }
       } else {
         final errorMsg = responseData['message'] ?? 'Authentication failed.';
@@ -152,7 +206,10 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted && !isLoadingDismissed) navigator.pop();
-      _showSnackBar('Unable to connect to the backend server.', Colors.red.shade600);
+      _showSnackBar(
+        'Unable to connect to the backend server.',
+        Colors.red.shade600,
+      );
       debugPrint("❌ Login execution fault logged: $e");
     }
   }
@@ -178,30 +235,43 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isThemeLoaded) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (!_isThemeLoaded)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     final size = MediaQuery.of(context).size;
 
     final lightTheme = ThemeData(
       brightness: Brightness.light,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB), brightness: Brightness.light),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF2563EB),
+        brightness: Brightness.light,
+      ),
       scaffoldBackgroundColor: const Color(0xFFF8FAFC),
       useMaterial3: true,
     );
 
     final darkTheme = ThemeData(
       brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3B82F6), brightness: Brightness.dark),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF3B82F6),
+        brightness: Brightness.dark,
+      ),
       scaffoldBackgroundColor: const Color(0xFF0F172A),
       useMaterial3: true,
     );
 
     final currentTheme = _isDarkMode ? darkTheme : lightTheme;
     final textColor = _isDarkMode ? Colors.white : const Color(0xFF0F172A);
-    final subtitleColor = _isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600;
-    
-    final cardBgColor = _isDarkMode ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.85);
-    final cardBorderColor = _isDarkMode ? Colors.white.withOpacity(0.1) : Colors.blue.shade100;
+    final subtitleColor = _isDarkMode
+        ? Colors.grey.shade400
+        : Colors.grey.shade600;
+
+    final cardBgColor = _isDarkMode
+        ? Colors.white.withOpacity(0.05)
+        : Colors.white.withOpacity(0.85);
+    final cardBorderColor = _isDarkMode
+        ? Colors.white.withOpacity(0.1)
+        : Colors.blue.shade100;
 
     return Theme(
       data: currentTheme,
@@ -225,14 +295,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         radius: 1.5,
                         colors: _isDarkMode
                             ? [
-                                Colors.white.withOpacity(0.15), // Distinct white glow
+                                Colors.white.withOpacity(
+                                  0.15,
+                                ), // Distinct white glow
                                 const Color(0xFF1E293B),
                                 const Color(0xFF020617), // Darker edge
                               ]
                             : [
                                 Colors.white, // Bright white center
                                 const Color(0xFFDBEAFE),
-                                const Color(0xFF60A5FA), // Darker blue edge for obvious contrast
+                                const Color(
+                                  0xFF60A5FA,
+                                ), // Darker blue edge for obvious contrast
                               ],
                         stops: const [0.0, 0.35, 1.0],
                       ),
@@ -250,7 +324,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.blue.withOpacity(_isDarkMode ? 0.1 : 0.05),
-                    backgroundBlendMode: _isDarkMode ? BlendMode.screen : BlendMode.multiply,
+                    backgroundBlendMode: _isDarkMode
+                        ? BlendMode.screen
+                        : BlendMode.multiply,
                   ),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
@@ -269,14 +345,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                       child: Container(
                         constraints: const BoxConstraints(maxWidth: 420),
-                        padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 48.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 40.0,
+                          vertical: 48.0,
+                        ),
                         decoration: BoxDecoration(
                           color: cardBgColor,
                           borderRadius: BorderRadius.circular(32),
                           border: Border.all(color: cardBorderColor),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(_isDarkMode ? 0.4 : 0.05),
+                              color: Colors.black.withOpacity(
+                                _isDarkMode ? 0.4 : 0.05,
+                              ),
                               blurRadius: 30,
                               offset: const Offset(0, 10),
                             ),
@@ -288,14 +369,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             Container(
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: _isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+                                color: _isDarkMode
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.white,
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.blue.withOpacity(0.2),
                                     blurRadius: 20,
                                     spreadRadius: 2,
-                                  )
+                                  ),
                                 ],
                               ),
                               child: ClipOval(
@@ -304,8 +387,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   width: 100,
                                   height: 100,
                                   fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) => 
-                                      Icon(Icons.business, size: 50, color: Colors.blue.shade400),
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Icon(
+                                        Icons.business,
+                                        size: 50,
+                                        color: Colors.blue.shade400,
+                                      ),
                                 ),
                               ),
                             ),
@@ -314,13 +401,24 @@ class _LoginScreenState extends State<LoginScreen> {
                               './assets/shervice.jpg',
                               height: 60,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) => 
-                                  Text("SHERVICE", style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textColor, letterSpacing: 2)),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Text(
+                                    "SHERVICE",
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900,
+                                      color: textColor,
+                                      letterSpacing: 2,
+                                    ),
+                                  ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               "Welcome back. Sign in to continue.",
-                              style: TextStyle(color: subtitleColor, fontSize: 14),
+                              style: TextStyle(
+                                color: subtitleColor,
+                                fontSize: 14,
+                              ),
                             ),
                             const SizedBox(height: 40),
 
@@ -356,14 +454,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 child: const Text(
                                   "Log In",
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 24),
                             Text(
                               "GT LANTIN SHUTTLE SERVICES",
-                              style: TextStyle(fontSize: 11, color: subtitleColor, fontWeight: FontWeight.bold, letterSpacing: 1),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: subtitleColor,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
                             ),
                           ],
                         ),
@@ -383,7 +490,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+                      color: _isDarkMode
+                          ? const Color(0xFF1E293B)
+                          : Colors.white,
                       shape: BoxShape.circle,
                       border: Border.all(color: cardBorderColor),
                       boxShadow: [
@@ -391,13 +500,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
-                        )
-                      ]
+                        ),
+                      ],
                     ),
                     child: Icon(
-                      _isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                      _isDarkMode
+                          ? Icons.dark_mode_rounded
+                          : Icons.light_mode_rounded,
                       size: 18,
-                      color: _isDarkMode ? Colors.blue.shade300 : Colors.orange.shade400,
+                      color: _isDarkMode
+                          ? Colors.blue.shade300
+                          : Colors.orange.shade400,
                     ),
                   ),
                 ),
@@ -416,18 +529,31 @@ class _LoginScreenState extends State<LoginScreen> {
     required bool isDarkMode,
     bool isPassword = false,
   }) {
-    final inputFillColor = isDarkMode ? const Color(0xFF0F172A).withOpacity(0.5) : Colors.grey.shade50.withOpacity(0.5);
-    final borderColor = isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300;
+    final inputFillColor = isDarkMode
+        ? const Color(0xFF0F172A).withOpacity(0.5)
+        : Colors.grey.shade50.withOpacity(0.5);
+    final borderColor = isDarkMode
+        ? Colors.grey.shade700
+        : Colors.grey.shade300;
 
     return TextField(
       controller: controller,
       obscureText: isPassword && !_showPassword,
-      keyboardType: isPassword ? TextInputType.text : TextInputType.emailAddress,
+      keyboardType: isPassword
+          ? TextInputType.text
+          : TextInputType.emailAddress,
       style: TextStyle(color: isDarkMode ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 14),
-        prefixIcon: Icon(icon, size: 20, color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
+        labelStyle: TextStyle(
+          color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+          fontSize: 14,
+        ),
+        prefixIcon: Icon(
+          icon,
+          size: 20,
+          color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+        ),
         filled: true,
         fillColor: inputFillColor,
         border: OutlineInputBorder(
@@ -447,7 +573,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: Icon(
                   _showPassword ? Icons.visibility : Icons.visibility_off,
                   size: 20,
-                  color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                  color: isDarkMode
+                      ? Colors.grey.shade400
+                      : Colors.grey.shade600,
                 ),
                 onPressed: () => setState(() => _showPassword = !_showPassword),
               )

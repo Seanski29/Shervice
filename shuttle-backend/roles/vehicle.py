@@ -1,4 +1,3 @@
-import os
 from flask import Blueprint, request, jsonify
 
 # Create the Blueprint for vehicle routes

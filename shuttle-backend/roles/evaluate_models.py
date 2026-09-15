@@ -3,7 +3,6 @@ from datetime import datetime
 from dotenv import load_dotenv
 import numpy as np
 from sklearn.cluster import KMeans
-from sklearn.linear_model import Ridge
 from sklearn.metrics import (
     accuracy_score,
     classification_report,

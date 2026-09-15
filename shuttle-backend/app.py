@@ -1,5 +1,5 @@
 import os
-from flask import Flask, make_response, request
+from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client, Client

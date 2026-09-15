@@ -72,8 +72,6 @@ def create_trip_request():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-from datetime import datetime
-
 def _sweep_expired_trips():
     """Automatically sweeps the database for missed schedules and finishes abandoned ongoing trips."""
     try:

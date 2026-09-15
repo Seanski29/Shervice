@@ -139,7 +139,8 @@ class _AdminUsersState extends State<AdminUsers> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444)),
+              backgroundColor: const Color(0xFFEF4444),
+            ),
             onPressed: () async {
               Navigator.pop(context);
               setState(() => _isLoading = true);
@@ -223,8 +224,9 @@ class _AdminUsersState extends State<AdminUsers> {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           ConstrainedBox(
-            constraints:
-                BoxConstraints(maxWidth: isMobile ? double.infinity : 280),
+            constraints: BoxConstraints(
+              maxWidth: isMobile ? double.infinity : 280,
+            ),
             child: SizedBox(
               height: 42,
               child: TextField(
@@ -238,40 +240,52 @@ class _AdminUsersState extends State<AdminUsers> {
                 ),
                 decoration: InputDecoration(
                   hintText: 'Search system accounts...',
-                  hintStyle:
-                      TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                  prefixIcon: const Icon(Icons.search,
-                      size: 18, color: Color(0xFF64748B)),
+                  hintStyle: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade500,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    size: 18,
+                    color: Color(0xFF64748B),
+                  ),
                   filled: true,
                   fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 0,
+                    horizontal: 12,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(
-                        color: isDark
-                            ? Colors.grey.shade800
-                            : Colors.grey.shade300),
+                      color: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade300,
+                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(
-                        color: isDark
-                            ? Colors.grey.shade800
-                            : Colors.grey.shade300),
+                      color: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade300,
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(
-                        color: Color(0xFF3B82F6), width: 1.5),
+                      color: Color(0xFF3B82F6),
+                      width: 1.5,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
           ConstrainedBox(
-            constraints:
-                BoxConstraints(maxWidth: isMobile ? double.infinity : 160),
+            constraints: BoxConstraints(
+              maxWidth: isMobile ? double.infinity : 160,
+            ),
             child: SizedBox(
               height: 42,
               child: Container(
@@ -279,8 +293,8 @@ class _AdminUsersState extends State<AdminUsers> {
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
                   border: Border.all(
-                      color:
-                          isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -288,18 +302,23 @@ class _AdminUsersState extends State<AdminUsers> {
                     isExpanded: true,
                     value: _currentSort,
                     dropdownColor: Theme.of(context).cardColor,
-                    icon: const Icon(Icons.sort,
-                        size: 18, color: Color(0xFF64748B)),
+                    icon: const Icon(
+                      Icons.sort,
+                      size: 18,
+                      color: Color(0xFF64748B),
+                    ),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                     items: _sortOptions
-                        .map((String value) => DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            ))
+                        .map(
+                          (String value) => DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          ),
+                        )
                         .toList(),
                     onChanged: (newValue) {
                       if (newValue != null) {
@@ -324,10 +343,14 @@ class _AdminUsersState extends State<AdminUsers> {
                 padding: EdgeInsets.zero,
                 side: const BorderSide(color: Color(0xFF3B82F6), width: 1.2),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-              child:
-                  const Icon(Icons.refresh, color: Color(0xFF3B82F6), size: 20),
+              child: const Icon(
+                Icons.refresh,
+                color: Color(0xFF3B82F6),
+                size: 20,
+              ),
             ),
           ),
           SizedBox(
@@ -347,7 +370,8 @@ class _AdminUsersState extends State<AdminUsers> {
                 backgroundColor: const Color(0xFF3B82F6),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 elevation: 0,
               ),
             ),
@@ -390,7 +414,9 @@ class _AdminUsersState extends State<AdminUsers> {
           onRefresh: _fetchSystemUsers,
           child: Padding(
             padding: EdgeInsets.symmetric(
-                horizontal: horizontalPadding, vertical: 16.0),
+              horizontal: horizontalPadding,
+              vertical: 16.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -452,15 +478,17 @@ class _AdminUsersState extends State<AdminUsers> {
                                 color: Theme.of(context).cardColor,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                    color: Theme.of(context).dividerColor),
+                                  color: Theme.of(context).dividerColor,
+                                ),
                                 boxShadow: [
                                   if (!isDark)
                                     BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.02),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.02,
+                                      ),
                                       blurRadius: 8,
                                       offset: const Offset(0, 4),
-                                    )
+                                    ),
                                 ],
                               ),
                               child: Material(
@@ -483,12 +511,14 @@ class _AdminUsersState extends State<AdminUsers> {
                                         Container(
                                           width: 4,
                                           height: 36,
-                                          margin:
-                                              const EdgeInsets.only(right: 12),
+                                          margin: const EdgeInsets.only(
+                                            right: 12,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: statusColor,
-                                            borderRadius:
-                                                BorderRadius.circular(4),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
                                           ),
                                         ),
                                         Expanded(
@@ -509,9 +539,9 @@ class _AdminUsersState extends State<AdminUsers> {
                                                         fontSize: 15,
                                                         fontWeight:
                                                             FontWeight.bold,
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .onSurface,
+                                                        color: Theme.of(
+                                                          context,
+                                                        ).colorScheme.onSurface,
                                                       ),
                                                       overflow:
                                                           TextOverflow.ellipsis,
@@ -519,18 +549,20 @@ class _AdminUsersState extends State<AdminUsers> {
                                                   ),
                                                   const SizedBox(width: 6),
                                                   Container(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 1,
-                                                    ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 1,
+                                                        ),
                                                     decoration: BoxDecoration(
                                                       color: statusColor
                                                           .withValues(
-                                                              alpha: 0.15),
+                                                            alpha: 0.15,
+                                                          ),
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                              10),
+                                                            10,
+                                                          ),
                                                     ),
                                                     child: Text(
                                                       status,
@@ -602,8 +634,9 @@ class _AdminUsersState extends State<AdminUsers> {
                       totalItems: _filteredUsers.length,
                       itemsPerPage: _itemsPerPage,
                       itemName: 'users',
-                      onNextPage:
-                          _currentPage < _totalPages - 1 ? _nextPage : null,
+                      onNextPage: _currentPage < _totalPages - 1
+                          ? _nextPage
+                          : null,
                       onPrevPage: _currentPage > 0 ? _prevPage : null,
                     ),
                   ),
@@ -619,9 +652,11 @@ class _AdminUsersState extends State<AdminUsers> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon,
-            size: 12,
-            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
+        Icon(
+          icon,
+          size: 12,
+          color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+        ),
         const SizedBox(width: 4),
         Text(
           text,
@@ -637,7 +672,7 @@ class _AdminUsersState extends State<AdminUsers> {
 }
 
 // ============================================================================
-// REGISTER USER DIALOG
+// REGISTER USER DIALOG (NOW FULLY DYNAMIC COMPANIES)
 // ============================================================================
 class RegisterUserDialog extends StatefulWidget {
   final Map<String, dynamic>? user;
@@ -660,7 +695,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
 
   String? _selectedRole;
   String? _selectedCompany;
-
+  List<String> _companyOptions = ['GT LANTIN INTERNAL'];
   @override
   void initState() {
     super.initState();
@@ -678,22 +713,62 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
     if (isEdit) {
       _selectedRole = widget.user!['role'];
       _selectedCompany = widget.user!['company'] == 'Internal'
-          ? 'None (Internal)'
+          ? 'GT LANTIN INTERNAL'
           : widget.user!['company'];
+    }
+
+    if (_selectedCompany != null &&
+        !_companyOptions.contains(_selectedCompany)) {
+      _companyOptions.add(_selectedCompany!);
+    }
+
+    _fetchCompanyDropdown();
+  }
+
+  Future<void> _fetchCompanyDropdown() async {
+    try {
+      final res = await http
+          .get(Uri.parse('$backendUrl/companies'))
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data['success'] == true && mounted) {
+          final fetched = (data['data'] as List)
+              .map((e) => e['company_name'].toString())
+              .toList();
+
+          setState(() {
+            if (fetched.isNotEmpty) {
+              _companyOptions = fetched;
+            }
+            // Ensure selected company matches one of the options
+            if (_selectedCompany != null &&
+                !_companyOptions.contains(_selectedCompany)) {
+              _companyOptions.add(_selectedCompany!);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Dropdown company fetch failed: $e");
     }
   }
 
-  InputDecoration _fieldStyle(BuildContext context,
-      {required String label,
-      required IconData icon,
-      bool forceDisable = false}) {
+  InputDecoration _fieldStyle(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    bool forceDisable = false,
+  }) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final bool active = _isWritingUnlocked && !forceDisable;
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon,
-          color: isDark ? Colors.grey.shade400 : const Color(0xFF475569),
-          size: 20),
+      prefixIcon: Icon(
+        icon,
+        color: isDark ? Colors.grey.shade400 : const Color(0xFF475569),
+        size: 20,
+      ),
       filled: true,
       fillColor: active
           ? (isDark ? Colors.grey.shade800 : const Color(0xFFF8FAFC))
@@ -707,12 +782,14 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(
-            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(
-            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -741,7 +818,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                 'full_name': _nameController.text.trim(),
                 'email': _emailController.text.trim(),
                 'role': _selectedRole,
-                'company_name': _selectedCompany ?? 'None (Internal)',
+                'company_name': _selectedCompany ?? 'GT LANTIN INTERNAL',
               }),
             )
             .timeout(const Duration(seconds: 15));
@@ -774,7 +851,7 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                 'email': _emailController.text.trim(),
                 'password': _passwordController.text,
                 'role': _selectedRole,
-                'company_name': _selectedCompany ?? 'None (Internal)',
+                'company_name': _selectedCompany ?? 'GT LANTIN INTERNAL',
                 'full_name': _nameController.text.trim(),
               }),
             )
@@ -808,8 +885,10 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text(e.toString(), style: const TextStyle(color: Colors.white)),
+          content: Text(
+            e.toString(),
+            style: const TextStyle(color: Colors.white),
+          ),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
         ),
@@ -846,14 +925,15 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-              color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
+            color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
+          ),
           boxShadow: [
             if (!isDark)
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
-              )
+              ),
           ],
         ),
         child: Column(
@@ -872,10 +952,12 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close,
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : const Color(0xFF64748B)),
+                  icon: Icon(
+                    Icons.close,
+                    color: isDark
+                        ? Colors.grey.shade400
+                        : const Color(0xFF64748B),
+                  ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -893,7 +975,8 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                         controller: _nameController,
                         readOnly: !_isWritingUnlocked,
                         style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface),
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                         validator: (val) =>
                             val == null || val.isEmpty ? "Required" : null,
                         decoration: _fieldStyle(
@@ -907,7 +990,8 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                         controller: _emailController,
                         readOnly: !_isWritingUnlocked,
                         style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface),
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                         validator: (val) => val == null || !val.contains('@')
                             ? "Enter a valid email"
                             : null,
@@ -923,7 +1007,8 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                         obscureText: true,
                         readOnly: !_isWritingUnlocked,
                         style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface),
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                         decoration: _fieldStyle(
                           context,
                           label: isEditMode
@@ -950,8 +1035,9 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                         validator: (val) =>
                             val == null ? "Select a role" : null,
                         style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 15),
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 15,
+                        ),
                         decoration: _fieldStyle(
                           context,
                           label: 'Assign Role',
@@ -968,11 +1054,13 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                             .toList(),
                       ),
                       const SizedBox(height: 14),
+                      // ─── DYNAMIC COMPANY DROPDOWN ───
                       DropdownButtonFormField<String>(
-                        initialValue: _selectedCompany,
+                        value: _selectedCompany,
                         style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 15),
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 15,
+                        ),
                         decoration: _fieldStyle(
                           context,
                           label: 'Assign Company Account',
@@ -981,14 +1069,9 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                         onChanged: !_isWritingUnlocked
                             ? null
                             : (value) =>
-                                setState(() => _selectedCompany = value),
+                                  setState(() => _selectedCompany = value),
                         dropdownColor: Theme.of(context).cardColor,
-                        items: [
-                          'GT LANTIN INTERNAL',
-                          'EPSON',
-                          'Bandai',
-                          'NX Logistics',
-                        ]
+                        items: _companyOptions
                             .map(
                               (e) => DropdownMenuItem(value: e, child: Text(e)),
                             )

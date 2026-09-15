@@ -7,6 +7,7 @@ class FleetOverviewTab extends StatefulWidget {
   final List<dynamic> trips;
   final List<dynamic> maintenanceLogs;
   final VoidCallback onSyncAction;
+  final VoidCallback? onReload;
 
   const FleetOverviewTab({
     super.key,
@@ -15,6 +16,7 @@ class FleetOverviewTab extends StatefulWidget {
     required this.trips,
     required this.maintenanceLogs,
     required this.onSyncAction,
+    this.onReload,
   });
 
   @override
@@ -22,13 +24,44 @@ class FleetOverviewTab extends StatefulWidget {
 }
 
 class _FleetOverviewTabState extends State<FleetOverviewTab> {
-  String _timeFrame = 'Last 30 Days';
-  final List<String> _timeOptions = [
-    'Last 7 Days',
-    'Last 30 Days',
-    'This Year',
-    'All Time',
+  // --- Clean Inline Filter State ---
+  int? _selectedYear;
+  int? _selectedMonth;
+
+  final List<String> _monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
+
+  List<int> _availableYears = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _extractAvailableYears();
+    // Default to the current month and year for immediate relevance
+    _selectedYear = DateTime.now().year;
+    _selectedMonth = DateTime.now().month;
+  }
+
+  void _extractAvailableYears() {
+    Set<int> years = {DateTime.now().year};
+    for (var t in widget.trips) {
+      DateTime? d = DateTime.tryParse((t['schedule_date'] ?? '').toString());
+      if (d != null) years.add(d.year);
+    }
+    _availableYears = years.toList()..sort((a, b) => b.compareTo(a));
+  }
 
   double _parseDouble(dynamic val) {
     if (val == null) return 0.0;
@@ -43,26 +76,24 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
 
-    DateTime now = DateTime.now();
-    DateTime start = DateTime(2000);
-    if (_timeFrame == 'Last 7 Days') {
-      start = now.subtract(const Duration(days: 7));
-    } else if (_timeFrame == 'Last 30 Days') {
-      start = now.subtract(const Duration(days: 30));
-    } else if (_timeFrame == 'This Year') {
-      start = DateTime(now.year, 1, 1);
-    }
-
+    // --- Filter Data based on Dropdowns ---
     List<dynamic> fTrips = widget.trips.where((t) {
+      if (_selectedYear == null) return true; // All Time
       DateTime? d = DateTime.tryParse((t['schedule_date'] ?? '').toString());
-      return d != null && (d.isAfter(start) || d.isAtSameMomentAs(start));
+      if (d == null) return false;
+      if (_selectedMonth == null) return d.year == _selectedYear; // Entire Year
+      return d.year == _selectedYear &&
+          d.month == _selectedMonth; // Specific Month
     }).toList();
 
     List<dynamic> fMaint = widget.maintenanceLogs.where((m) {
+      if (_selectedYear == null) return true;
       DateTime? d = DateTime.tryParse(
         (m['incident_date'] ?? m['repair_date'] ?? '').toString(),
       );
-      return d != null && (d.isAfter(start) || d.isAtSameMomentAs(start));
+      if (d == null) return false;
+      if (_selectedMonth == null) return d.year == _selectedYear;
+      return d.year == _selectedYear && d.month == _selectedMonth;
     }).toList();
 
     // --- KPIs ---
@@ -84,7 +115,6 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
           daysRemaining > 7.0;
     }).length;
 
-    // Safety Fallback: Because backend /trips lacks rating info, we use the global driver average
     List<dynamic> evaluatedTrips = fTrips
         .where(
           (t) =>
@@ -112,15 +142,26 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     }
 
     // --- CHART DATA GROUPING ---
-    Map<String, int> dateCounts = {};
+    bool isLongTerm =
+        _selectedMonth == null; // Group by month if looking at a year/all-time
+    Map<String, int> timeBuckets = {};
+
     for (var t in fTrips) {
-      String d = t['schedule_date']?.toString().split(' ').first ?? 'Unknown';
-      dateCounts[d] = (dateCounts[d] ?? 0) + 1;
+      String fullDate = t['schedule_date']?.toString().split(' ').first ?? '';
+      if (fullDate.length >= 10) {
+        String bucketKey = isLongTerm
+            ? fullDate.substring(0, 7)
+            : fullDate.substring(5);
+        timeBuckets[bucketKey] = (timeBuckets[bucketKey] ?? 0) + 1;
+      }
     }
-    var sortedDates = dateCounts.keys.toList()..sort();
-    var last7Dates = sortedDates.reversed.take(7).toList()..sort();
-    List<MapEntry<String, int>> tripVolData = last7Dates
-        .map((d) => MapEntry(d.substring(5), dateCounts[d]!))
+
+    var sortedKeys = timeBuckets.keys.toList()..sort();
+    var displayKeys = isLongTerm
+        ? sortedKeys
+        : (sortedKeys.reversed.take(15).toList()..sort());
+    List<MapEntry<String, int>> tripVolData = displayKeys
+        .map((k) => MapEntry(k, timeBuckets[k]!))
         .toList();
 
     Map<String, int> routeCounts = {};
@@ -145,8 +186,10 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 "Executive Operations Dashboard",
@@ -156,9 +199,17 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
                   fontSize: 16,
                 ),
               ),
+              IconButton(
+                tooltip: 'Reload fleet data',
+                icon: const Icon(Icons.refresh),
+                onPressed: widget.onReload ?? widget.onSyncAction,
+              ),
+              // --- INLINE DROPDOWN FILTERS ---
               Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
                 decoration: BoxDecoration(
                   color: cardBg,
                   border: Border.all(
@@ -166,28 +217,85 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _timeFrame,
-                    dropdownColor: cardBg,
-                    icon: const Icon(Icons.calendar_today, size: 14),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: textColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    items: _timeOptions
-                        .map(
-                          (String value) => DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_selectedYear != null) ...[
+                      DropdownButtonHideUnderline(
+                        child: DropdownButton<int?>(
+                          value: _selectedMonth,
+                          dropdownColor: cardBg,
+                          icon: Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 16,
+                            color: textColor,
                           ),
-                        )
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _timeFrame = val);
-                    },
-                  ),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                          items: [
+                            const DropdownMenuItem(
+                              value: null,
+                              child: Text("All Months"),
+                            ),
+                            ...List.generate(
+                              12,
+                              (i) => DropdownMenuItem(
+                                value: i + 1,
+                                child: Text(_monthNames[i]),
+                              ),
+                            ),
+                          ],
+                          onChanged: (val) =>
+                              setState(() => _selectedMonth = val),
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 16,
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                    ],
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<int?>(
+                        value: _selectedYear,
+                        dropdownColor: cardBg,
+                        icon: Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 16,
+                          color: textColor,
+                        ),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text("All Time"),
+                          ),
+                          ..._availableYears.map(
+                            (y) => DropdownMenuItem(
+                              value: y,
+                              child: Text(y.toString()),
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedYear = val;
+                            if (val == null) _selectedMonth = null;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -236,8 +344,8 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
               return Column(
                 children: [
                   if (isMobile) ...[
-                    _buildVerticalBarChart(
-                      'Trip Volume History (Active Days)',
+                    _buildLineChart(
+                      'Trip Volume Trend',
                       tripVolData,
                       const Color(0xFF3B82F6),
                       isDark,
@@ -263,9 +371,9 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          flex: 2,
-                          child: _buildVerticalBarChart(
-                            'Trip Volume History',
+                          flex: 3,
+                          child: _buildLineChart(
+                            'Trip Volume Trend',
                             tripVolData,
                             const Color(0xFF3B82F6),
                             isDark,
@@ -273,7 +381,7 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          flex: 3,
+                          flex: 2,
                           child: _buildRiskDistributionBar(
                             widget.vehicles,
                             isDark,
@@ -321,8 +429,9 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     Color color,
     bool isDark,
   ) {
+    final bool isMobile = MediaQuery.of(context).size.width < 700;
     return Container(
-      width: 200,
+      width: isMobile ? (MediaQuery.of(context).size.width - 36) / 2 : 200,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -366,13 +475,12 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
     );
   }
 
-  Widget _buildVerticalBarChart(
+  Widget _buildLineChart(
     String title,
     List<MapEntry<String, int>> data,
-    Color color,
+    Color lineColor,
     bool isDark,
   ) {
-    int maxVal = data.isEmpty ? 1 : data.map((e) => e.value).reduce(max);
     return Container(
       padding: const EdgeInsets.all(16),
       height: 250,
@@ -386,74 +494,64 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: lineColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "Trips Completed",
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Expanded(
             child: data.isEmpty
                 ? Center(
                     child: Text(
-                      "No data for this timeframe",
-                      style: TextStyle(color: Colors.grey.shade500),
+                      "No trip data available for this timeframe",
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 12,
+                      ),
                     ),
                   )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: data.map((e) {
-                      double fillHeight = e.value / maxVal;
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            e.value.toString(),
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: color,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Expanded(
-                            child: Container(
-                              width: 24,
-                              alignment: Alignment.bottomCenter,
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.grey.shade800
-                                    : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: FractionallySizedBox(
-                                heightFactor: fillHeight,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            e.key,
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
+                : LayoutBuilder(
+                    builder: (context, box) {
+                      return CustomPaint(
+                        size: Size(box.maxWidth, box.maxHeight),
+                        painter: _TripLineChartPainter(
+                          data: data,
+                          lineColor: lineColor,
+                          isDark: isDark,
+                        ),
                       );
-                    }).toList(),
+                    },
                   ),
           ),
         ],
@@ -675,4 +773,136 @@ class _FleetOverviewTabState extends State<FleetOverviewTab> {
       ),
     );
   }
+}
+
+class _TripLineChartPainter extends CustomPainter {
+  final List<MapEntry<String, int>> data;
+  final Color lineColor;
+  final bool isDark;
+
+  _TripLineChartPainter({
+    required this.data,
+    required this.lineColor,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (data.isEmpty) return;
+    final double bottomPadding = 24.0;
+    final double topPadding = 18.0;
+    final double chartHeight = size.height - bottomPadding - topPadding;
+    final double chartWidth = size.width;
+
+    int maxVal = data.map((e) => e.value).reduce(max);
+    if (maxVal == 0) maxVal = 1;
+
+    final gridPaint = Paint()
+      ..color = isDark ? Colors.grey.shade800 : Colors.grey.shade200
+      ..strokeWidth = 1;
+
+    for (int i = 0; i <= 3; i++) {
+      double y = topPadding + (chartHeight / 3) * i;
+      canvas.drawLine(Offset(0, y), Offset(chartWidth, y), gridPaint);
+    }
+
+    final double stepX = data.length > 1
+        ? chartWidth / (data.length - 1)
+        : chartWidth / 2;
+    List<Offset> points = [];
+    for (int i = 0; i < data.length; i++) {
+      double x = data.length == 1 ? chartWidth / 2 : i * stepX;
+      double normalizedY = data[i].value / maxVal;
+      double y = topPadding + (chartHeight * (1.0 - normalizedY));
+      points.add(Offset(x, y));
+    }
+
+    Path fillPath = Path();
+    fillPath.moveTo(points.first.dx, size.height - bottomPadding);
+    fillPath.lineTo(points.first.dx, points.first.dy);
+    for (int i = 0; i < points.length - 1; i++) {
+      Offset p0 = points[i];
+      Offset p1 = points[i + 1];
+      double midX = (p0.dx + p1.dx) / 2;
+      fillPath.cubicTo(midX, p0.dy, midX, p1.dy, p1.dx, p1.dy);
+    }
+    fillPath.lineTo(points.last.dx, size.height - bottomPadding);
+    fillPath.close();
+
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [lineColor.withOpacity(0.35), lineColor.withOpacity(0.0)],
+      ).createShader(Rect.fromLTWH(0, topPadding, chartWidth, chartHeight));
+    canvas.drawPath(fillPath, fillPaint);
+
+    Path path = Path();
+    path.moveTo(points.first.dx, points.first.dy);
+    for (int i = 0; i < points.length - 1; i++) {
+      Offset p0 = points[i];
+      Offset p1 = points[i + 1];
+      double midX = (p0.dx + p1.dx) / 2;
+      path.cubicTo(midX, p0.dy, midX, p1.dy, p1.dx, p1.dy);
+    }
+
+    final linePaint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, linePaint);
+
+    final dotPaint = Paint()
+      ..color = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final dotBorderPaint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    for (int i = 0; i < points.length; i++) {
+      Offset pt = points[i];
+      canvas.drawCircle(pt, 4.0, dotPaint);
+      canvas.drawCircle(pt, 4.0, dotBorderPaint);
+
+      TextPainter valPainter = TextPainter(
+        text: TextSpan(
+          text: data[i].value.toString(),
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            fontSize: 9.5,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      valPainter.paint(
+        canvas,
+        Offset(pt.dx - (valPainter.width / 2), pt.dy - 14),
+      );
+
+      TextPainter labelPainter = TextPainter(
+        text: TextSpan(
+          text: data[i].key,
+          style: TextStyle(
+            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            fontSize: 9.0,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      labelPainter.paint(
+        canvas,
+        Offset(
+          pt.dx - (labelPainter.width / 2),
+          size.height - bottomPadding + 6,
+        ),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TripLineChartPainter oldDelegate) =>
+      oldDelegate.data != data || oldDelegate.isDark != isDark;
 }

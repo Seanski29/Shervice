@@ -4,13 +4,15 @@ import '../../screens/admin/admin_schedules.dart';
 import '../../screens/admin/admin_drivers.dart';
 import '../../screens/admin/admin_vehicles.dart';
 import '../../screens/admin/admin_users.dart';
-import '../../screens/admin/admin_reports_manager.dart';
 import '../../screens/admin/admin_settings.dart';
 import '../../login/login.dart';
 import '../../widgets/shared/notification_bell.dart';
 import '../../widgets/shared/shervice_floating_stack.dart';
 import '../../constant.dart';
 import '../../session_manager.dart';
+import '../../widgets/admin/admin_profile_button.dart';
+import '../../widgets/shared/shared_analytics_hub.dart';
+import '../../screens/admin/admin_companies.dart';
 
 class AdminMobileLayout extends StatefulWidget {
   final String adminId;
@@ -35,7 +37,8 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     const AdminDriver(),
     const AdminFleet(),
     const AdminUsers(),
-    const AdminReportsManager(),
+    const AdminCompanies(),
+    const SharedAnalyticsHub(),
     AdminSettings(adminId: widget.adminId),
   ];
 
@@ -45,7 +48,8 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     'Drivers',
     'Fleet',
     'Users',
-    'Import',
+    'Companies',
+    'Analytics',
     'Settings',
   ];
 
@@ -55,7 +59,8 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
     Icons.people_outline,
     Icons.directions_car_outlined,
     Icons.admin_panel_settings_outlined,
-    Icons.import_export_outlined,
+    Icons.business_outlined,
+    Icons.analytics_outlined,
     Icons.settings_outlined,
   ];
 
@@ -107,6 +112,12 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
               userName: widget.adminName,
               companyName: '',
               iconSize: 26,
+            ),
+            const SizedBox(width: 8),
+            AdminProfileButton(
+              adminId: widget.adminId,
+              adminName: widget.adminName,
+              compact: true,
             ),
             const SizedBox(width: 8),
             IconButton(
@@ -244,10 +255,10 @@ class _AdminMobileLayoutState extends State<AdminMobileLayout> {
             ElevatedButton(
               onPressed: () async {
                 await SessionManager.clearSession();
-                if (!mounted) return;
-                Navigator.pop(dialogContext);
-                Navigator.pushReplacement(
-                  context,
+                if (!mounted || !dialogContext.mounted) return;
+                final navigator = Navigator.of(dialogContext);
+                navigator.pop();
+                navigator.pushReplacement(
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                 );
               },

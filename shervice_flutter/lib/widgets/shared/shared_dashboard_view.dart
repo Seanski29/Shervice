@@ -41,10 +41,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   int _selectedMaintenanceYear = DateTime.now().year;
   bool _isRatingLoading = false;
   bool _isMaintenanceLoading = false;
+
   double _averageDriverRating = 0;
   int _ratedDriverCount = 0;
   List<Map<String, dynamic>> _topDrivers = [];
   List<int> _monthlyMaintenanceTotals = List<int>.filled(12, 0);
+
+  DateTime _selectedDriverMonth = DateTime.now();
 
   @override
   void initState() {
@@ -65,6 +68,11 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   }
 
   Future<void> _fetchLiveDashboardData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       final response = await http
           .get(Uri.parse('$backendUrl/dashboard/metrics'))
@@ -156,10 +164,39 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (_isLoading && _metrics.isEmpty) {
       return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+        ),
+      );
+    }
+
+    if (!_isLoading && _metrics.isEmpty) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.sync_problem_outlined, size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  'Dashboard could not sync.',
+                  style: Theme.of(context).textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _reloadDashboard,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -194,7 +231,23 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             ),
             children: [
               if (_errorMessage != null) _buildErrorBanner(),
-              widget.headerWidget,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: widget.headerWidget),
+                  IconButton(
+                    tooltip: 'Reload dashboard data',
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh),
+                    onPressed: _isLoading ? null : _reloadDashboard,
+                  ),
+                ],
+              ),
               const SizedBox(height: 24),
               _buildKpiGrid(context, dynamicWidth, spacing),
               const SizedBox(height: 20),
@@ -218,7 +271,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       children: [
                         if (widget.showClientTrips) ...[
                           SizedBox(
-                            height: 290,
+                            height: 380,
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -234,7 +287,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                           ),
                           const SizedBox(height: 16),
                           SizedBox(
-                            height: 290,
+                            height: 380,
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -256,6 +309,12 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
         );
       },
     );
+  }
+
+  Future<void> _reloadDashboard() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    await _fetchLiveDashboardData();
   }
 
   Widget _buildErrorBanner() {
@@ -543,8 +602,88 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     );
   }
 
+  Widget _buildSmallDriverFilter(bool isDark) {
+    final theme = Theme.of(context);
+    final years = List<int>.generate(
+      7,
+      (index) => DateTime.now().year - 3 + index,
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: _selectedDriverMonth.month,
+              isDense: true,
+              icon: const Icon(Icons.keyboard_arrow_down, size: 14),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+              items: List.generate(
+                12,
+                (index) => DropdownMenuItem(
+                  value: index + 1,
+                  child: Text(_monthShortName(index + 1)),
+                ),
+              ),
+              onChanged: (month) {
+                if (month != null) {
+                  _changeDriverMonth(month, _selectedDriverMonth.year);
+                }
+              },
+            ),
+          ),
+          Container(
+            height: 12,
+            width: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 5),
+            color: theme.dividerColor,
+          ),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: years.contains(_selectedDriverMonth.year)
+                  ? _selectedDriverMonth.year
+                  : years.last,
+              isDense: true,
+              icon: const Icon(Icons.keyboard_arrow_down, size: 14),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+              items: years
+                  .map(
+                    (year) => DropdownMenuItem(
+                      value: year,
+                      child: Text(year.toString()),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (year) {
+                if (year != null) {
+                  _changeDriverMonth(_selectedDriverMonth.month, year);
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLeaderboardCard({bool compact = false, bool framed = true}) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 20),
       decoration: framed
@@ -557,20 +696,38 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Top Performing Drivers',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontSize: _sectionTitleSize,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Top Performing Drivers',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontSize: _sectionTitleSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              _buildSmallDriverFilter(isDark),
+            ],
           ),
-          SizedBox(height: compact ? 12 : 18),
-          if (_topDrivers.isEmpty)
+          SizedBox(height: compact ? 10 : 14),
+          if (_isRatingLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_topDrivers.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
                 child: Text(
-                  'No rated drivers yet.',
+                  'No rated drivers for this month/year.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontSize: _captionTextSize,
                   ),
@@ -578,57 +735,62 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               ),
             )
           else
-            ..._topDrivers.asMap().entries.map((entry) {
-              final rank = entry.key + 1;
-              final driver = entry.value;
-              final name = (driver['full_name'] ?? driver['label'] ?? 'Driver')
-                  .toString();
-              final rating =
-                  double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: entry.key == _topDrivers.length - 1 ? 0 : 10,
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 24,
-                      child: Text(
-                        '$rank',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: rank == 1
-                              ? Colors.amber.shade700
-                              : theme.colorScheme.primary,
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _topDrivers.length,
+              itemBuilder: (context, index) {
+                final rank = index + 1;
+                final driver = _topDrivers[index];
+                final name =
+                    (driver['full_name'] ?? driver['label'] ?? 'Driver')
+                        .toString();
+                final rating =
+                    double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 22,
+                        child: Text(
+                          '$rank',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: _bodyTextSize,
+                            color: rank == 1
+                                ? Colors.amber.shade700
+                                : theme.colorScheme.primary,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: _bodyTextSize,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.star, size: 14, color: Colors.amber),
+                      const SizedBox(width: 4),
+                      Text(
+                        rating.toStringAsFixed(1),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontSize: _bodyTextSize,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                    const Icon(Icons.star, size: 16, color: Colors.amber),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating.toStringAsFixed(1),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontSize: _bodyTextSize,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
+                    ],
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -660,6 +822,14 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       7,
       (index) => DateTime.now().year - 3 + index,
     );
+
+    final double maxMaintVal = _monthlyMaintenanceTotals.isEmpty
+        ? 5.0
+        : _monthlyMaintenanceTotals.reduce(max).toDouble();
+    final double computedMaintMaxY = maxMaintVal <= 5
+        ? 5.0
+        : (maxMaintVal * 1.25).ceilToDouble();
+
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 20),
       decoration: BoxDecoration(
@@ -706,12 +876,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           ),
           SizedBox(height: compact ? 10 : 20),
           SizedBox(
-            height: compact ? 150 : 220,
+            height: 220,
             child: _isMaintenanceLoading
                 ? const Center(child: CircularProgressIndicator())
                 : BarChart(
                     BarChartData(
                       minY: 0,
+                      maxY: computedMaintMaxY,
                       gridData: FlGridData(
                         show: true,
                         drawVerticalLine: false,
@@ -726,10 +897,26 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                         rightTitles: const AxisTitles(
                           sideTitles: SideTitles(showTitles: false),
                         ),
-                        leftTitles: const AxisTitles(
+                        leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 40,
+                            reservedSize: 32,
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0 ||
+                                  value == computedMaintMaxY / 2 ||
+                                  value == computedMaintMaxY) {
+                                return Text(
+                                  value.toInt().toString(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : const Color(0xFF64748B),
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
                           ),
                         ),
                         bottomTitles: AxisTitles(
@@ -738,12 +925,18 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                             reservedSize: 24,
                             getTitlesWidget: (value, meta) {
                               final month = value.toInt();
-                              return month < 1 || month > 12
-                                  ? const SizedBox.shrink()
-                                  : Text(
-                                      _monthName(month).substring(0, 1),
-                                      style: const TextStyle(fontSize: 10),
-                                    );
+                              if (month < 1 || month > 12) {
+                                return const SizedBox.shrink();
+                              }
+                              return Text(
+                                _monthShortName(month).substring(0, 1),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : const Color(0xFF64748B),
+                                ),
+                              );
                             },
                           ),
                         ),
@@ -758,6 +951,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                                     .toDouble(),
                                 color: const Color(0xFFEF4444),
                                 width: 10,
+                                borderRadius: BorderRadius.circular(4),
                               ),
                             ],
                           ),
@@ -770,51 +964,48 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     );
   }
 
+  Future<void> _changeDriverMonth(int month, int year) async {
+    setState(() {
+      _selectedDriverMonth = DateTime(year, month);
+    });
+    await _loadDriverRating();
+  }
+
   Future<void> _loadDriverRating() async {
     if (!mounted) return;
     setState(() => _isRatingLoading = true);
+
     try {
-      final response = await http
-          .get(Uri.parse('$backendUrl/test-db'))
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) return;
-      final data = json.decode(response.body);
-      final records = data is Map ? data['sample_data_payload'] : null;
-      if (records is List) {
-        final rankedDrivers =
-            records
-                .whereType<Map>()
-                .map((item) => Map<String, dynamic>.from(item))
-                .where((driver) {
-                  final rating =
-                      double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
-                  return rating > 0;
-                })
-                .toList()
-              ..sort((first, second) {
-                final firstRating =
-                    double.tryParse(first['rating']?.toString() ?? '') ?? 0;
-                final secondRating =
-                    double.tryParse(second['rating']?.toString() ?? '') ?? 0;
-                return secondRating.compareTo(firstRating);
-              });
-        final ratings = records
-            .whereType<Map>()
-            .map(
-              (item) => double.tryParse(item['rating']?.toString() ?? '') ?? 0,
-            )
-            .where((rating) => rating > 0)
-            .toList();
+      final uri = Uri.parse('$backendUrl/dashboard/driver-leaderboard').replace(
+        queryParameters: {
+          'month': _selectedDriverMonth.month.toString(),
+          'year': _selectedDriverMonth.year.toString(),
+        },
+      );
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        final List<dynamic> driversList = decoded['top_drivers'] ?? [];
+
+        final double overallAvg =
+            (decoded['overall_average'] as num?)?.toDouble() ?? 0.0;
+        final int totalRated =
+            (decoded['total_rated_drivers'] as num?)?.toInt() ?? 0;
+
         if (mounted) {
           setState(() {
-            _ratedDriverCount = ratings.length;
-            _topDrivers = rankedDrivers.take(5).toList();
-            _averageDriverRating = ratings.isEmpty
-                ? 0
-                : ratings.reduce((a, b) => a + b) / ratings.length;
+            _topDrivers = driversList
+                .map((d) => Map<String, dynamic>.from(d))
+                .toList();
+            _averageDriverRating = overallAvg;
+            _ratedDriverCount = totalRated;
           });
         }
       }
+    } catch (e) {
+      debugPrint("Failed to fetch leaderboard: $e");
     } finally {
       if (mounted) setState(() => _isRatingLoading = false);
     }
@@ -842,8 +1033,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           final date = DateTime.tryParse(
             (record['incident_date'] ?? record['repair_date'] ?? '').toString(),
           );
-          if (date != null && date.year == _selectedMaintenanceYear)
+          if (date != null && date.year == _selectedMaintenanceYear) {
             totals[date.month - 1]++;
+          }
         }
         if (mounted) setState(() => _monthlyMaintenanceTotals = totals);
       }
@@ -897,7 +1089,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                   )
                 : _companyTrips.isEmpty
                 ? Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12.0),
+                    padding: const EdgeInsets.symmetric(vertical: 12.0),
                     child: Center(
                       child: Text(
                         'No client trips for this month.',
@@ -908,82 +1100,89 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                       ),
                     ),
                   )
-                : ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _companyTrips.length,
-                    separatorBuilder: (_, _) => Divider(
-                      height: 12,
-                      thickness: 0.5,
-                      color: theme.dividerColor,
-                    ),
-                    itemBuilder: (context, index) {
-                      final item = _companyTrips[index];
-                      final Color color = _proceduralColorAssigner(index);
-                      return Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
+                : SizedBox(
+                    height: compact ? 280 : null,
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: compact
+                          ? const BouncingScrollPhysics()
+                          : const NeverScrollableScrollPhysics(),
+                      itemCount: _companyTrips.length,
+                      separatorBuilder: (_, _) => Divider(
+                        height: 12,
+                        thickness: 0.5,
+                        color: theme.dividerColor,
+                      ),
+                      itemBuilder: (context, index) {
+                        final item = _companyTrips[index];
+                        final Color color = _proceduralColorAssigner(index);
+                        return Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.business_center,
+                                color: color,
+                                size: 16,
+                              ),
                             ),
-                            child: Icon(
-                              Icons.business_center,
-                              color: color,
-                              size: 16,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.companyName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: _bodyTextSize,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.companyName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: _bodyTextSize,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(2),
-                                        child: LinearProgressIndicator(
-                                          value: item.utilization,
-                                          backgroundColor: theme
-                                              .colorScheme
-                                              .surfaceContainerHighest,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                color,
-                                              ),
-                                          minHeight: 3,
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            2,
+                                          ),
+                                          child: LinearProgressIndicator(
+                                            value: item.utilization,
+                                            backgroundColor: theme
+                                                .colorScheme
+                                                .surfaceContainerHighest,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  color,
+                                                ),
+                                            minHeight: 3,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '${item.tripCount}',
-                                      style: TextStyle(
-                                        fontSize: _captionTextSize,
-                                        fontWeight: FontWeight.bold,
-                                        color: color,
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '${item.tripCount}',
+                                        style: TextStyle(
+                                          fontSize: _captionTextSize,
+                                          fontWeight: FontWeight.bold,
+                                          color: color,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
+                          ],
+                        );
+                      },
+                    ),
                   ),
           ],
         ),
@@ -1014,8 +1213,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             ),
           ),
           onChanged: (month) {
-            if (month != null)
+            if (month != null) {
               _changeDispatchMonth(month, _selectedDispatchMonth.year);
+            }
           },
         ),
         const SizedBox(width: 8),
@@ -1035,8 +1235,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               )
               .toList(),
           onChanged: (year) {
-            if (year != null)
+            if (year != null) {
               _changeDispatchMonth(_selectedDispatchMonth.month, year);
+            }
           },
         ),
       ],
@@ -1050,6 +1251,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       7,
       (index) => DateTime.now().year - 3 + index,
     );
+
+    final double maxTripVal = _monthlyTripTotals.isEmpty
+        ? 10.0
+        : _monthlyTripTotals.reduce(max).toDouble();
+    final double computedTripMaxY = maxTripVal <= 5
+        ? 10.0
+        : (maxTripVal * 1.25).ceilToDouble();
 
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 20),
@@ -1097,12 +1305,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           ),
           SizedBox(height: compact ? 10 : 20),
           SizedBox(
-            height: compact ? 150 : 220,
+            height: 220,
             child: _isTripsChartLoading
                 ? const Center(child: CircularProgressIndicator())
                 : LineChart(
                     LineChartData(
                       minY: 0,
+                      maxY: computedTripMaxY,
                       gridData: FlGridData(
                         show: true,
                         drawVerticalLine: false,
@@ -1120,16 +1329,23 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 28,
-                            getTitlesWidget: (value, meta) => Text(
-                              value.toInt().toString(),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : const Color(0xFF64748B),
-                              ),
-                            ),
+                            reservedSize: 32,
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0 ||
+                                  value == computedTripMaxY / 2 ||
+                                  value == computedTripMaxY) {
+                                return Text(
+                                  value.toInt().toString(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : const Color(0xFF64748B),
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
                           ),
                         ),
                         bottomTitles: AxisTitles(
@@ -1235,6 +1451,24 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       'October',
       'November',
       'December',
+    ];
+    return names[month - 1];
+  }
+
+  String _monthShortName(int month) {
+    const names = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return names[month - 1];
   }

@@ -1,4 +1,3 @@
-import os
 import numpy as np
 from flask import Blueprint, request, jsonify
 from sklearn.linear_model import LinearRegression
@@ -123,9 +122,35 @@ def evaluate_entire_fleet():
         train_baseline_model()
         
     try:
-        vehicles_res = supabase.table('vehicle').select('*').execute()
+        vehicles_res = supabase.table(
+            'vehicle'
+        ).select('vehicle_id, model_year, is_available, plate_number').execute()
         if not vehicles_res.data:
             return jsonify({"success": True, "message": "No vehicles found."}), 200
+
+        # PERF: Replace 2 queries per vehicle with two fleet-wide reads and O(1)
+        # in-memory aggregation; prediction and update semantics remain unchanged.
+        completed_trips_res = supabase.table('trip_schedule').select(
+            'vehicle_id, route_distance'
+        ).eq('trip_status', 'Completed').execute()
+        repairs_res = supabase.table('maintenance_log').select(
+            'vehicle_id, maintenance_id'
+        ).execute()
+
+        trip_totals = {}
+        for trip in completed_trips_res.data or []:
+            vehicle_id = trip.get('vehicle_id')
+            if vehicle_id is None:
+                continue
+            totals = trip_totals.setdefault(vehicle_id, [0.0, 0])
+            totals[0] += float(trip.get('route_distance') or 0.0)
+            totals[1] += 1
+
+        repair_counts = {}
+        for repair in repairs_res.data or []:
+            vehicle_id = repair.get('vehicle_id')
+            if vehicle_id is not None:
+                repair_counts[vehicle_id] = repair_counts.get(vehicle_id, 0) + 1
             
         flagged_assets = []
         
@@ -136,12 +161,10 @@ def evaluate_entire_fleet():
             try: age = float(current_year - int(vehicle.get('model_year', current_year)))
             except ValueError: age = 2.0
                 
-            trips_res = supabase.table('trip_schedule').select('route_distance').eq('vehicle_id', vehicle_id).eq('trip_status', 'Completed').execute()
-            trip_count = len(trips_res.data) if trips_res.data else 0
-            total_mileage = sum(float(t.get('route_distance', 0.0)) for t in trips_res.data) if trips_res.data else 0.0
-            
-            logs_res = supabase.table('maintenance_log').select('source: maintenance_id').eq('vehicle_id', vehicle_id).execute()
-            past_repairs = len(logs_res.data) if logs_res.data else 0
+            trip_totals_for_vehicle = trip_totals.get(vehicle_id, (0.0, 0))
+            total_mileage = trip_totals_for_vehicle[0]
+            trip_count = trip_totals_for_vehicle[1]
+            past_repairs = repair_counts.get(vehicle_id, 0)
             
             live_features = np.array([[total_mileage, age, trip_count, past_repairs]])
             scaled_features = scaler.transform(live_features)
