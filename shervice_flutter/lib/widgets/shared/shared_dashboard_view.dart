@@ -47,7 +47,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   List<Map<String, dynamic>> _topDrivers = [];
   List<int> _monthlyMaintenanceTotals = List<int>.filled(12, 0);
 
-  // --- Filter State ---
+  // --- Filter State modeled after DriverEvaluationView ---
   int? _selectedDriverYear;
   int? _selectedDriverMonth;
   List<int> _availableDriverYears = [];
@@ -60,8 +60,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   @override
   void initState() {
     super.initState();
-    _selectedDriverYear = DateTime.now().year;
-    _selectedDriverMonth = DateTime.now().month;
+    // Default to All Time / All Months on startup
+    _selectedDriverYear = null;
+    _selectedDriverMonth = null;
     _initAvailableYears();
     _fetchLiveDashboardData();
   }
@@ -395,7 +396,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     );
   }
 
-  // --- Inline Filter: "All Time" and "All Months" ---
   Widget _buildSmallDriverFilter(bool isDark) {
     final theme = Theme.of(context);
     final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
@@ -467,6 +467,12 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final String emptyMessage = _selectedDriverYear == null
+        ? 'No drivers found.'
+        : _selectedDriverMonth == null
+        ? 'No drivers found for $_selectedDriverYear.'
+        : 'No drivers found for ${_monthNames[_selectedDriverMonth! - 1]} $_selectedDriverYear.';
+
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 20),
       decoration: framed
@@ -497,7 +503,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
                 child: Text(
-                  'No drivers registered yet.',
+                  emptyMessage,
                   style: theme.textTheme.bodySmall?.copyWith(fontSize: _captionTextSize),
                 ),
               ),
@@ -512,12 +518,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                 final driver = _topDrivers[index];
                 final name = (driver['full_name'] ?? driver['name'] ?? driver['label'] ?? 'Driver').toString();
                 final rating = _parseScore(driver['rating']);
-                
-                final totalReviews = _parseInt(
-                  driver['review_count'] ?? driver['total_trips'] ?? driver['eval_count'] ?? driver['trips'] ?? 0
-                );
-
-                final bool isUnrated = (rating == 0.0 && totalReviews == 0);
+                final totalReviews = _parseInt(driver['review_count']);
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
@@ -544,14 +545,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                           style: theme.textTheme.bodyMedium?.copyWith(fontSize: _bodyTextSize, fontWeight: FontWeight.w600),
                         ),
                       ),
-                      Icon(isUnrated ? Icons.star_border : Icons.star, size: 14, color: Colors.amber),
+                      const Icon(Icons.star, size: 14, color: Colors.amber),
                       const SizedBox(width: 4),
                       Text(
-                        isUnrated ? 'New' : rating.toStringAsFixed(1),
+                        rating.toStringAsFixed(1),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontSize: _bodyTextSize,
                           fontWeight: FontWeight.bold,
-                          color: isUnrated ? (isDark ? Colors.grey.shade500 : Colors.grey.shade400) : null,
                         ),
                       ),
                       if (totalReviews > 0) ...[
@@ -648,7 +648,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     );
   }
 
-  // --- REBUILT EVALUATION LOGIC ---
+  // --- REBUILT EVALUATION LOGIC: STRICTLY LOCAL TO BYPASS BACKEND DEFAULTS ---
   Future<void> _loadDriverRating() async {
     if (!mounted) return;
     setState(() => _isRatingLoading = true);
@@ -656,7 +656,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     try {
       final Map<String, String> queryParameters = {};
 
-      // EXPLICITLY send 'all' to prevent backend logic from silently falling back to the current month!
       if (_selectedDriverYear == null) {
         queryParameters['period'] = 'all';
         queryParameters['year'] = 'all';
@@ -671,18 +670,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
         queryParameters['month'] = _selectedDriverMonth.toString();
       }
 
-      final uri = Uri.parse('$backendUrl/dashboard/driver-leaderboard')
-          .replace(queryParameters: queryParameters);
-
+      final uri = Uri.parse('$backendUrl/dashboard/driver-leaderboard').replace(queryParameters: queryParameters);
       final response = await http.get(uri).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
-        final List<dynamic> driversList =
-            decoded['top_drivers'] ?? decoded['drivers'] ?? decoded['data'] ?? [];
-
-        final double overallAvg = double.tryParse(decoded['overall_average']?.toString() ?? '') ?? 0.0;
-        final int totalRated = int.tryParse(decoded['total_rated_drivers']?.toString() ?? '') ?? 0;
+        final List<dynamic> driversList = decoded['top_drivers'] ?? decoded['drivers'] ?? decoded['data'] ?? [];
+        final double overallAvg = _parseScore(decoded['overall_average']);
 
         if (mounted) {
           List<Map<String, dynamic>> rankedDrivers = driversList
@@ -690,44 +684,34 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               .map((d) => Map<String, dynamic>.from(d))
               .toList();
 
-          // If the backend strips out drivers with 0 evaluations (because of an SQL INNER JOIN), fetch the rest to pad to 10.
-          if (rankedDrivers.length < 10) {
-            try {
-              final allDrvRes = await http.get(Uri.parse('$backendUrl/test-db')).timeout(const Duration(seconds: 4));
-              if (allDrvRes.statusCode == 200) {
-                final dData = jsonDecode(allDrvRes.body);
-                final List allDrv = dData['data'] ?? dData['sample_data_payload'] ?? dData['drivers'] ?? [];
-                
-                for (var d in allDrv) {
-                  if (d is! Map) continue;
-                  // Handle different potential UUID keys returned by your test-db endpoint
-                  final String id = (d['user_id'] ?? d['driver_id'] ?? '').toString();
-                  if (id.isEmpty) continue;
-                  
-                  if (!rankedDrivers.any((r) => (r['driver_id']?.toString() == id || r['user_id']?.toString() == id))) {
-                    rankedDrivers.add({
-                      'driver_id': id,
-                      'full_name': d['full_name'] ?? d['name'] ?? 'Driver $id',
-                      'rating': 0.0,
-                      'review_count': 0,
-                    });
-                  }
-                }
-              }
-            } catch (_) {}
-          }
+          // ONLY ALLOW RATED DRIVERS (NO 'NEW' PADDING)
+          rankedDrivers.removeWhere((d) {
+             final revs = _parseInt(d['review_count'] ?? d['total_trips'] ?? d['eval_count']);
+             return revs == 0;
+          });
 
+          // IGNORE BACKEND COUNT: Calculate the TRUE count of valid rated drivers
+          final int actualRatedCount = rankedDrivers.length;
+
+          // FIX: Sort visually to match rounded outputs, ensuring 4.2(90) beats 4.2(20) smoothly.
           rankedDrivers.sort((a, b) {
             final ratingA = _parseScore(a['rating']);
             final ratingB = _parseScore(b['rating']);
-            final ratingCmp = ratingB.compareTo(ratingA);
-            if (ratingCmp != 0) return ratingCmp;
+            
+            // 1. Sort by the visually rounded 1-decimal float first
+            final double roundA = double.parse(ratingA.toStringAsFixed(1));
+            final double roundB = double.parse(ratingB.toStringAsFixed(1));
+            
+            int cmp = roundB.compareTo(roundA);
+            if (cmp != 0) return cmp;
 
-            final reviewsA = _parseInt(a['review_count'] ?? a['total_trips'] ?? a['eval_count']);
-            final reviewsB = _parseInt(b['review_count'] ?? b['total_trips'] ?? b['eval_count']);
-            final revCmp = reviewsB.compareTo(reviewsA);
-            if (revCmp != 0) return revCmp;
+            // 2. Tie-break via review count
+            final revA = _parseInt(a['review_count'] ?? a['total_trips'] ?? a['eval_count']);
+            final revB = _parseInt(b['review_count'] ?? b['total_trips'] ?? b['eval_count']);
+            cmp = revB.compareTo(revA);
+            if (cmp != 0) return cmp;
 
+            // 3. Alphabetical tie-break
             final nameA = (a['full_name'] ?? a['name'] ?? a['label'] ?? '').toString();
             final nameB = (b['full_name'] ?? b['name'] ?? b['label'] ?? '').toString();
             return nameA.toLowerCase().compareTo(nameB.toLowerCase());
@@ -736,7 +720,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           setState(() {
             _topDrivers = rankedDrivers.take(10).toList();
             _averageDriverRating = overallAvg;
-            _ratedDriverCount = totalRated;
+            _ratedDriverCount = actualRatedCount;
           });
         }
       } else {
@@ -750,23 +734,31 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     }
   }
 
-  // Local fallback: Aggregates everything client-side matching the exact same formula, ensuring 10 drivers show up.
   Future<void> _recomputeDashboardRatingsLocally() async {
     try {
-      final driversRes = await http.get(Uri.parse('$backendUrl/test-db')).timeout(const Duration(seconds: 8));
-      if (driversRes.statusCode != 200) return;
+      final driversRes = await http.get(Uri.parse('$backendUrl/test-db')).timeout(const Duration(seconds: 10));
+      if (driversRes.statusCode != 200) throw Exception("Failed to load drivers");
 
       final dynamic data = jsonDecode(driversRes.body);
       final List rawDrivers = data is Map ? (data['data'] ?? data['sample_data_payload'] ?? []) : [];
-      if (rawDrivers.isEmpty) return;
+      
+      if (rawDrivers.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _topDrivers = [];
+            _averageDriverRating = 0.0;
+            _ratedDriverCount = 0;
+          });
+        }
+        return;
+      }
 
       List<Map<String, dynamic>> compiledLeaderboard = [];
       double globalCumTotal = 0.0;
-      int totalRatedDrivers = 0;
 
       final futures = rawDrivers.map((drv) async {
         if (drv is! Map) return;
-        final String driverUuid = (drv['user_id'] ?? drv['driver_id'] ?? '').toString();
+        final String driverUuid = (drv['driver_id'] ?? drv['user_id'] ?? '').toString();
         if (driverUuid.isEmpty) return;
 
         try {
@@ -777,19 +769,19 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
             final List evals = evalData['data'] ?? evalData['evaluations'] ?? [];
 
             final filteredEvals = evals.where((e) {
-              if (_selectedDriverYear == null) return true;
+              if (_selectedDriverYear == null) return true; // All Time
               final dt = DateTime.tryParse((e['submit_date'] ?? e['created_at'] ?? '').toString());
               if (dt == null) return false;
-              if (_selectedDriverMonth == null) return dt.year == _selectedDriverYear;
+              if (_selectedDriverMonth == null) return dt.year == _selectedDriverYear; // All Months
               return dt.year == _selectedDriverYear && dt.month == _selectedDriverMonth;
             }).toList();
 
             if (filteredEvals.isNotEmpty) {
               double driverCumTotal = 0.0;
               for (var ev in filteredEvals) {
-                final p = (ev['punctuality_score'] as num?)?.toDouble() ?? 5.0;
-                final s = (ev['safety_score'] as num?)?.toDouble() ?? 5.0;
-                final pr = (ev['professionalism_score'] as num?)?.toDouble() ?? 5.0;
+                final p = _parseScore(ev['punctuality_score']);
+                final s = _parseScore(ev['safety_score']);
+                final pr = _parseScore(ev['professionalism_score']);
                 driverCumTotal += (p + s + pr) / 3.0;
               }
               
@@ -804,18 +796,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               });
 
               globalCumTotal += avgTotal;
-              totalRatedDrivers++;
-              return;
             }
           }
         } catch (_) {}
-
-        compiledLeaderboard.add({
-          'driver_id': driverUuid,
-          'full_name': drv['full_name'] ?? drv['name'] ?? 'Driver $driverUuid',
-          'rating': 0.0,
-          'review_count': 0,
-        });
       });
 
       await Future.wait(futures);
@@ -823,13 +806,17 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       compiledLeaderboard.sort((a, b) {
         final ratingA = _parseScore(a['rating']);
         final ratingB = _parseScore(b['rating']);
-        final cmp = ratingB.compareTo(ratingA);
+        
+        final double roundA = double.parse(ratingA.toStringAsFixed(1));
+        final double roundB = double.parse(ratingB.toStringAsFixed(1));
+        
+        int cmp = roundB.compareTo(roundA);
         if (cmp != 0) return cmp;
 
         final revA = _parseInt(a['review_count']);
         final revB = _parseInt(b['review_count']);
-        final revCmp = revB.compareTo(revA);
-        if (revCmp != 0) return revCmp;
+        cmp = revB.compareTo(revA);
+        if (cmp != 0) return cmp;
 
         final nameA = (a['full_name'] ?? '').toString();
         final nameB = (b['full_name'] ?? '').toString();
@@ -839,11 +826,15 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       if (mounted) {
         setState(() {
           _topDrivers = compiledLeaderboard.take(10).toList();
-          _averageDriverRating = totalRatedDrivers > 0 ? (globalCumTotal / totalRatedDrivers) : 0.0;
-          _ratedDriverCount = totalRatedDrivers;
+          _ratedDriverCount = compiledLeaderboard.length;
+          _averageDriverRating = compiledLeaderboard.isNotEmpty ? (globalCumTotal / compiledLeaderboard.length) : 0.0;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("Leaderboard loop evaluation error: $e");
+    } finally {
+      if (mounted) setState(() => _isRatingLoading = false);
+    }
   }
 
   Future<void> _changeMaintenanceYear(int year) async {
