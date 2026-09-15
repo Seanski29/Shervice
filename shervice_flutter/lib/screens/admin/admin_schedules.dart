@@ -106,6 +106,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
           (userAccount != null ? userAccount['full_name'] ?? '' : '')
               .toString()
               .toLowerCase();
+      final tripId = (trip['trip_id'] ?? '').toString().toLowerCase();
 
       final tripStatus = (trip['trip_status'] ?? 'Scheduled')
           .toString()
@@ -113,7 +114,8 @@ class _AdminSchedulesState extends State<AdminSchedules> {
 
       final matchesSearch =
           routeName.contains(_searchQuery.toLowerCase()) ||
-          driverName.contains(_searchQuery.toLowerCase());
+          driverName.contains(_searchQuery.toLowerCase()) ||
+          tripId.contains(_searchQuery.toLowerCase());
 
       bool matchesStatus = true;
       if (_statusFilter != 'All') {
@@ -171,8 +173,10 @@ class _AdminSchedulesState extends State<AdminSchedules> {
         (userAccount != null ? userAccount['full_name'] ?? '' : '')
             .toString()
             .toLowerCase();
+    final tripId = (trip['trip_id'] ?? '').toString().toLowerCase();
     return routeName.contains(_searchQuery.toLowerCase()) ||
-        driverName.contains(_searchQuery.toLowerCase());
+        driverName.contains(_searchQuery.toLowerCase()) ||
+        tripId.contains(_searchQuery.toLowerCase());
   });
 
   int get _totalTrips => _baseSchedules.length;
@@ -200,7 +204,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     final s = (t['trip_status'] ?? '').toString().toLowerCase();
     return s.contains('reject') || s.contains('cancel');
   }).length;
-  
+
   int get _expiredTrips => _baseSchedules.where((t) {
     return (t['trip_status'] ?? '').toString().toLowerCase().contains(
       'expired',
@@ -239,7 +243,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
   void _showTripDetails(Map<String, dynamic> trip) {
     final userAccount = trip['user_account'] as Map<String, dynamic>?;
     final vehicle = trip['vehicle'] as Map<String, dynamic>?;
-    
+
     // Type-safe dynamic fallback for the company value
     final dynamic rawCompany = trip['client_company'] ?? trip['oic_profile'];
     String company = 'Unassigned Company';
@@ -261,7 +265,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
     final String type = vehicle != null
         ? (vehicle['bus_type'] ?? 'Standard')
         : 'Standard';
-        
+
     final String route = trip['route_name'] ?? 'Unassigned Route';
     final String status = trip['trip_status'] ?? 'Scheduled';
     final String date = trip['schedule_date'] ?? 'TBD';
@@ -519,7 +523,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
               fontSize: 13,
             ),
             decoration: InputDecoration(
-              hintText: 'Search routes or drivers...',
+              hintText: 'Search routes, drivers or trip IDs...',
               hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
               prefixIcon: const Icon(
                 Icons.search,
@@ -1103,11 +1107,11 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                 totalItems: totalItems,
                 itemsPerPage: _itemsPerPage,
                 itemName: 'trips',
-                onNextPage: _currentPage < totalPages - 1 
-                    ? () => setState(() => _currentPage++) 
+                onNextPage: _currentPage < totalPages - 1
+                    ? () => setState(() => _currentPage++)
                     : null,
-                onPrevPage: _currentPage > 0 
-                    ? () => setState(() => _currentPage--) 
+                onPrevPage: _currentPage > 0
+                    ? () => setState(() => _currentPage--)
                     : null,
               ),
             ),
@@ -1150,6 +1154,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
         : timeStr;
     final String status = trip['trip_status'] ?? 'Scheduled';
     final String routeName = trip['route_name'] ?? 'Unassigned Route';
+    final String tripId = (trip['trip_id'] ?? 'N/A').toString();
     final statusColor = _getStatusColor(status);
 
     final rawActStart = trip['actual_start_time'];
@@ -1175,7 +1180,7 @@ class _AdminSchedulesState extends State<AdminSchedules> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    routeName,
+                    'TRIP-$tripId • $routeName',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

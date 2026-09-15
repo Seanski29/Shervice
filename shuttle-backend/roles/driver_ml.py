@@ -21,10 +21,10 @@ def train_driver_classification_model():
         X_train = np.array([
             [4.8, 4.9, 4.8, 50],  
             [4.5, 4.7, 4.9, 15],  
-            [4.2, 4.1, 4.3, 10],  # 👈 Added: Good driver, low experience
-            [4.0, 4.0, 4.0, 25],  # 👈 Added: Standard acceptable baseline
-            [3.8, 4.2, 4.1, 8],   # 👈 Added: Solid performer, new
-            [4.1, 4.4, 4.2, 35],  # 👈 Added: Long-term average performer
+            [4.2, 4.1, 4.3, 10],  
+            [4.0, 4.0, 4.0, 25],  
+            [3.8, 4.2, 4.1, 8],   
+            [4.1, 4.4, 4.2, 35],  
             [2.1, 4.8, 3.5, 30],  
             [1.5, 4.5, 4.0, 10],  
             [4.6, 2.0, 4.5, 25],  
@@ -48,7 +48,7 @@ def train_driver_classification_model():
         X_scaled = scaler.fit_transform(X_train)
         model.fit(X_scaled, y_train)
         is_trained = True
-        print("🧠 KNN Driver Classification Engine compiled successfully!")
+        print("🤖 KNN Driver Classification Engine compiled successfully!")
     except Exception as e:
         print(f"❌ Driver ML Compiler Exception: {e}")
 
@@ -86,6 +86,8 @@ def classify_driver(driver_uuid):
         total_evals = len(evals_res.data) if evals_res.data else 0
         
         if total_evals < 3:
+             # Save Insufficient Data status to DB so it clears "Pending Sweep"
+             supabase.table('driver_profile').update({"ml_classification": "Insufficient Data"}).eq('user_id', driver_uuid).execute()
              return jsonify({
                  "success": True, 
                  "classification": "Insufficient Data",
@@ -105,6 +107,11 @@ def classify_driver(driver_uuid):
         
         predicted_class = str(model.predict(scaled_features)[0])
         
+        # 🔥 THE MISSING PIECE: SAVE THE ANSWER TO SUPABASE 🔥
+        supabase.table('driver_profile').update({
+            "ml_classification": predicted_class
+        }).eq('user_id', driver_uuid).execute()
+        
         return jsonify({
             "success": True,
             "classification": predicted_class,
@@ -118,4 +125,44 @@ def classify_driver(driver_uuid):
 
     except Exception as e:
         print(f"🚨 CLASSIFICATION ERROR FOR {driver_uuid}: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# ---------------------------------------------------------
+# NEW: BULK SWEEP ROUTE
+# This allows your Flutter "Run AI Sweep" button to evaluate 
+# all 41+ drivers in one single fast swoop without crashing.
+# ---------------------------------------------------------
+@driver_ml_bp.route('/api/drivers/sweep', methods=['POST', 'GET'])
+def sweep_all_drivers():
+    global is_trained, model, scaler, supabase
+    if not is_trained:
+        train_driver_classification_model()
+
+    try:
+        # Import supabase dynamically from app if it was unassigned
+        if supabase is None:
+            from flask import current_app
+            # If your main app stores supabase globally or in extensions, reference it here, 
+            # or ensure it's imported from your main app file e.g.: from app import supabase
+            pass
+
+        drivers_res = supabase.table('driver_profile').select('user_id').limit(5000).execute()
+        driver_ids = [d['user_id'] for d in drivers_res.data] if drivers_res.data else []
+
+        updated_count = 0
+        for d_id in driver_ids:
+            try:
+                # Call classify logic directly and save
+                classify_driver(d_id)
+                updated_count += 1
+            except Exception as inner_e:
+                print(f"⚠️ Skipped {d_id} during sweep: {inner_e}")
+
+        return jsonify({
+            "success": True, 
+            "message": f"Successfully swept and updated {updated_count} drivers."
+        }), 200
+
+    except Exception as e:
+        print(f"🚨 BULK SWEEP ERROR: {e}")
         return jsonify({"success": False, "message": str(e)}), 500

@@ -1044,7 +1044,7 @@ class _OicSchedulesState extends State<OicSchedules> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  routeName,
+                  'TRIP-${trip['trip_id'] ?? 'N/A'} • $routeName',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,

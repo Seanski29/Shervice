@@ -1133,9 +1133,7 @@ class _OicTripsState extends State<OicTrips> {
         onNextPage: _currentPage < _totalPages - 1
             ? () => _goToPage(_currentPage + 1)
             : null,
-        onPrevPage: _currentPage > 0
-            ? () => _goToPage(_currentPage - 1)
-            : null,
+        onPrevPage: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
       ),
     );
   }
