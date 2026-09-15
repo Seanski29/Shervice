@@ -47,7 +47,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   List<Map<String, dynamic>> _topDrivers = [];
   List<int> _monthlyMaintenanceTotals = List<int>.filled(12, 0);
 
-  // --- Filter State modeled after DriverEvaluationView ---
   int? _selectedDriverYear;
   int? _selectedDriverMonth;
   List<int> _availableDriverYears = [];
@@ -60,7 +59,6 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   @override
   void initState() {
     super.initState();
-    // Default to All Time / All Months on startup
     _selectedDriverYear = null;
     _selectedDriverMonth = null;
     _initAvailableYears();
@@ -670,6 +668,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
         queryParameters['month'] = _selectedDriverMonth.toString();
       }
 
+      // FIX: Force backend to send ALL drivers so we can count them properly
+      queryParameters['limit'] = 'all';
+
       final uri = Uri.parse('$backendUrl/dashboard/driver-leaderboard').replace(queryParameters: queryParameters);
       final response = await http.get(uri).timeout(const Duration(seconds: 10));
 
@@ -677,6 +678,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
         final decoded = json.decode(response.body);
         final List<dynamic> driversList = decoded['top_drivers'] ?? decoded['drivers'] ?? decoded['data'] ?? [];
         final double overallAvg = _parseScore(decoded['overall_average']);
+        
+        // Grab the true total from the server just in case
+        final int serverTotalRated = _parseInt(decoded['total_rated_drivers']);
 
         if (mounted) {
           List<Map<String, dynamic>> rankedDrivers = driversList
@@ -690,10 +694,10 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
              return revs == 0;
           });
 
-          // IGNORE BACKEND COUNT: Calculate the TRUE count of valid rated drivers
+          // Calculate the TRUE count of valid rated drivers locally if server didn't provide
           final int actualRatedCount = rankedDrivers.length;
 
-          // FIX: Sort visually to match rounded outputs, ensuring 4.2(90) beats 4.2(20) smoothly.
+          // Sort visually to match rounded outputs, ensuring 4.2(90) beats 4.2(20) smoothly.
           rankedDrivers.sort((a, b) {
             final ratingA = _parseScore(a['rating']);
             final ratingB = _parseScore(b['rating']);
@@ -718,9 +722,10 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           });
 
           setState(() {
+            // FIX: Slice down to top 10 visually, but keep the true count for the left card
             _topDrivers = rankedDrivers.take(10).toList();
             _averageDriverRating = overallAvg;
-            _ratedDriverCount = actualRatedCount;
+            _ratedDriverCount = serverTotalRated > 0 ? serverTotalRated : actualRatedCount;
           });
         }
       } else {
