@@ -48,6 +48,8 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   List<int> _monthlyMaintenanceTotals = List<int>.filled(12, 0);
 
   DateTime _selectedDriverMonth = DateTime.now();
+  bool _showAllDriverMonths = false;
+  bool _showAllDriverTime = false;
 
   @override
   void initState() {
@@ -65,6 +67,18 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
       const Color(0xFF06B6D4),
     ];
     return designPalette[index % designPalette.length];
+  }
+
+  double _parseDriverRating(dynamic val) {
+    if (val == null) return 0.0;
+    if (val is num) return val.toDouble();
+    return double.tryParse(val.toString()) ?? 0.0;
+  }
+
+  int _parseInt(dynamic val) {
+    if (val == null) return 0;
+    if (val is num) return val.toInt();
+    return int.tryParse(val.toString()) ?? 0;
   }
 
   Future<void> _fetchLiveDashboardData() async {
@@ -604,10 +618,15 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
 
   Widget _buildSmallDriverFilter(bool isDark) {
     final theme = Theme.of(context);
+    final currentYear = DateTime.now().year;
     final years = List<int>.generate(
       7,
-      (index) => DateTime.now().year - 3 + index,
+      (index) => currentYear - 3 + index,
     );
+
+    final selectedYear = years.contains(_selectedDriverMonth.year)
+        ? _selectedDriverMonth.year
+        : currentYear;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -621,7 +640,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
         children: [
           DropdownButtonHideUnderline(
             child: DropdownButton<int>(
-              value: _selectedDriverMonth.month,
+              value: (_showAllDriverTime || _showAllDriverMonths)
+                  ? 0
+                  : _selectedDriverMonth.month,
               isDense: true,
               icon: const Icon(Icons.keyboard_arrow_down, size: 14),
               style: TextStyle(
@@ -629,16 +650,19 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                 fontWeight: FontWeight.w600,
                 color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
-              items: List.generate(
-                12,
-                (index) => DropdownMenuItem(
-                  value: index + 1,
-                  child: Text(_monthShortName(index + 1)),
+              items: [
+                const DropdownMenuItem(value: 0, child: Text('All months')),
+                ...List.generate(
+                  12,
+                  (index) => DropdownMenuItem(
+                    value: index + 1,
+                    child: Text(_monthShortName(index + 1)),
+                  ),
                 ),
-              ),
+              ],
               onChanged: (month) {
                 if (month != null) {
-                  _changeDriverMonth(month, _selectedDriverMonth.year);
+                  _changeDriverFilter(month: month, allTime: false);
                 }
               },
             ),
@@ -651,9 +675,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
           ),
           DropdownButtonHideUnderline(
             child: DropdownButton<int>(
-              value: years.contains(_selectedDriverMonth.year)
-                  ? _selectedDriverMonth.year
-                  : years.last,
+              value: _showAllDriverTime ? 0 : selectedYear,
               isDense: true,
               icon: const Icon(Icons.keyboard_arrow_down, size: 14),
               style: TextStyle(
@@ -661,17 +683,22 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                 fontWeight: FontWeight.w600,
                 color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
-              items: years
-                  .map(
-                    (year) => DropdownMenuItem(
-                      value: year,
-                      child: Text(year.toString()),
-                    ),
-                  )
-                  .toList(),
+              items: [
+                const DropdownMenuItem(value: 0, child: Text('All time')),
+                ...years.map(
+                  (year) => DropdownMenuItem(
+                    value: year,
+                    child: Text(year.toString()),
+                  ),
+                ),
+              ],
               onChanged: (year) {
                 if (year != null) {
-                  _changeDriverMonth(_selectedDriverMonth.month, year);
+                  if (year == 0) {
+                    _changeDriverFilter(allTime: true);
+                  } else {
+                    _changeDriverFilter(year: year, allTime: false);
+                  }
                 }
               },
             ),
@@ -684,6 +711,13 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
   Widget _buildLeaderboardCard({bool compact = false, bool framed = true}) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final String emptyMessage = _showAllDriverTime
+        ? 'No rated drivers found (All time).'
+        : _showAllDriverMonths
+        ? 'No rated drivers for ${_selectedDriverMonth.year}.'
+        : 'No rated drivers for ${_monthName(_selectedDriverMonth.month)} ${_selectedDriverMonth.year}.';
+
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 20),
       decoration: framed
@@ -727,7 +761,7 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
                 child: Text(
-                  'No rated drivers for this month/year.',
+                  emptyMessage,
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontSize: _captionTextSize,
                   ),
@@ -743,10 +777,9 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
                 final rank = index + 1;
                 final driver = _topDrivers[index];
                 final name =
-                    (driver['full_name'] ?? driver['label'] ?? 'Driver')
+                    (driver['full_name'] ?? driver['name'] ?? driver['label'] ?? 'Driver')
                         .toString();
-                final rating =
-                    double.tryParse(driver['rating']?.toString() ?? '') ?? 0;
+                final rating = _parseDriverRating(driver['rating']);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Row(
@@ -964,11 +997,50 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     );
   }
 
-  Future<void> _changeDriverMonth(int month, int year) async {
+  Future<void> _changeDriverFilter({
+    int? month,
+    int? year,
+    bool? allTime,
+  }) async {
     setState(() {
-      _selectedDriverMonth = DateTime(year, month);
+      if (allTime == true) {
+        _showAllDriverTime = true;
+        _showAllDriverMonths = true;
+      } else if (allTime == false) {
+        _showAllDriverTime = false;
+      }
+
+      if (month != null) {
+        _showAllDriverMonths = month == 0;
+        if (month != 0) {
+          _showAllDriverTime = false;
+        }
+      }
+
+      if (year != null) {
+        if (year == 0) {
+          _showAllDriverTime = true;
+          _showAllDriverMonths = true;
+        } else {
+          _showAllDriverTime = false;
+        }
+      }
+
+      final targetYear = (year != null && year > 0)
+          ? year
+          : _selectedDriverMonth.year;
+      final targetMonth = (month != null && month > 0)
+          ? month
+          : (_showAllDriverMonths ? 1 : _selectedDriverMonth.month);
+
+      _selectedDriverMonth = DateTime(targetYear, targetMonth);
     });
+
     await _loadDriverRating();
+  }
+
+  Future<void> _changeDriverMonth(int month, int year) async {
+    await _changeDriverFilter(month: month, year: year);
   }
 
   Future<void> _loadDriverRating() async {
@@ -976,29 +1048,71 @@ class _SharedDashboardViewState extends State<SharedDashboardView> {
     setState(() => _isRatingLoading = true);
 
     try {
-      final uri = Uri.parse('$backendUrl/dashboard/driver-leaderboard').replace(
-        queryParameters: {
-          'month': _selectedDriverMonth.month.toString(),
+      final queryParameters = <String, String>{
+        if (_showAllDriverTime)
+          'period': 'all'
+        else ...{
           'year': _selectedDriverMonth.year.toString(),
+          if (_showAllDriverMonths) 'period': 'year',
+          if (!_showAllDriverMonths)
+            'month': _selectedDriverMonth.month.toString(),
         },
-      );
+      };
+      final uri = Uri.parse(
+        '$backendUrl/dashboard/driver-leaderboard',
+      ).replace(queryParameters: queryParameters);
 
       final response = await http.get(uri).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
-        final List<dynamic> driversList = decoded['top_drivers'] ?? [];
+        final List<dynamic> driversList =
+            decoded['top_drivers'] ?? decoded['drivers'] ?? decoded['data'] ?? [];
 
         final double overallAvg =
-            (decoded['overall_average'] as num?)?.toDouble() ?? 0.0;
+            double.tryParse(decoded['overall_average']?.toString() ?? '') ??
+            (decoded['overall_average'] as num?)?.toDouble() ??
+            0.0;
         final int totalRated =
-            (decoded['total_rated_drivers'] as num?)?.toInt() ?? 0;
+            int.tryParse(decoded['total_rated_drivers']?.toString() ?? '') ??
+            (decoded['total_rated_drivers'] as num?)?.toInt() ??
+            0;
 
         if (mounted) {
+          final rankedDrivers = driversList
+              .whereType<Map>()
+              .map((d) => Map<String, dynamic>.from(d))
+              .toList()
+            ..sort((a, b) {
+              final ratingA = _parseDriverRating(a['rating']);
+              final ratingB = _parseDriverRating(b['rating']);
+              final ratingCmp = ratingB.compareTo(ratingA);
+              if (ratingCmp != 0) return ratingCmp;
+
+              final tripsA = _parseInt(
+                a['total_trips'] ??
+                    a['trip_count'] ??
+                    a['trips'] ??
+                    a['completed_trips'],
+              );
+              final tripsB = _parseInt(
+                b['total_trips'] ??
+                    b['trip_count'] ??
+                    b['trips'] ??
+                    b['completed_trips'],
+              );
+              final tripsCmp = tripsB.compareTo(tripsA);
+              if (tripsCmp != 0) return tripsCmp;
+
+              final nameA = (a['full_name'] ?? a['name'] ?? a['label'] ?? '')
+                  .toString();
+              final nameB = (b['full_name'] ?? b['name'] ?? b['label'] ?? '')
+                  .toString();
+              return nameA.toLowerCase().compareTo(nameB.toLowerCase());
+            });
+
           setState(() {
-            _topDrivers = driversList
-                .map((d) => Map<String, dynamic>.from(d))
-                .toList();
+            _topDrivers = rankedDrivers;
             _averageDriverRating = overallAvg;
             _ratedDriverCount = totalRated;
           });

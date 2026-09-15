@@ -102,14 +102,18 @@ def diagnostic_database_check():
         raw_data = test_query.data or []
 
         trips_res = supabase.table('trip_schedule').select('trip_id, user_id').execute()
-        trip_to_driver = {t['trip_id']: t['user_id'] for t in trips_res.data if t.get('user_id')}
+        trip_to_driver = {
+            str(t['trip_id']): t['user_id']
+            for t in trips_res.data
+            if t.get('user_id') is not None and t.get('trip_id') is not None
+        }
 
         evals_res = supabase.table('passenger_evaluation').select('trip_id, safety_score, punctuality_score, professionalism_score').execute()
         
         driver_scores = {}
         for ev in evals_res.data or []:
             t_id = ev.get('trip_id')
-            driver_id = trip_to_driver.get(t_id)
+            driver_id = trip_to_driver.get(str(t_id)) if t_id is not None else None
             if driver_id:
                 s = float(ev.get('safety_score') or 0)
                 p = float(ev.get('punctuality_score') or 0)
@@ -493,11 +497,17 @@ def get_dashboard_metrics():
 def get_driver_leaderboard():
     """Fetches top drivers and calculates overall metrics specifically for a given month and year."""
     try:
-        selected_year = int(request.args.get('year', datetime.now().year))
+        raw_year = request.args.get('year')
+        selected_year = int(raw_year) if raw_year else None
         period = request.args.get('period', 'month')
         selected_month = int(request.args.get('month', datetime.now().month))
 
-        if period == 'year':
+        if period == 'all':
+            period_start = None
+            period_end = None
+        elif period == 'year':
+            if selected_year is None:
+                raise ValueError('year is required for yearly leaderboard results')
             period_start = datetime(selected_year, 1, 1).date().isoformat()
             period_end = datetime(selected_year + 1, 1, 1).date().isoformat()
         else:
@@ -508,11 +518,11 @@ def get_driver_leaderboard():
                 next_month = datetime(selected_year, selected_month + 1, 1)
             period_end = next_month.date().isoformat()
 
-        evals_res = supabase.table('passenger_evaluation')\
-            .select('trip_id, safety_score, punctuality_score, professionalism_score')\
-            .gte('submit_date', period_start)\
-            .lt('submit_date', period_end)\
-            .execute()
+        evals_query = supabase.table('passenger_evaluation')\
+            .select('trip_id, safety_score, punctuality_score, professionalism_score')
+        if period_start is not None:
+            evals_query = evals_query.gte('submit_date', period_start).lt('submit_date', period_end)
+        evals_res = evals_query.execute()
         
         raw_evals = evals_res.data or []
 
@@ -539,7 +549,11 @@ def get_driver_leaderboard():
             .in_('trip_id', trip_ids)\
             .execute()
         
-        trip_to_driver = {t['trip_id']: t['user_id'] for t in trips_res.data if t.get('user_id')}
+        trip_to_driver = {
+            str(t['trip_id']): t['user_id']
+            for t in trips_res.data
+            if t.get('trip_id') is not None and t.get('user_id') is not None
+        }
 
         driver_ids = list(set(trip_to_driver.values()))
         if not driver_ids:
@@ -562,7 +576,7 @@ def get_driver_leaderboard():
 
         for ev in raw_evals:
             t_id = ev.get('trip_id')
-            driver_id = trip_to_driver.get(t_id)
+            driver_id = trip_to_driver.get(str(t_id)) if t_id is not None else None
             
             s = float(ev.get('safety_score') or 0)
             p = float(ev.get('punctuality_score') or 0)
@@ -591,7 +605,7 @@ def get_driver_leaderboard():
 
         return jsonify({
             "success": True,
-            "top_drivers": top_drivers[:5],
+            "top_drivers": top_drivers,
             "overall_average": round(overall_monthly_average, 2),
             "total_rated_drivers": len(driver_scores)
         }), 200

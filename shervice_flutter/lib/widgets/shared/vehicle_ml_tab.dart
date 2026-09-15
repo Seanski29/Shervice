@@ -21,7 +21,7 @@ class VehicleMlTab extends StatefulWidget {
 
 class _VehicleMlTabState extends State<VehicleMlTab> {
   String _searchQuery = '';
-  String _currentSort = 'A to Z';
+  String _currentSort = 'Needs Attention first';
   int _currentPage = 0;
   final int _itemsPerPage = 6;
 
@@ -60,14 +60,31 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
     }).toList();
 
     tempV.sort((a, b) {
-      final attentionA = a['needs_attention'] == true ? 0 : 1;
-      final attentionB = b['needs_attention'] == true ? 0 : 1;
-      if (attentionA != attentionB) return attentionA.compareTo(attentionB);
       final pA = (a['plate_number'] ?? '').toString().toLowerCase();
       final pB = (b['plate_number'] ?? '').toString().toLowerCase();
-      return _currentSort == 'Z to A' ? pB.compareTo(pA) : pA.compareTo(pB);
+      if (_currentSort == 'A to Z') return pA.compareTo(pB);
+      if (_currentSort == 'Z to A') return pB.compareTo(pA);
+      final attentionA = _conditionRank(a);
+      final attentionB = _conditionRank(b);
+      if (attentionA != attentionB) return attentionA.compareTo(attentionB);
+      return pA.compareTo(pB);
     });
     return tempV;
+  }
+
+  int _conditionRank(dynamic vehicle) {
+    final dbStatus = (vehicle['health_status'] ?? 'Excellent').toString();
+    final daysRemaining =
+        (vehicle['live_risk_score'] as num?)?.toDouble() ?? 0.0;
+    if (vehicle['needs_attention'] == true ||
+        dbStatus.toLowerCase().contains('maintenance') ||
+        dbStatus.toLowerCase().contains('repair') ||
+        daysRemaining <= 7.0) {
+      return 0;
+    }
+    if (daysRemaining <= 30.0) return 1;
+    if (daysRemaining <= 90.0) return 2;
+    return 3;
   }
 
   @override
@@ -170,6 +187,7 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                       ),
                       items:
                           [
+                                'Needs Attention first',
                                 'A to Z',
                                 'Z to A',
                                 'Condition: Excellent',
@@ -349,11 +367,12 @@ class _VehicleMlTabState extends State<VehicleMlTab> {
                                   ],
                                 ),
                               ),
-                              Flexible(
+                              Expanded(
                                 child: Wrap(
                                   spacing: 8,
                                   runSpacing: 4,
                                   alignment: WrapAlignment.end,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(

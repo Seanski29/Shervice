@@ -9,6 +9,7 @@ import '../../../constant.dart';
 import 'fleet_overview_tab.dart';
 import 'driver_performance_tab.dart';
 import 'vehicle_ml_tab.dart';
+import 'company_analytics_tab.dart';
 
 class SharedAnalyticsHub extends StatefulWidget {
   const SharedAnalyticsHub({super.key});
@@ -25,7 +26,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
   List<dynamic> _allVehicles = [];
   List<dynamic> _allTrips = [];
   List<dynamic> _allMaintenanceLogs = [];
-  Map<String, dynamic> _analytics = {};
 
   final Set<int> _visitedTabs = {0};
 
@@ -65,12 +65,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
       final tRes = results[1];
       final mRes = results[2];
       final vRes = results[3];
-      final analyticsRes = results[4];
-      if (analyticsRes.statusCode == 200) {
-        final payload = jsonDecode(analyticsRes.body);
-        _analytics = Map<String, dynamic>.from(payload['analytics'] ?? {});
-      }
-
       // 2. Parse Trips
       List<dynamic> trips = [];
       if (tRes.statusCode == 200) {
@@ -236,11 +230,6 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 768;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final Color subtitleColor = isDark
-        ? Colors.grey.shade400
-        : const Color(0xFF64748B);
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Skeletonizer(
@@ -250,62 +239,15 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              isMobile
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildAnalyticsHeader(textColor, subtitleColor),
-                        const SizedBox(height: 12),
-                        _buildSweepButton(),
-                      ],
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _buildAnalyticsHeader(
-                            textColor,
-                            subtitleColor,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        _buildSweepButton(),
-                      ],
-                    ),
-              const SizedBox(height: 24),
-              _buildSummaryPanel(isDark, textColor),
-              const SizedBox(height: 16),
-
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF0F172A)
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(10),
-                  border: isDark
-                      ? Border.all(color: Colors.grey.shade800)
-                      : null,
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildNavTab(0, 'Fleet', Icons.dashboard, isDark),
-                      _buildNavTab(1, 'Drivers', Icons.person, isDark),
-                      _buildNavTab(
-                        2,
-                        'Vehicle ML',
-                        Icons.directions_bus,
-                        isDark,
-                      ),
-                      _buildNavTab(3, 'Routes', Icons.alt_route, isDark),
-                    ],
-                  ),
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: _buildNavigationTabs(isDark)),
+                  const SizedBox(width: 12),
+                  _buildSweepButton(),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
 
               Expanded(
                 child: _isLoading && _allVehicles.isEmpty
@@ -341,6 +283,12 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
                                   onSyncAction: _handleManualSync,
                                 )
                               : const SizedBox.shrink(),
+                          _visitedTabs.contains(4)
+                              ? CompanyAnalyticsTab(
+                                  trips: _allTrips,
+                                  drivers: _allDrivers,
+                                )
+                              : const SizedBox.shrink(),
                         ],
                       ),
               ),
@@ -351,99 +299,25 @@ class _SharedAnalyticsHubState extends State<SharedAnalyticsHub> {
     );
   }
 
-  Widget _buildAnalyticsHeader(Color textColor, Color subtitleColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Analytics Hub',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: textColor,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Evaluate driver feedback, fleet metrics, and predictive diagnostics.',
-          style: TextStyle(fontSize: 14, color: subtitleColor),
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
-        Text(
-          'Showing data for ${_analytics['timeframe'] ?? 'the current month'}',
-          style: const TextStyle(
-            color: Color(0xFF3B82F6),
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSummaryPanel(bool isDark, Color textColor) {
-    final participation = Map<String, dynamic>.from(
-      _analytics['evaluation_participation'] ?? {},
-    );
-    final companies = (_analytics['companies'] as List<dynamic>?) ?? [];
-    final summaryText =
-        participation['label'] ?? 'No evaluation data for this month';
+  Widget _buildNavigationTabs(bool isDark) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        border: Border.all(color: Theme.of(context).dividerColor),
+        color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(10),
+        border: isDark ? Border.all(color: Colors.grey.shade800) : null,
       ),
-      child: Wrap(
-        spacing: 24,
-        runSpacing: 12,
-        children: [
-          _summaryMetric('Evaluation participation', summaryText, textColor),
-          _summaryMetric(
-            'Top performing driver',
-            _analytics['top_driver'] is Map
-                ? '${_analytics['top_driver']['full_name']} (${_analytics['top_driver']['rating']}/5)'
-                : 'No rated driver for this period',
-            textColor,
-          ),
-          if (companies.isNotEmpty)
-            _summaryMetric(
-              'Per-company statistics',
-              companies
-                  .take(3)
-                  .map((company) {
-                    final item = Map<String, dynamic>.from(company as Map);
-                    return '${item['company_name']}: ${item['participation_label']}';
-                  })
-                  .join(' | '),
-              textColor,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryMetric(String label, String value, Color textColor) {
-    return SizedBox(
-      width: 280,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(color: textColor, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: textColor, fontSize: 12),
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildNavTab(0, 'Fleet', Icons.dashboard, isDark),
+            _buildNavTab(1, 'Drivers', Icons.person, isDark),
+            _buildNavTab(2, 'Vehicle ML', Icons.directions_bus, isDark),
+            _buildNavTab(3, 'Routes', Icons.alt_route, isDark),
+            _buildNavTab(4, 'Company', Icons.business, isDark),
+          ],
+        ),
       ),
     );
   }

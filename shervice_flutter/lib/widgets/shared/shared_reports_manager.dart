@@ -55,6 +55,9 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
       'client_name',
       'company_id',
       'departure_time',
+      'estimated_arrival_time',
+      'actual_start_time',
+      'actual_end_time',
       'trip_id',
       'route_name',
       'schedule_date',
@@ -323,6 +326,10 @@ class _SharedReportsManagerState extends State<SharedReportsManager> {
             'Unassigned Client';
         flat['company_id'] = flat['company_id'] ?? 'N/A';
         flat['departure_time'] = flat['departure_time'] ?? '--:--';
+        flat['estimated_arrival_time'] =
+            flat['estimated_arrival_time'] ?? '--:--';
+        flat['actual_start_time'] = flat['actual_start_time'] ?? '--:--';
+        flat['actual_end_time'] = flat['actual_end_time'] ?? '--:--';
         flat['trip_id'] = flat['trip_id'] ?? 'N/A';
         flat['status'] = _normalizeCellValue(
           flat['trip_status'] ?? flat['status'] ?? 'Scheduled',

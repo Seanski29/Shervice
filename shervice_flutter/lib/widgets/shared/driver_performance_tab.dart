@@ -24,12 +24,11 @@ class DriverPerformanceTab extends StatefulWidget {
 
 class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
   String _searchQuery = '';
-  String _currentSort = 'A to Z';
+  String _currentSort = 'Rating (High-Low)';
   int _currentPage = 0;
   final int _itemsPerPage = 6;
   int _selectedMonth = DateTime.now().month;
   int _selectedYear = DateTime.now().year;
-  bool _wholeYear = false;
   List<dynamic> _leaderboard = [];
 
   @override
@@ -40,7 +39,9 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
 
   Future<void> _fetchLeaderboard() async {
     try {
-      final query = _wholeYear
+      final query = _selectedYear == 0
+          ? 'period=all'
+          : _selectedMonth == 0
           ? 'year=$_selectedYear&period=year'
           : 'month=$_selectedMonth&year=$_selectedYear';
       final response = await http.get(
@@ -58,6 +59,19 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
       if (entry['user_id']?.toString() == userId) return entry;
     }
     return null;
+  }
+
+  double _periodRating(dynamic driver) {
+    final driverId = (driver['user_id'] ?? driver['id'] ?? '').toString();
+    final entry = _leaderboardFor(driverId);
+    return (entry?['rating'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  int _periodEvaluationCount(dynamic driver) {
+    final driverId = (driver['user_id'] ?? driver['id'] ?? '').toString();
+    final entry = _leaderboardFor(driverId);
+    final rawCount = entry?['eval_count'] ?? entry?['evaluation_count'];
+    return rawCount is num ? rawCount.toInt() : 0;
   }
 
   String _monthName(int month) {
@@ -87,13 +101,9 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
 
     tempD.sort((a, b) {
       if (_currentSort == 'Rating (High-Low)') {
-        return ((b['rating'] as num?)?.toDouble() ?? 0.0).compareTo(
-          (a['rating'] as num?)?.toDouble() ?? 0.0,
-        );
+        return _periodRating(b).compareTo(_periodRating(a));
       } else if (_currentSort == 'Rating (Low-High)') {
-        return ((a['rating'] as num?)?.toDouble() ?? 0.0).compareTo(
-          (b['rating'] as num?)?.toDouble() ?? 0.0,
-        );
+        return _periodRating(a).compareTo(_periodRating(b));
       } else {
         final nameA = (a['full_name'] ?? '').toString().toLowerCase();
         final nameB = (b['full_name'] ?? '').toString().toLowerCase();
@@ -132,44 +142,101 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
           runSpacing: 12,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            DropdownButton<int>(
-              value: _selectedMonth,
-              items: List.generate(
-                12,
-                (index) => DropdownMenuItem(
-                  value: index + 1,
-                  child: Text(_monthName(index + 1)),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: isMobile ? double.infinity : 230,
+                minWidth: isMobile ? double.infinity : 150,
+              ),
+              child: SizedBox(
+                height: 42,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    border: Border.all(color: borderColor),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _currentSort,
+                      dropdownColor: cardBg,
+                      icon: Icon(
+                        Icons.sort,
+                        size: 18,
+                        color: Colors.grey.shade500,
+                      ),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: textColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      items:
+                          [
+                                'A to Z',
+                                'Z to A',
+                                'Rating (High-Low)',
+                                'Rating (Low-High)',
+                              ]
+                              .map(
+                                (value) => DropdownMenuItem(
+                                  value: value,
+                                  child: Text(value),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _currentSort = value;
+                            _currentPage = 0;
+                          });
+                        }
+                      },
+                    ),
+                  ),
                 ),
               ),
-              onChanged: _wholeYear
-                  ? null
-                  : (value) {
-                      if (value == null) return;
-                      setState(() => _selectedMonth = value);
-                      _fetchLeaderboard();
-                    },
+            ),
+            DropdownButton<int>(
+              value: _selectedMonth,
+              items: [
+                const DropdownMenuItem(value: 0, child: Text('All months')),
+                ...List.generate(
+                  12,
+                  (index) => DropdownMenuItem(
+                    value: index + 1,
+                    child: Text(_monthName(index + 1)),
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _selectedMonth = value);
+                  _fetchLeaderboard();
+                }
+              },
             ),
             DropdownButton<int>(
               value: _selectedYear,
-              items: List.generate(
-                5,
-                (index) => DropdownMenuItem(
-                  value: DateTime.now().year - index,
-                  child: Text('${DateTime.now().year - index}'),
+              items: [
+                const DropdownMenuItem(value: 0, child: Text('All time')),
+                ...List.generate(
+                  7,
+                  (index) => DropdownMenuItem(
+                    value: DateTime.now().year - 3 + index,
+                    child: Text('${DateTime.now().year - 3 + index}'),
+                  ),
                 ),
-              ),
+              ],
               onChanged: (value) {
-                if (value == null) return;
-                setState(() => _selectedYear = value);
-                _fetchLeaderboard();
-              },
-            ),
-            FilterChip(
-              label: const Text('Whole year'),
-              selected: _wholeYear,
-              onSelected: (selected) {
-                setState(() => _wholeYear = selected);
-                _fetchLeaderboard();
+                if (value != null) {
+                  setState(() {
+                    _selectedYear = value;
+                    if (value == 0) _selectedMonth = 0;
+                  });
+                  _fetchLeaderboard();
+                }
               },
             ),
             ConstrainedBox(
@@ -209,62 +276,6 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(color: borderColor),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: isMobile ? double.infinity : 230,
-                minWidth: isMobile ? double.infinity : 150,
-              ),
-              child: SizedBox(
-                height: 42,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    border: Border.all(color: borderColor),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _currentSort,
-                      dropdownColor: cardBg,
-                      icon: Icon(
-                        Icons.sort,
-                        size: 18,
-                        color: Colors.grey.shade500,
-                      ),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: textColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      items:
-                          [
-                                'A to Z',
-                                'Z to A',
-                                'Rating (High-Low)',
-                                'Rating (Low-High)',
-                              ]
-                              .map(
-                                (String value) => DropdownMenuItem(
-                                  value: value,
-                                  child: Text(value),
-                                ),
-                              )
-                              .toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _currentSort = val;
-                            _currentPage = 0;
-                          });
-                        }
-                      },
                     ),
                   ),
                 ),
@@ -316,8 +327,7 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
                   itemCount: paginatedDrivers.length,
                   itemBuilder: (context, index) {
                     final driver = paginatedDrivers[index];
-                    final double rating =
-                        (driver['rating'] as num?)?.toDouble() ?? 0.0;
+                    final double rating = _periodRating(driver);
                     final String status =
                         driver['employment_status'] ?? 'Active';
                     Color statusColor;
@@ -330,13 +340,7 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
                     }
                     final String driverId =
                         (driver['user_id'] ?? driver['id'] ?? '').toString();
-                    final leaderboardEntry = _leaderboardFor(driverId);
-                    final evaluationCount =
-                        leaderboardEntry?['eval_count'] ??
-                        leaderboardEntry?['evaluation_count'] ??
-                        driver['evaluation_count'] ??
-                        driver['eval_count'] ??
-                        0;
+                    final evaluationCount = _periodEvaluationCount(driver);
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -448,7 +452,7 @@ class _DriverPerformanceTabState extends State<DriverPerformanceTab> {
                                               ),
                                             ),
                                             Text(
-                                              '$evaluationCount evaluations',
+                                              ' • $evaluationCount evaluations',
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 color: Colors.grey.shade500,
