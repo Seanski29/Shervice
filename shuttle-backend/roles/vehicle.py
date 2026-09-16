@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from .notifs import trigger_notification
 
 # Create the Blueprint for vehicle routes
 vehicles_bp = Blueprint('vehicles', __name__)
@@ -50,10 +51,12 @@ def handle_vehicles():
         logs = supabase.table('maintenance_log').select(
             'vehicle_id, incident_date, repair_date, is_resolved'
         ).order('repair_date', desc=True).execute().data or []
+        
         target_dates = {}
         for log in logs:
             if log.get('is_resolved') is False and log.get('vehicle_id') not in target_dates:
                 target_dates[log.get('vehicle_id')] = log.get('incident_date') or log.get('repair_date')
+                
         for vehicle in vehicles:
             vehicle['needs_attention'] = (
                 not vehicle.get('is_available', True) or
@@ -61,6 +64,7 @@ def handle_vehicles():
                 'repair' in str(vehicle.get('health_status', '')).lower()
             )
             vehicle['maintenance_target_date'] = target_dates.get(vehicle.get('vehicle_id'))
+            
         return jsonify({"success": True, "data": vehicles}), 200
     except Exception as e:
         print(f"❌ Exception: {e}")
@@ -106,7 +110,6 @@ def delete_vehicle(vehicle_identifier):
 @vehicles_bp.route('/api/vehicles/maintenance', methods=['GET'])
 def get_maintenance_logs():
     try:
-        # Explicitly fetching all the new detailed columns!
         query = supabase.table('maintenance_log').select(
             'maintenance_id, repair_date, description, vehicle_id, user_id, category, incident_date, incident_time, repair_time, is_resolved, vehicle(plate_number), user_account(full_name)'
         ).order('repair_date', desc=True).execute()
@@ -160,6 +163,30 @@ def add_maintenance_log():
             "last_maintenance_description": new_log["description"]
         }).eq('vehicle_id', target_vehicle_id).execute()
 
+        # ✅ Fetch plate number for the notification message
+        veh_res = supabase.table('vehicle').select('plate_number').eq('vehicle_id', target_vehicle_id).execute()
+        plate_number = veh_res.data[0]['plate_number'] if veh_res.data else f"ID {target_vehicle_id}"
+
+        # Build a detailed, multi-line message
+        status_text = "Repaired / Resolved" if is_resolved else "Ongoing / Needs Attention"
+        detailed_message = (
+            f"Vehicle {plate_number} has a new maintenance record.\n\n"
+            f"Category: {new_log['category']}\n"
+            f"Status: {status_text}\n"
+            f"Notes: {new_log['description']}"
+        )
+
+        # ✅ Trigger the notification across all requested roles
+        roles_to_notify = ["admin", "staff", "oic"]
+        for target_role in roles_to_notify:
+            trigger_notification(
+                title="New Maintenance Log",
+                message=detailed_message,
+                target_role=target_role,
+                source_tag="maintenance",
+                db_client=supabase
+            )
+
         return jsonify({"success": True, "message": "Maintenance log added to history successfully!"}), 201
     except Exception as e:
         print(f"❌ Maintenance Logging failure: {e}")
@@ -190,6 +217,29 @@ def update_maintenance_log():
             "health_status": "Good",
             "is_available": True
         }).eq('vehicle_id', vehicle_id).execute()
+
+        # ✅ Notify roles when a vehicle is repaired
+        veh_res = supabase.table('vehicle').select('plate_number').eq('vehicle_id', vehicle_id).execute()
+        plate_number = veh_res.data[0]['plate_number'] if veh_res.data else f"ID {vehicle_id}"
+
+        # Build a detailed completion message
+        repair_date = data.get('repair_date', 'N/A')
+        repair_time = data.get('repair_time', 'N/A')
+        completion_message = (
+            f"Vehicle {plate_number} has been marked as repaired and is available for dispatch.\n\n"
+            f"Date Completed: {repair_date}\n"
+            f"Time Completed: {repair_time}"
+        )
+
+        roles_to_notify = ["admin", "staff", "oic"]
+        for target_role in roles_to_notify:
+            trigger_notification(
+                title="Vehicle Repaired",
+                message=completion_message,
+                target_role=target_role,
+                source_tag="maintenance",
+                db_client=supabase
+            )
 
         return jsonify({"success": True, "message": "Vehicle marked as repaired and ready for dispatch!"}), 200
         
