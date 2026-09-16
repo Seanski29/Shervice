@@ -39,7 +39,7 @@ def _execute_supabase(action, retries=3, backoff=0.25):
     raise last_exc
 
 # ==========================================
-# 1. FETCH NOTIFICATIONS (WITH STRICT DRIVER ISOLATION)
+# 1. FETCH NOTIFICATIONS
 # ==========================================
 @notifs_bp.route('/api/notifications', methods=['GET'])
 def get_notifications():
@@ -53,8 +53,6 @@ def get_notifications():
         if not user_id:
             return jsonify({"success": False, "message": "Missing user_id parameter"}), 400
 
-        # PERF: Reuse app.py's process-scoped client to avoid constructing and
-        # tearing down an HTTP session for every notification request.
         supabase_client = supabase or _create_supabase_client()
         response = _execute_supabase(
             lambda: supabase_client.table('app_notification')
@@ -66,24 +64,16 @@ def get_notifications():
         raw_notifs = response.data or []
         filtered_notifications = []
 
-        # --------------------------------------------------
-        # THE STRICT FILTERS
-        # --------------------------------------------------
         if role == 'admin':
-            # Admins see everything
             filtered_notifications = raw_notifs
             
         elif role == 'driver':
-            # RUTHLESS DRIVER FILTER: 
-            # Drivers ONLY see notifications explicitly linked to their exact UUID.
             for notification in raw_notifs:
                 target_user_id = notification.get('target_user_id')
                 if str(target_user_id) == str(user_id):
                     filtered_notifications.append(notification)
                     
         else:
-            # STAFF AND OIC FILTER:
-            # They get the flexible rules (Global broadcasts, company broadcasts, etc.)
             for notification in raw_notifs:
                 target_user_id = notification.get('target_user_id')
                 target_role = (notification.get('target_role') or '').strip().lower()
@@ -107,10 +97,7 @@ def get_notifications():
                 if target_role == role and company and target_company.lower() == company.lower():
                     filtered_notifications.append(notification)
 
-        return jsonify({
-            "success": True,
-            "data": filtered_notifications
-        }), 200
+        return jsonify({"success": True, "data": filtered_notifications}), 200
 
     except Exception as e:
         print(f"❌ Notification Fetch Error: {e}")
@@ -123,7 +110,6 @@ def get_notifications():
 @notifs_bp.route('/api/notifications/<int:notif_id>/read', methods=['PUT'])
 def mark_as_read(notif_id):
     try:
-        # PERF: Reuse the shared HTTP session instead of allocating one per update.
         supabase_client = supabase or _create_supabase_client()
         response = _execute_supabase(
             lambda: supabase_client.table('app_notification')
@@ -136,22 +122,114 @@ def mark_as_read(notif_id):
             return jsonify({"success": True, "message": "Notification marked as read."}), 200
         else:
             return jsonify({"success": False, "message": "Notification not found."}), 404
-
     except Exception as e:
         print(f"❌ Notification Update Error: {e}")
         return jsonify({"success": False, "message": "Internal server error."}), 500
 
 
 # ==========================================
-# 3. UNIVERSAL TRIGGER HELPER
+# 3. MARK ALL AS READ
 # ==========================================
-def trigger_notification(title, message, target_user_id=None, target_role=None, target_company=None, related_trip_id=None, source_tag='system'):
+@notifs_bp.route('/api/notifications/read-all', methods=['PUT'])
+def mark_all_as_read():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        role = (data.get('role') or '').strip().lower()
+        
+        if not user_id:
+            return jsonify({"success": False, "message": "Missing user_id"}), 400
+
+        supabase_client = supabase or _create_supabase_client()
+        
+        # Fetch unread notifications
+        response = _execute_supabase(
+            lambda: supabase_client.table('app_notification')
+            .select('*')
+            .eq('is_read', False)
+            .execute()
+        )
+        raw_notifs = response.data or []
+        ids_to_update = []
+
+        if role == 'admin':
+            ids_to_update = [n['notification_id'] for n in raw_notifs]
+        elif role == 'driver':
+            for n in raw_notifs:
+                if str(n.get('target_user_id')) == str(user_id):
+                    ids_to_update.append(n['notification_id'])
+        else:
+            company = (data.get('company') or '').strip()
+            if company.lower() in ('internal', 'gt lantin internal', 'unknown'):
+                company = ''
+                
+            for n in raw_notifs:
+                target_user_id = n.get('target_user_id')
+                target_role = (n.get('target_role') or '').strip().lower()
+                target_company = (n.get('target_company') or '').strip()
+
+                if str(target_user_id) == str(user_id):
+                    ids_to_update.append(n['notification_id'])
+                    continue
+                if not target_role and not target_company:
+                    ids_to_update.append(n['notification_id'])
+                    continue
+                if not target_role and company and target_company.lower() == company.lower():
+                    ids_to_update.append(n['notification_id'])
+                    continue
+                if target_role == role and not target_company:
+                    ids_to_update.append(n['notification_id'])
+                    continue
+                if target_role == role and not company:
+                    ids_to_update.append(n['notification_id'])
+                    continue
+                if target_role == role and company and target_company.lower() == company.lower():
+                    ids_to_update.append(n['notification_id'])
+
+        if ids_to_update:
+            _execute_supabase(
+                lambda: supabase_client.table('app_notification')
+                .update({'is_read': True})
+                .in_('notification_id', ids_to_update)
+                .execute()
+            )
+
+        return jsonify({"success": True, "message": f"Marked {len(ids_to_update)} notifications as read."}), 200
+
+    except Exception as e:
+        print(f"❌ Notification Read-All Error: {e}")
+        return jsonify({"success": False, "message": "Internal server error."}), 500
+
+
+# ==========================================
+# 4. DELETE NOTIFICATION
+# ==========================================
+@notifs_bp.route('/api/notifications/<int:notif_id>', methods=['DELETE'])
+def delete_notification(notif_id):
+    try:
+        supabase_client = supabase or _create_supabase_client()
+        _execute_supabase(
+            lambda: supabase_client.table('app_notification')
+            .delete()
+            .eq('notification_id', notif_id)
+            .execute()
+        )
+        return jsonify({"success": True, "message": "Notification deleted."}), 200
+    except Exception as e:
+        print(f"❌ Notification Delete Error: {e}")
+        return jsonify({"success": False, "message": "Internal server error."}), 500
+
+
+# ==========================================
+# 5. UNIVERSAL TRIGGER HELPER
+# ==========================================
+def trigger_notification(title, message, target_user_id=None, target_role=None, target_company=None, related_trip_id=None, source_tag='system', db_client=None):
     """
     Call this function from anywhere in your backend to generate a notification.
     """
     try:
-        # PERF: Keep inserts on the shared connection pool for lower latency under burst load.
-        supabase_client = supabase or _create_supabase_client()
+        # ✅ Prioritize the injected database client to guarantee connection
+        supabase_client = db_client or supabase or _create_supabase_client()
         payload = {
             'title': title,
             'message': message,

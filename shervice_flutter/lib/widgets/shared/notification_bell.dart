@@ -8,6 +8,10 @@ class NotificationBell extends StatefulWidget {
   final String userId;
   final String userName;
   final String companyName;
+  final int iconSize;
+  
+  // Custom callback to handle routing based on notification data
+  final void Function(NotificationEntry)? onNavigate;
 
   const NotificationBell({
     super.key,
@@ -15,7 +19,8 @@ class NotificationBell extends StatefulWidget {
     required this.userId,
     required this.userName,
     this.companyName = 'Internal',
-    required int iconSize,
+    required this.iconSize,
+    this.onNavigate,
   });
 
   @override
@@ -111,10 +116,8 @@ class _NotificationBellState extends State<NotificationBell> {
     }
   }
 
-  Future<void> _markAsRead(
-    NotificationEntry entry, [
-    StateSetter? dialogSetState,
-  ]) async {
+  // Optimistic UI Update: Mark read instantly, then sync with backend
+  Future<void> _markAsRead(NotificationEntry entry, [StateSetter? dialogSetState]) async {
     if (entry.isRead) return;
 
     setState(() => entry.isRead = true);
@@ -130,13 +133,66 @@ class _NotificationBellState extends State<NotificationBell> {
     }
   }
 
-  void _showNotificationDetails(
-    NotificationEntry notification,
-    StateSetter dialogSetState,
-  ) {
+  // Optimistic UI Update: Mark all as read instantly
+  Future<void> _markAllAsRead(StateSetter dialogSetState) async {
+    final unread = _notifications.where((n) => !n.isRead).toList();
+    if (unread.isEmpty) return;
+
+    setState(() {
+      for (var n in unread) {
+        n.isRead = true;
+      }
+    });
+    dialogSetState(() {});
+
+    try {
+      await http.put(
+        Uri.parse('$backendUrl/notifications/read-all'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': widget.userId,
+          'role': widget.role,
+        })
+      );
+    } catch (e) {
+      debugPrint('Failed to sync mark all as read: $e');
+    }
+  }
+
+  // Swipe-to-dismiss deletion with Optimistic UI Update
+  Future<void> _deleteNotification(NotificationEntry entry, StateSetter dialogSetState) async {
+    setState(() {
+      _notifications.removeWhere((n) => n.id == entry.id);
+    });
+    dialogSetState(() {});
+
+    try {
+      await http.delete(
+        Uri.parse('$backendUrl/notifications/${entry.id}'),
+      );
+    } catch (e) {
+      debugPrint('Failed to delete notification: $e');
+    }
+  }
+
+  // Instant Redirection Handler
+  void _handleNotificationTap(NotificationEntry notification, StateSetter dialogSetState) {
+    // 1. Mark as read instantly
     _markAsRead(notification, dialogSetState);
 
+    // 2. If a route is configured, close the panel and navigate immediately
+    if (widget.onNavigate != null) {
+      Navigator.pop(context); // Closes the sliding panel
+      widget.onNavigate!(notification); // Triggers your custom routing logic
+    } else {
+      // 3. Fallback: Only show the popup if no routing is configured for this specific notification
+      _showNotificationDetails(notification, dialogSetState);
+    }
+  }
+
+  void _showNotificationDetails(NotificationEntry notification, StateSetter dialogSetState) {
     final theme = Theme.of(context);
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -188,7 +244,7 @@ class _NotificationBellState extends State<NotificationBell> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text('Dismiss'),
           ),
         ],
       ),
@@ -199,8 +255,8 @@ class _NotificationBellState extends State<NotificationBell> {
     final topPadding = MediaQuery.of(context).padding.top + 8;
     final maxWidth = MediaQuery.of(context).size.width * 0.95;
     final panelWidth = maxWidth > 420 ? 420.0 : maxWidth;
+    final theme = Theme.of(context); // Capture theme BEFORE the dialog opens
 
-    final theme = Theme.of(context);
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -248,10 +304,21 @@ class _NotificationBellState extends State<NotificationBell> {
                                 Expanded(
                                   child: Text(
                                     '${widget.role} Notifications',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.onSurface, // FIXED HEADER COLOR
                                     ),
+                                  ),
+                                ),
+                                Tooltip(
+                                  message: 'Mark all as read',
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.checklist_rtl,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    onPressed: () => _markAllAsRead(dialogSetState),
                                   ),
                                 ),
                                 IconButton(
@@ -269,14 +336,12 @@ class _NotificationBellState extends State<NotificationBell> {
                             const SizedBox(height: 12),
                             Container(
                               decoration: BoxDecoration(
-                                color:
-                                    theme.colorScheme.surfaceContainerHighest,
+                                color: theme.colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: TabBar(
                                 labelColor: theme.colorScheme.primary,
-                                unselectedLabelColor:
-                                    theme.colorScheme.onSurfaceVariant,
+                                unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
                                 indicatorColor: theme.colorScheme.primary,
                                 tabs: const [
                                   Tab(text: 'All'),
@@ -289,12 +354,10 @@ class _NotificationBellState extends State<NotificationBell> {
                             Expanded(
                               child: TabBarView(
                                 children: [
-                                  _buildNotificationTab('all', dialogSetState),
-                                  _buildNotificationTab(
-                                    'unread',
-                                    dialogSetState,
-                                  ),
-                                  _buildNotificationTab('read', dialogSetState),
+                                  // Pass the captured theme down to the tabs
+                                  _buildNotificationTab('all', dialogSetState, theme),
+                                  _buildNotificationTab('unread', dialogSetState, theme),
+                                  _buildNotificationTab('read', dialogSetState, theme),
                                 ],
                               ),
                             ),
@@ -312,7 +375,9 @@ class _NotificationBellState extends State<NotificationBell> {
     );
   }
 
-  Widget _buildNotificationTab(String filter, [StateSetter? dialogSetState]) {
+  Widget _buildNotificationTab(String filter, StateSetter dialogSetState, ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark; 
+
     final items = _notifications.where((item) {
       if (filter == 'all') return true;
       if (filter == 'unread') return !item.isRead;
@@ -324,67 +389,76 @@ class _NotificationBellState extends State<NotificationBell> {
     if (items.isEmpty) {
       return Center(
         child: Text(
-          filter == 'unread'
-              ? 'No unread notifications.'
-              : 'No notifications here.',
-          style: TextStyle(color: Colors.grey.shade600),
+          filter == 'unread' ? 'No unread notifications.' : 'No notifications here.',
+          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
         ),
       );
     }
 
     return ListView.separated(
       itemCount: items.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
+      separatorBuilder: (_, _) => Divider(height: 1, color: theme.dividerColor.withOpacity(0.1)),
       itemBuilder: (context, index) {
         final notification = items[index];
-        return ListTile(
-          onTap: () => _showNotificationDetails(notification, dialogSetState!),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 0,
-            vertical: 4,
+        
+        return Dismissible(
+          key: Key(notification.id),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            color: Colors.red.shade400,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(Icons.delete_outline, color: Colors.white),
           ),
-          leading: CircleAvatar(
-            backgroundColor: notification.isRead
-                ? Colors.grey.shade200
-                : Colors.blue.shade50,
-            child: Icon(
-              notification.isRead
-                  ? Icons.mark_email_read
-                  : Icons.mark_email_unread,
-              color: notification.isRead
-                  ? Colors.grey.shade700
-                  : Colors.blue.shade700,
-              size: 18,
-            ),
-          ),
-          title: Text(
-            notification.title,
-            style: TextStyle(
-              fontWeight: notification.isRead
-                  ? FontWeight.normal
-                  : FontWeight.bold,
-              color: notification.isRead ? Colors.grey.shade800 : Colors.black,
-            ),
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                notification.message,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.grey.shade600),
+          onDismissed: (_) => _deleteNotification(notification, dialogSetState),
+          child: ListTile(
+            onTap: () => _handleNotificationTap(notification, dialogSetState),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+            leading: CircleAvatar(
+              backgroundColor: notification.isRead
+                  ? (isDark ? Colors.grey.shade800 : Colors.grey.shade200)
+                  : (isDark ? Colors.blue.shade900.withOpacity(0.5) : Colors.blue.shade50),
+              child: Icon(
+                notification.isRead ? Icons.mark_email_read : Icons.mark_email_unread,
+                color: notification.isRead 
+                    ? (isDark ? Colors.grey.shade400 : Colors.grey.shade700) 
+                    : (isDark ? Colors.blue.shade200 : Colors.blue.shade700),
+                size: 18,
               ),
-              const SizedBox(height: 4),
-              Text(
-                notification.sourceTag,
-                style: TextStyle(color: Colors.blue.shade700, fontSize: 12),
+            ),
+            title: Text(
+              notification.title,
+              style: TextStyle(
+                fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                // STRICT OVERRIDE: Force text to match the surface contrast
+                color: notification.isRead 
+                    ? theme.colorScheme.onSurfaceVariant 
+                    : theme.colorScheme.onSurface,
               ),
-            ],
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  notification.message,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  notification.sourceTag,
+                  style: TextStyle(
+                    color: isDark ? Colors.blue.shade300 : Colors.blue.shade700, 
+                    fontSize: 12
+                  ),
+                ),
+              ],
+            ),
+            tileColor: notification.isRead 
+                ? Colors.transparent 
+                : (isDark ? Colors.blue.withOpacity(0.15) : Colors.blue.shade50.withOpacity(0.5)),
           ),
-          tileColor: notification.isRead
-              ? Colors.transparent
-              : Colors.blue.shade50.withAlpha(38),
         );
       },
     );
@@ -400,11 +474,11 @@ class _NotificationBellState extends State<NotificationBell> {
         clipBehavior: Clip.none,
         children: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.notifications_none,
               color: Colors.grey,
-              size: 32,
-            ), // 👈 enlarged
+              size: widget.iconSize.toDouble(),
+            ),
             onPressed: _showNotificationPanel,
           ),
           if (unreadCount > 0)
