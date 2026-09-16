@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
+from .notifs import trigger_notification
 
 schedules_bp = Blueprint('schedules', __name__)
 supabase = None  
@@ -30,12 +31,31 @@ def manage_schedule_blackouts():
             data = request.get_json() or {}
             blackout_date = data.get('blackout_date')
             reason = str(data.get('reason') or '').strip()
+            
             if not blackout_date or not reason:
                 return jsonify({"success": False, "message": "Date and reason are required."}), 400
+                
             result = supabase.table('schedule_blackout').upsert({
                 'blackout_date': blackout_date,
                 'reason': reason
             }, on_conflict='blackout_date').execute()
+            
+            # ✅ TRIGGER NOTIFICATION FOR BLOCKED DATE
+            message = (
+                f"A schedule blackout has been applied for {blackout_date}.\n\n"
+                f"Reason: {reason}"
+            )
+
+            roles_to_notify = ["admin", "staff", "oic"]
+            for target_role in roles_to_notify:
+                trigger_notification(
+                    title="Date Blocked",
+                    message=message,
+                    target_role=target_role,
+                    source_tag="schedule",
+                    db_client=supabase
+                )
+
             return jsonify({"success": True, "data": result.data or []}), 201
 
         result = supabase.table('schedule_blackout').select(
