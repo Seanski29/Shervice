@@ -836,6 +836,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                   }).toList(),
                 ),
                 const SizedBox(height: 8),
+                // 🔥 Replaced GridView.builder entirely for Staff
                 GridView.builder(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 7,
@@ -856,7 +857,10 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                     );
                     final trips = _getTripsForDate(date);
                     final hasTrips = trips.isNotEmpty;
+
+                    // Fetch blackout info
                     final blackout = _blackoutForDate(date);
+                    final isBlocked = blackout != null;
 
                     final isSelected =
                         _selectedDate != null &&
@@ -870,6 +874,21 @@ class _StaffSchedulesState extends State<StaffSchedules> {
 
                     return GestureDetector(
                       onTap: () {
+                        // Display reason for block to staff
+                        if (isBlocked) {
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Blocked Reason: ${blackout['reason']}',
+                              ),
+                              backgroundColor: const Color(0xFFEF4444),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        }
+
                         setState(() {
                           _selectedDate = isSelected ? null : date;
                         });
@@ -878,7 +897,7 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? const Color(0xFF3B82F6)
-                              : (blackout != null
+                              : (isBlocked
                                     ? const Color(0xFFFEE2E2)
                                     : (hasTrips
                                           ? (isDark
@@ -892,6 +911,8 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                           border: Border.all(
                             color: isToday
                                 ? const Color(0xFFF59E0B)
+                                : isBlocked
+                                ? const Color(0xFFEF4444)
                                 : (isSelected
                                       ? const Color(0xFF3B82F6)
                                       : borderColor),
@@ -909,6 +930,8 @@ class _StaffSchedulesState extends State<StaffSchedules> {
                                   : FontWeight.w500,
                               color: isSelected
                                   ? Colors.white
+                                  : isBlocked
+                                  ? const Color(0xFFEF4444)
                                   : (hasTrips
                                         ? const Color(0xFF3B82F6)
                                         : (isDark

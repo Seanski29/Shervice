@@ -20,6 +20,7 @@ class _OicSchedulesState extends State<OicSchedules> {
   bool _isLoading = true;
   bool _isRefreshing = false;
   List<dynamic> _myTrips = [];
+  List<dynamic> _blackouts = []; // 🔥 Store blocked dates
 
   // Calendar State
   DateTime _focusedMonth = DateTime.now();
@@ -56,17 +57,29 @@ class _OicSchedulesState extends State<OicSchedules> {
     });
 
     try {
+      // 1. Fetch Trips
       final response = await http.get(
         Uri.parse('$backendUrl/schedules/oic/${widget.oicId}'),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && mounted) {
-          setState(() {
-            _myTrips = data['data'] ?? [];
-            _currentPage = 0;
-          });
+          _myTrips = data['data'] ?? [];
         }
+      }
+
+      // 2. 🔥 Fetch Blackout Dates
+      final blackoutRes = await http.get(
+        Uri.parse('$backendUrl/schedules/blackouts'),
+      );
+      if (blackoutRes.statusCode == 200 && mounted) {
+        _blackouts = jsonDecode(blackoutRes.body)['data'] ?? [];
+      }
+
+      if (mounted) {
+        setState(() {
+          _currentPage = 0;
+        });
       }
     } catch (e) {
       debugPrint("Fetch Error: $e");
@@ -80,13 +93,25 @@ class _OicSchedulesState extends State<OicSchedules> {
     }
   }
 
+  // 🔥 Replaced _isDateBlocked with this to fetch the actual reason
+  dynamic _blackoutForDate(DateTime date) {
+    final dateString =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    for (final blackout in _blackouts) {
+      if (blackout['blackout_date'] == dateString) return blackout;
+    }
+    return null;
+  }
+
   // --- Modals ---
   void _showNewScheduleModal(BuildContext context) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) =>
-          CreateTripRequestDialog(oicId: widget.oicId),
+      builder: (BuildContext context) => CreateTripRequestDialog(
+        oicId: widget.oicId,
+        blackouts: _blackouts, // Pass blackouts to block dates
+      ),
     ).then((_) {
       if (mounted) {
         _fetchMyTrips();
@@ -98,8 +123,11 @@ class _OicSchedulesState extends State<OicSchedules> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) =>
-          EditTripRequestDialog(trip: trip, backendUrl: backendUrl),
+      builder: (BuildContext context) => EditTripRequestDialog(
+        trip: trip,
+        backendUrl: backendUrl,
+        blackouts: _blackouts, // Pass blackouts to block dates
+      ),
     ).then((_) {
       if (mounted) {
         _fetchMyTrips();
@@ -811,6 +839,10 @@ class _OicSchedulesState extends State<OicSchedules> {
                     final trips = _schedulesForDate(date);
                     final hasTrips = trips.isNotEmpty;
 
+                    // 🔥 Fetch blackout info
+                    final blackout = _blackoutForDate(date);
+                    final isBlocked = blackout != null;
+
                     final isSelected =
                         _selectedDate?.year == date.year &&
                         _selectedDate?.month == date.month &&
@@ -823,8 +855,22 @@ class _OicSchedulesState extends State<OicSchedules> {
 
                     return GestureDetector(
                       onTap: () {
+                        // 🔥 Show the block reason if the date is blocked
+                        if (isBlocked) {
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Date Blocked: ${blackout['reason']}',
+                              ),
+                              backgroundColor: const Color(0xFFEF4444),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        }
+
                         setState(() {
-                          // Toggle date filter on and off
                           if (isSelected) {
                             _selectedDate = null;
                           } else {
@@ -836,7 +882,9 @@ class _OicSchedulesState extends State<OicSchedules> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFF3B82F6) // Active Blue
+                              ? const Color(0xFF3B82F6)
+                              : isBlocked
+                              ? const Color(0xFFFEE2E2) // Red bg for blocked
                               : (hasTrips
                                     ? (isDark
                                           ? Colors.blue.withValues(alpha: 0.2)
@@ -844,9 +892,9 @@ class _OicSchedulesState extends State<OicSchedules> {
                                     : Theme.of(context).cardColor),
                           border: Border.all(
                             color: isToday
-                                ? const Color(
-                                    0xFFF59E0B,
-                                  ) // Amber border for today
+                                ? const Color(0xFFF59E0B)
+                                : isBlocked
+                                ? const Color(0xFFEF4444) // Red border
                                 : (isSelected
                                       ? const Color(0xFF3B82F6)
                                       : borderColor),
@@ -864,6 +912,8 @@ class _OicSchedulesState extends State<OicSchedules> {
                                   : FontWeight.w500,
                               color: isSelected
                                   ? Colors.white
+                                  : isBlocked
+                                  ? const Color(0xFFEF4444) // Red text
                                   : (hasTrips
                                         ? const Color(0xFF3B82F6)
                                         : (isDark
@@ -1167,8 +1217,13 @@ class _OicSchedulesState extends State<OicSchedules> {
 // ─── CREATE TRIP REQUEST DIALOG ───
 class CreateTripRequestDialog extends StatefulWidget {
   final String oicId;
+  final List<dynamic> blackouts; // 🔥 Added to block dates
 
-  const CreateTripRequestDialog({super.key, required this.oicId});
+  const CreateTripRequestDialog({
+    super.key,
+    required this.oicId,
+    required this.blackouts,
+  });
 
   @override
   State<CreateTripRequestDialog> createState() =>
@@ -1482,6 +1537,14 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
                             ),
                             firstDate: DateTime.now(),
                             lastDate: DateTime(2030),
+                            // 🔥 PREVENT SELECTING BLOCKED DATES
+                            selectableDayPredicate: (DateTime val) {
+                              final dateStr =
+                                  '${val.year}-${val.month.toString().padLeft(2, '0')}-${val.day.toString().padLeft(2, '0')}';
+                              return !widget.blackouts.any(
+                                (b) => b['blackout_date'] == dateStr,
+                              );
+                            },
                           );
                           if (picked != null)
                             setState(() => _selectedDate = picked);
@@ -1642,11 +1705,13 @@ class _CreateTripRequestDialogState extends State<CreateTripRequestDialog> {
 class EditTripRequestDialog extends StatefulWidget {
   final Map<String, dynamic> trip;
   final String backendUrl;
+  final List<dynamic> blackouts; // 🔥 Added to block dates
 
   const EditTripRequestDialog({
     super.key,
     required this.trip,
     required this.backendUrl,
+    required this.blackouts,
   });
 
   @override
@@ -1917,6 +1982,14 @@ class _EditTripRequestDialogState extends State<EditTripRequestDialog> {
                                 DateTime.now().add(const Duration(days: 1)),
                             firstDate: DateTime.now(),
                             lastDate: DateTime(2030),
+                            // 🔥 PREVENT SELECTING BLOCKED DATES
+                            selectableDayPredicate: (DateTime val) {
+                              final dateStr =
+                                  '${val.year}-${val.month.toString().padLeft(2, '0')}-${val.day.toString().padLeft(2, '0')}';
+                              return !widget.blackouts.any(
+                                (b) => b['blackout_date'] == dateStr,
+                              );
+                            },
                           );
                           if (picked != null)
                             setState(() => _selectedDate = picked);
